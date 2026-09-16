@@ -24,6 +24,21 @@ recipes:
       free -m 2>/dev/null | awk '/^Mem:/{printf "mem_total_mb=%s\nmem_used_mb=%s\n", $2, $3}'
       df -m / 2>/dev/null | awk 'NR==2{printf "disk_total_mb=%s\ndisk_used_mb=%s\ndisk_pct=%s\n", $2, $3, $5}'
       printf 'uptime_s=%s\n' "$(cut -d. -f1 /proc/uptime 2>/dev/null || echo 0)"
+      # —— 「基础配置」表单要用的当前状态 ——
+      printf 'timezone=%s\n' "$(timedatectl show -p Timezone --value 2>/dev/null || cat /etc/timezone 2>/dev/null)"
+      free -m 2>/dev/null | awk '/^Swap:/{printf "swap_total_mb=%s\nswap_used_mb=%s\n", $2, $3}'
+      printf 'congestion=%s\n' "$(sysctl -n net.ipv4.tcp_congestion_control 2>/dev/null)"
+      if has_cmd fail2ban-client && svc_active fail2ban; then printf 'fail2ban=1\n'; else printf 'fail2ban=0\n'; fi
+      if [ -f /etc/apt/apt.conf.d/20auto-upgrades ] && grep -q 'Unattended-Upgrade "1"' /etc/apt/apt.conf.d/20auto-upgrades 2>/dev/null; then
+        printf 'auto_updates=1\n'
+      else
+        printf 'auto_updates=0\n'
+      fi
+      miss=0
+      for c in curl wget git vim htop tmux unzip tar ncdu; do
+        has_cmd "$c" || miss=$((miss + 1))
+      done
+      printf 'tools_missing=%s\n' "$miss"
 
   - id: sysinfo
     kind: query

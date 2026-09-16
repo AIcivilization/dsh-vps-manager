@@ -261,3 +261,14 @@ test('没有 verify 的菜谱，验证接口如实说明', async () => {
   assert.equal(res.body.ok, true)
   assert.match(res.body.hint, /没有写 verify/)
 })
+
+test('快捷查询路由只收查询类菜谱，且局域网只读模式下照常可用', async () => {
+  const { call } = await sandbox({ lan: true })
+  const ok = await call('recipes/query', { id: 'health', alias: 'hk' })
+  assert.equal(ok.body.ok, true, JSON.stringify(ok.body))
+  assert.match(ok.body.output, /内存|磁盘/)
+
+  const refused = await call('recipes/query', { id: 'install-docker', alias: 'hk' })
+  assert.equal(refused.body.ok, false)
+  assert.match(refused.body.error, /不是查询类菜谱/)
+})
