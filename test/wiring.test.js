@@ -200,7 +200,7 @@ test('开关关着时命令不执行；绑定后才有默认机器（用户实�
   // 没打开开关：即使 hosts.yml 里有「当前机器」，也不许拿它当默认
   const denied = await ping.handler(inv)
   assert.equal(denied.kind, 'error')
-  assert.match(denied.text, /没有打开 VPS 开关/)
+  assert.match(denied.text, /未开 VPS 开关/)
   assert.match(denied.text, /-h/)
 
   // 显式 -h 仍然随时可用
@@ -219,7 +219,7 @@ test('开关关着时命令不执行；绑定后才有默认机器（用户实�
   assert.equal(off.kind, 'success')
   const afterOff = await ping.handler(inv)
   assert.equal(afterOff.kind, 'error')
-  assert.match(afterOff.text, /没有打开 VPS 开关/)
+  assert.match(afterOff.text, /未开 VPS 开关/)
 })
 
 test('别的对话不受影响：绑定是会话级的', async () => {
@@ -250,4 +250,29 @@ test('AI 工具同样受开关约束：没绑定又没写 host 就报错', async
   // 写了 host 就照常
   const ok = await exec.execute({ host: 'hk', script: 'echo hi', intent: 'read' }, { agent: { session: { id: 'sess-none' } }, callId: 'c2' })
   assert.equal(ok.ok, true, ok.hint)
+})
+
+test('提示的第一行必须自带答案（DSH 只显示第一行）', async () => {
+  const { env, runner } = await sandbox()
+  const registered = []
+  registerCommands({ commands: { register: (d) => { registered.push(d); return () => {} } } }, { env, runner })
+  const inv = { rawInput: '', agent: { session: { id: 'sess-msg' } } }
+  const firstLine = (res) => res.text.split('\n')[0]
+
+  // 没开开关：第一行就要说清怎么办，不能被「三选一：」这类铺垫占掉
+  const denied = firstLine(await registered.find((c) => c.name === 'vps-ping').handler(inv))
+  assert.match(denied, /未开 VPS 开关/)
+  assert.match(denied, /-h hk/, '第一行要给出可直接照抄的办法')
+  assert.ok(denied.length <= 45, `第一行太长会被截断：${denied.length} 字`)
+
+  // 绑定成功：第一行是结果，不是套话
+  const bound = firstLine(await registered.find((c) => c.name === 'vps-use').handler({ ...inv, rawInput: 'hk' }))
+  assert.match(bound, /^已绑定 hk/)
+
+  // 高危拦截（绑定之后才轮得到它判）：第一行要说清拦了什么、怎么确认
+  const dangerRes = await registered.find((c) => c.name === 'vps-sh').handler({ ...inv, rawInput: 'rm -rf /tmp/x' })
+  const danger = dangerRes.text.split('\n')
+  assert.match(danger[0], /高危已拦下/)
+  assert.match(danger[0], /删除文件/)
+  assert.match(danger[1], /--yes rm -rf \/tmp\/x/, '第二行给可直接照抄的重发命令')
 })
