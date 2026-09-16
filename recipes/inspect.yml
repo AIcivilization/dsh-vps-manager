@@ -1,0 +1,184 @@
+schema: 1
+recipes:
+  - id: ip-info
+    kind: query
+    name: 出口 IP 与归属
+    desc: 公网出口 IP、运营商、地理位置、反向解析
+    tags: [网络, 基础]
+    timeout: 30
+    run: |
+      ip=$(curl -fsS --max-time 8 https://api.ipify.org 2>/dev/null)
+      [ -n "$ip" ] || ip=$(curl -fsS --max-time 8 https://ifconfig.me 2>/dev/null)
+      if [ -z "$ip" ]; then
+        echo "取不到公网 IP（出网可能受限）"
+        exit 0
+      fi
+      info=$(curl -fsS --max-time 8 "https://ipinfo.io/$ip/json" 2>/dev/null)
+      field() { printf '%s' "$info" | sed -n "s/.*\"$1\": *\"\\([^\"]*\\)\".*/\\1/p" | head -1; }
+      org=$(field org)
+      city=$(field city)
+      region=$(field region)
+      country=$(field country)
+      printf '%s · %s · %s\n\n' "$ip" "${country:-?}${region:+/$region}${city:+/$city}" "${org:-运营商未知}"
+      printf '出口 IP  : %s\n' "$ip"
+      printf '归属     : %s %s %s\n' "${country:-?}" "${region:-}" "${city:-}"
+      printf '运营商   : %s\n' "${org:-未知}"
+      printf '反向解析 : %s\n' "$(getent hosts "$ip" 2>/dev/null | awk '{print $2}' | head -1)"
+      v6=$(curl -fsS --max-time 5 https://api6.ipify.org 2>/dev/null)
+      printf 'IPv6     : %s\n' "${v6:-无 / 不可用}"
+
+  - id: top-procs
+    kind: query
+    name: 占资源最多的进程
+    desc: CPU 和内存占用前 10 的进程
+    tags: [基础, 排查]
+    timeout: 30
+    run: |
+      load=$(cut -d' ' -f1-3 /proc/loadavg 2>/dev/null)
+      printf '负载 %s · 进程数 %s\n\n' "${load:-?}" "$(ps -e 2>/dev/null | tail -n +2 | wc -l | tr -d ' ')"
+      if ps -eo pid,comm,pcpu,pmem --sort=-pcpu >/dev/null 2>&1; then
+        echo "== CPU 前 10 =="
+        ps -eo pid,comm,pcpu,pmem --sort=-pcpu 2>/dev/null | head -11
+        echo
+        echo "== 内存前 10 =="
+        ps -eo pid,comm,pcpu,pmem,rss --sort=-pmem 2>/dev/null | head -11
+      else
+        top -bn1 2>/dev/null | head -20
+      fi
+
+  - id: cron-list
+    kind: query
+    name: 定时任务
+    desc: crontab、/etc/cron.d 与 systemd 定时器
+    tags: [排查]
+    timeout: 30
+    run: |
+      n=$($SUDO_OPT crontab -l 2>/dev/null | grep -cvE '^\s*(#|$)' || echo 0)
+      t=$(systemctl list-timers --no-pager --no-legend 2>/dev/null | wc -l | tr -d ' ')
+      printf 'crontab %s 条 · systemd 定时器 %s 个\n\n' "${n:-0}" "${t:-0}"
+      echo "== 当前用户 crontab =="
+      $SUDO_OPT crontab -l 2>/dev/null | grep -vE '^\s*#' || echo "（空）"
+      echo
+      echo "== /etc/cron.d =="
+      ls -1 /etc/cron.d 2>/dev/null || echo "（空）"
+      echo
+      echo "== systemd 定时器（最近触发）=="
+      systemctl list-timers --no-pager 2>/dev/null | head -12
+
+  - id: cert-expiry
+    kind: query
+    name: 证书到期检查
+    desc: Let's Encrypt 证书剩余天数
+    tags: [web, 安全]
+    timeout: 60
+    run: |
+      soon=999
+      count=0
+      out=""
+      for d in /etc/letsencrypt/live/*/; do
+        [ -d "$d" ] || continue
+        cert="$d/fullchain.pem"
+        [ -f "$cert" ] || cert="$d/cert.pem"
+        [ -f "$cert" ] || continue
+        count=$((count + 1))
+        name=$(basename "$d")
+        end=$($SUDO_OPT openssl x509 -enddate -noout -in "$cert" 2>/dev/null | cut -d= -f2)
+        days=""
+        if [ -n "$end" ]; then
+          endts=$(date -d "$end" +%s 2>/dev/null || echo "")
+          if [ -n "$endts" ]; then
+            days=$(( (endts - $(date +%s)) / 86400 ))
+            [ "$days" -lt "$soon" ] && soon=$days
+          fi
+        fi
+        out="$out$(printf '%-34s %s%s\n' "$name" "${end:-读取失败}" "${days:+   剩 $days 天}")
+      "
+      done
+      if [ "$count" = 0 ]; then
+        echo "没有找到 Let's Encrypt 证书（/etc/letsencrypt/live 为空）"
+        echo
+        echo "如果证书由 Caddy、Docker 容器或面板管理，它们通常自动续期，不在这个目录下"
+        exit 0
+      fi
+      if [ "$soon" = 999 ]; then
+        printf '%s 张证书\n\n' "$count"
+      else
+        printf '%s 张证书 · 最近一张还有 %s 天到期\n\n' "$count" "$soon"
+      fi
+      printf '%s' "$out"
+
+  - id: firewall-status
+    kind: query
+    name: 防火墙状态
+    desc: 当前生效的防火墙与规则概览（只看不改）
+    tags: [安全, 网络]
+    timeout: 30
+    run: |
+      if has_cmd ufw && $SUDO_OPT ufw status 2>/dev/null | grep -qi status; then
+        state=$($SUDO_OPT ufw status 2>/dev/null | head -1)
+        rules=$($SUDO_OPT ufw status numbered 2>/dev/null | grep -c '^\[')
+        printf 'ufw · %s · 规则 %s 条\n\n' "${state#Status: }" "${rules:-0}"
+        $SUDO_OPT ufw status verbose 2>/dev/null
+      elif has_cmd nft && [ -n "$($SUDO_OPT nft list ruleset 2>/dev/null)" ]; then
+        rules=$($SUDO_OPT nft list ruleset 2>/dev/null | grep -c .)
+        printf 'nftables · 规则行 %s\n\n' "${rules:-0}"
+        $SUDO_OPT nft list ruleset 2>/dev/null | head -40
+      elif has_cmd iptables; then
+        rules=$($SUDO_OPT iptables -S 2>/dev/null | grep -c '^-A')
+        policy=$($SUDO_OPT iptables -S 2>/dev/null | grep '^-P INPUT' | awk '{print $3}')
+        printf 'iptables · INPUT 默认 %s · 规则 %s 条\n\n' "${policy:-?}" "${rules:-0}"
+        $SUDO_OPT iptables -S 2>/dev/null | head -40
+      else
+        echo "没有检测到 ufw / nftables / iptables"
+      fi
+
+  - id: updates
+    kind: query
+    name: 可升级的包
+    desc: 有哪些包可以升级（只查，不动系统，也不刷新软件源）
+    tags: [维护]
+    timeout: 60
+    run: |
+      case "$PKG" in
+        apt)
+          list=$(apt list --upgradable 2>/dev/null | tail -n +2)
+          n=$(printf '%s' "$list" | grep -c . || echo 0)
+          sec=$(printf '%s' "$list" | grep -ci security || echo 0)
+          printf '可升级 %s 个包（其中安全更新 %s 个）\n\n' "$n" "$sec"
+          printf '%s\n' "$list" | head -40
+          ;;
+        dnf|yum)
+          list=$($PKG check-update 2>/dev/null | grep -E '^[a-zA-Z0-9]' || true)
+          printf '可升级 %s 个包\n\n' "$(printf '%s' "$list" | grep -c . || echo 0)"
+          printf '%s\n' "$list" | head -40
+          ;;
+        apk)
+          list=$(apk version -l '<' 2>/dev/null | tail -n +2)
+          printf '可升级 %s 个包\n\n' "$(printf '%s' "$list" | grep -c . || echo 0)"
+          printf '%s\n' "$list" | head -40
+          ;;
+        *)
+          echo "这个包管理器（$PKG）还没做可升级查询"
+          ;;
+      esac
+      echo
+      echo "（要真的升级，用菜谱 system-update）"
+
+  - id: login-history
+    kind: query
+    name: 登录记录
+    desc: 最近登录成功与失败的尝试（看有没有人在爆破）
+    tags: [安全]
+    timeout: 30
+    run: |
+      fails=$($SUDO_OPT lastb -n 500 2>/dev/null | grep -cvE '^(btmp begins|$)' || echo 0)
+      oks=$($SUDO_OPT last -n 50 2>/dev/null | grep -cvE '^(wtmp begins|reboot |$)' || echo 0)
+      printf '最近成功登录 %s 条 · 失败尝试 %s 条（最多统计 500）\n\n' "$oks" "$fails"
+      echo "== 最近成功登录 =="
+      $SUDO_OPT last -n 10 2>/dev/null | head -10 || echo "（读不到 wtmp）"
+      echo
+      echo "== 最近失败尝试 =="
+      $SUDO_OPT lastb -n 10 2>/dev/null | head -10 || echo "（读不到 btmp，可能需要 root）"
+      echo
+      echo "== 当前在线 =="
+      who 2>/dev/null || echo "（无）"

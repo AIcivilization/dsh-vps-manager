@@ -120,7 +120,7 @@ Three protections come with it:
 
 ## Recipes
 
-12 built-in recipes ship today: 9 queries plus install Docker, install Nginx, enable BBR. Each install recipe has `detect` (is it already there), `plan` (what it will do, in plain language), `run` (idempotent) and `verify` (**prove it works** — `docker info`, not `docker --version`).
+29 built-in recipes ship today: 16 read-only queries plus 13 install/config recipes (Docker, Nginx, BBR, system update, cleanup, common CLI tools, swap, timezone, automatic security updates, fail2ban, Portainer, Uptime Kuma, Nginx Proxy Manager). Each install recipe has `detect` (is it already there), `plan` (what it will do, in plain language), `run` (idempotent) and `verify` (**prove it works** — `docker info`, not `docker --version`).
 
 Add your own two ways:
 
@@ -175,7 +175,7 @@ npm install
 npm test
 ```
 
-92 tests, no server required: local `sh -s` stands in for a remote `sshd`, which is enough to exercise the payload protocol, task lifecycle, locking, backup/restore, tier classification, panel routes and panel rendering.
+99 tests, no server required: local `sh -s` stands in for a remote `sshd`, which is enough to exercise the payload protocol, task lifecycle, locking, backup/restore, tier classification, panel routes and panel rendering.
 
 ---
 

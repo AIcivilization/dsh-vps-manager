@@ -134,7 +134,7 @@ test('detect 说不清时停下来问人，不猜着装', async () => {
     id: 'my-unknown',
     kind: 'install',
     name: '检测不明',
-    detect: 'exit 3',
+    detect: 'exit 127',
     run: 'echo 不该执行到这里',
     verify: 'true',
   })
@@ -180,4 +180,16 @@ test('系统不适用时提前拦下', async () => {
   const res = await runRecipe({ recipe, alias: 'hk', runner: async () => ({ stdout: '', stderr: '', exitCode: 0 }), env, facts: { osFamily: 'alpine', osId: 'alpine' } })
   assert.equal(res.status, STATUS.requiresUnmet)
   assert.match(res.hint, /不支持 alpine/)
+})
+
+test('detect 把服务「未运行」这类退出码当作未装，不当成说不清', async () => {
+  const { env, runner } = await sandbox()
+  // systemctl is-active 对未运行的服务返回 3
+  const r3 = validateRecipe({ id: 'my-exit3', kind: 'install', name: 'x', detect: 'exit 3', run: 'echo x', verify: 'true' })
+  const res3 = await runRecipe({ recipe: r3, alias: 'hk', runner, env })
+  assert.equal(res3.detect, 'absent')
+  // 命令找不到（127）仍然是说不清：可能是脚本写错了
+  const r127 = validateRecipe({ id: 'my-exit127', kind: 'install', name: 'x', detect: 'exit 127', run: 'echo x', verify: 'true' })
+  const res127 = await runRecipe({ recipe: r127, alias: 'hk', runner, env })
+  assert.equal(res127.detect, 'unknown')
 })

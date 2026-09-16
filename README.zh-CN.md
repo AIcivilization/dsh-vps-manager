@@ -120,7 +120,7 @@ ln -s "$PWD" ~/.dsh/profiles/desktop/node_modules/dsh-vps-manager
 
 ## 菜谱
 
-目前内置 12 条：9 条查询，外加装 Docker、装 Nginx、开 BBR。每条安装类菜谱都有 `detect`（装没装）、`plan`（给人看的步骤）、`run`（可重复执行）和 `verify`（**证明能用**——`docker info` 而不是 `docker --version`）。
+目前内置 29 条：16 条只读查询，13 条安装 / 配置（Docker、Nginx、BBR、系统更新、系统清理、常用命令行工具、虚拟内存、时区、自动安全更新、fail2ban、Portainer、Uptime Kuma、Nginx Proxy Manager）。每条安装类菜谱都有 `detect`（装没装）、`plan`（给人看的步骤）、`run`（可重复执行）和 `verify`（**证明能用**——`docker info` 而不是 `docker --version`）。
 
 自己加菜谱有两条路：
 
@@ -175,7 +175,7 @@ npm install
 npm test
 ```
 
-92 个测试，不需要真机：本机 `sh -s` 冒充远端 `sshd`，足以覆盖载荷协议、任务生命周期、并发锁、备份还原、档位判定、面板路由与面板渲染。
+99 个测试，不需要真机：本机 `sh -s` 冒充远端 `sshd`，足以覆盖载荷协议、任务生命周期、并发锁、备份还原、档位判定、面板路由与面板渲染。
 
 ---
 

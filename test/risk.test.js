@@ -139,3 +139,21 @@ test('maxTier 取更严的那个', () => {
   assert.equal(maxTier('danger', 'read'), 'danger')
   assert.equal(maxTier('read', 'read'), 'read')
 })
+
+test('配置文件里提到 reboot 不算高危，真的执行 reboot 才算', () => {
+  // 假阳性：菜谱写「不要自动重启」的配置
+  assert.equal(tier('printf \'Unattended-Upgrade::Automatic-Reboot "false";\\n\' | tee /etc/apt/apt.conf.d/99-x'), 'change')
+  assert.equal(tier('grep -q Automatic-Reboot /etc/apt/apt.conf.d/20auto-upgrades'), 'read')
+  // 真的要重启
+  for (const s of ['reboot', 'sudo reboot', 'apt-get install -y x && reboot', 'systemctl stop nginx; poweroff', 'shutdown -h now']) {
+    assert.equal(tier(s), 'danger', s)
+  }
+})
+
+test('只是提到防火墙或 reboot 字样不算高危（命令位置才算）', () => {
+  assert.equal(tier('has_cmd iptables && echo yes'), 'read', '检查工具是否存在不是改防火墙')
+  assert.equal(tier("last -n 50 | grep -cvE '^(wtmp begins|reboot |$)'"), 'read', 'grep 模式里的 reboot 不是重启')
+  assert.equal(tier('$SUDO_OPT nft list ruleset'), 'read')
+  assert.equal(tier('$SUDO nft add rule inet filter input drop'), 'danger')
+  assert.equal(tier('$SUDO ufw allow 22/tcp'), 'danger')
+})

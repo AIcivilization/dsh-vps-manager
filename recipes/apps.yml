@@ -1,0 +1,158 @@
+schema: 1
+recipes:
+  - id: install-portainer
+    kind: install
+    name: Portainer（Docker 图形管理）
+    desc: 用浏览器管容器、镜像、卷和网络
+    tags: [docker, 面板, 常用]
+    risk: change
+    timeout: 900
+    requires:
+      privilege: root
+    params:
+      - name: port
+        desc: 网页端口（默认 9443，HTTPS）
+        pattern: '[0-9]{2,5}'
+        default: '9443'
+    detect: |
+      has_cmd docker || exit 2
+      $SUDO_OPT docker ps -a --format '{{.Names}}' 2>/dev/null | grep -qx portainer
+    plan: |
+      1. 确认 Docker 可用、端口没被别人占
+      2. 建数据卷 portainer_data
+      3. 起容器：--restart=always，挂载 Docker socket，映射网页端口
+      4. 验证容器在运行且端口真的监听
+      说明：挂载 Docker socket 等于把 Docker 的完全控制权交给这个容器，请只开给自己访问
+    run: |
+      need_root
+      has_cmd docker || not_supported "这台机器还没装 Docker，先跑 install-docker"
+      if $SUDO docker ps -a --format '{{.Names}}' | grep -qx portainer; then
+        echo "容器已存在，直接启动"
+        $SUDO docker start portainer >/dev/null
+        exit 0
+      fi
+      port_listening "$P_PORT" && not_supported "端口 $P_PORT 已被占用，换一个端口再试"
+      $SUDO docker volume create portainer_data >/dev/null
+      $SUDO docker run -d \
+        --name portainer \
+        --restart=always \
+        -p "$P_PORT:9443" \
+        -v /var/run/docker.sock:/var/run/docker.sock \
+        -v portainer_data:/data \
+        portainer/portainer-ce:latest >/dev/null
+      sleep 3
+    verify: |
+      $SUDO_OPT docker ps --filter name=portainer --format '{{.Names}} {{.Status}}' | grep -q portainer \
+        || { echo "容器没有在运行" >&2; exit 1; }
+      port_listening "$P_PORT" || { echo "端口 $P_PORT 没有监听" >&2; exit 1; }
+      echo "Portainer 运行中，访问 https://<服务器IP>:$P_PORT （首次打开要在几分钟内设置管理员密码）"
+
+  - id: install-uptime-kuma
+    kind: install
+    name: Uptime Kuma（网站/服务监控）
+    desc: 监控网站和端口是否可用，掉线时告警
+    tags: [监控, 常用]
+    risk: change
+    timeout: 900
+    requires:
+      privilege: root
+    params:
+      - name: port
+        desc: 网页端口（默认 3001）
+        pattern: '[0-9]{2,5}'
+        default: '3001'
+      - name: data_dir
+        desc: 数据目录（默认 /opt/uptime-kuma）
+        pattern: '/[A-Za-z0-9._/-]{2,100}'
+        default: '/opt/uptime-kuma'
+    detect: |
+      has_cmd docker || exit 2
+      $SUDO_OPT docker ps -a --format '{{.Names}}' 2>/dev/null | grep -qx uptime-kuma
+    plan: |
+      1. 确认 Docker 可用、端口空闲
+      2. 建数据目录（默认 /opt/uptime-kuma，升级容器时数据不丢）
+      3. 起容器：--restart=always，映射网页端口
+      4. 验证容器在运行、端口监听、网页能返回
+    run: |
+      need_root
+      has_cmd docker || not_supported "这台机器还没装 Docker，先跑 install-docker"
+      if $SUDO docker ps -a --format '{{.Names}}' | grep -qx uptime-kuma; then
+        echo "容器已存在，直接启动"
+        $SUDO docker start uptime-kuma >/dev/null
+        exit 0
+      fi
+      port_listening "$P_PORT" && not_supported "端口 $P_PORT 已被占用，换一个端口再试"
+      $SUDO mkdir -p "$P_DATA_DIR"
+      $SUDO docker run -d \
+        --name uptime-kuma \
+        --restart=always \
+        -p "$P_PORT:3001" \
+        -v "$P_DATA_DIR:/app/data" \
+        louislam/uptime-kuma:1 >/dev/null
+      sleep 5
+    verify: |
+      $SUDO_OPT docker ps --filter name=uptime-kuma --format '{{.Names}} {{.Status}}' | grep -q uptime-kuma \
+        || { echo "容器没有在运行" >&2; exit 1; }
+      port_listening "$P_PORT" || { echo "端口 $P_PORT 没有监听" >&2; exit 1; }
+      code=$(curl -fsS -o /dev/null -w '%{http_code}' --max-time 8 "http://127.0.0.1:$P_PORT" 2>/dev/null || echo 000)
+      echo "本地 HTTP 返回码：$code"
+      echo "Uptime Kuma 运行中，访问 http://<服务器IP>:$P_PORT"
+      [ "$code" != 000 ]
+
+  - id: install-nginx-proxy-manager
+    kind: install
+    name: Nginx Proxy Manager（反代面板）
+    desc: 图形界面配反向代理和 HTTPS 证书，不用手写 nginx 配置
+    tags: [web, 面板]
+    risk: change
+    timeout: 1200
+    requires:
+      privilege: root
+    params:
+      - name: admin_port
+        desc: 管理后台端口（默认 81）
+        pattern: '[0-9]{2,5}'
+        default: '81'
+      - name: data_dir
+        desc: 数据目录（默认 /opt/npm）
+        pattern: '/[A-Za-z0-9._/-]{2,100}'
+        default: '/opt/npm'
+    detect: |
+      has_cmd docker || exit 2
+      $SUDO_OPT docker ps -a --format '{{.Names}}' 2>/dev/null | grep -qx nginx-proxy-manager
+    plan: |
+      1. 确认 Docker 可用
+      2. **检查 80 / 443 是否已被别的服务占用**（这台机器如果已经在跑 nginx / caddy / 宝塔，会冲突，直接停手）
+      3. 建数据目录并起容器，占用 80、443 和管理端口
+      4. 验证容器运行、管理后台可访问
+      说明：它要独占 80 和 443，这两个端口被占时本菜谱会拒绝执行，不会强行改动你现有的 Web 服务
+    run: |
+      need_root
+      has_cmd docker || not_supported "这台机器还没装 Docker，先跑 install-docker"
+      if $SUDO docker ps -a --format '{{.Names}}' | grep -qx nginx-proxy-manager; then
+        echo "容器已存在，直接启动"
+        $SUDO docker start nginx-proxy-manager >/dev/null
+        exit 0
+      fi
+      for p in 80 443 "$P_ADMIN_PORT"; do
+        port_listening "$p" && not_supported "端口 $p 已被占用（这台机器上可能已有 Web 服务），为避免冲突不继续"
+      done
+      $SUDO mkdir -p "$P_DATA_DIR/data" "$P_DATA_DIR/letsencrypt"
+      $SUDO docker run -d \
+        --name nginx-proxy-manager \
+        --restart=always \
+        -p 80:80 \
+        -p 443:443 \
+        -p "$P_ADMIN_PORT:81" \
+        -v "$P_DATA_DIR/data:/data" \
+        -v "$P_DATA_DIR/letsencrypt:/etc/letsencrypt" \
+        jc21/nginx-proxy-manager:latest >/dev/null
+      sleep 8
+    verify: |
+      $SUDO_OPT docker ps --filter name=nginx-proxy-manager --format '{{.Names}} {{.Status}}' | grep -q nginx-proxy-manager \
+        || { echo "容器没有在运行" >&2; exit 1; }
+      port_listening "$P_ADMIN_PORT" || { echo "管理端口 $P_ADMIN_PORT 没有监听" >&2; exit 1; }
+      code=$(curl -fsS -o /dev/null -w '%{http_code}' --max-time 8 "http://127.0.0.1:$P_ADMIN_PORT" 2>/dev/null || echo 000)
+      echo "管理后台 HTTP 返回码：$code"
+      echo "访问 http://<服务器IP>:$P_ADMIN_PORT ，默认账号 admin@example.com / changeme，登录后立刻改掉"
+      [ "$code" != 000 ]

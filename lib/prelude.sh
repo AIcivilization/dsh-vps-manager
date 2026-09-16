@@ -22,7 +22,9 @@ case " $OS_ID $OS_LIKE " in
   *) OS_FAMILY=unknown ;;
 esac
 
-has_cmd() { command -v "$1" >/dev/null 2>&1; }
+# 必须归一成 0 / 1：dash 的 `command -v` 找不到命令时返回 127，
+# 直接透出去会让 detect 的结果变成「说不清」（实测 Ubuntu 的 /bin/sh 是 dash）
+has_cmd() { command -v "$1" >/dev/null 2>&1 && return 0 || return 1; }
 
 # 包管理器
 if   has_cmd apt-get; then PKG=apt
@@ -95,13 +97,14 @@ pkg_install() {
   esac
 }
 
+# 同样归一成 0 / 1
 pkg_installed() {
   case "$PKG" in
-    apt) dpkg -s "$1" >/dev/null 2>&1 ;;
-    dnf|yum) rpm -q "$1" >/dev/null 2>&1 ;;
-    apk) apk info -e "$1" >/dev/null 2>&1 ;;
-    pacman) pacman -Q "$1" >/dev/null 2>&1 ;;
-    zypper) rpm -q "$1" >/dev/null 2>&1 ;;
+    apt) dpkg -s "$1" >/dev/null 2>&1 && return 0 || return 1 ;;
+    dnf|yum) rpm -q "$1" >/dev/null 2>&1 && return 0 || return 1 ;;
+    apk) apk info -e "$1" >/dev/null 2>&1 && return 0 || return 1 ;;
+    pacman) pacman -Q "$1" >/dev/null 2>&1 && return 0 || return 1 ;;
+    zypper) rpm -q "$1" >/dev/null 2>&1 && return 0 || return 1 ;;
     *) return 1 ;;
   esac
 }
@@ -116,11 +119,13 @@ svc_enable_start() {
   esac
 }
 
+# 注意：一律归一成 0 / 1。systemctl is-active 对「未运行」返回 3，
+# 直接透出去会破坏 detect 的「0=已装 1=未装」约定，让插件判成「说不清」。
 svc_active() {
   case "$INIT" in
-    systemd) systemctl is-active --quiet "$1" ;;
-    openrc) rc-service "$1" status >/dev/null 2>&1 ;;
-    sysvinit) service "$1" status >/dev/null 2>&1 ;;
+    systemd) systemctl is-active --quiet "$1" && return 0 || return 1 ;;
+    openrc) rc-service "$1" status >/dev/null 2>&1 && return 0 || return 1 ;;
+    sysvinit) service "$1" status >/dev/null 2>&1 && return 0 || return 1 ;;
     *) return 1 ;;
   esac
 }
@@ -137,10 +142,12 @@ svc_reload() {
 
 # 端口是否被监听（给 detect / verify 用）
 port_listening() {
-  if has_cmd ss; then ss -lnt 2>/dev/null | grep -qE "[:.]$1[[:space:]]"
-  elif has_cmd netstat; then netstat -lnt 2>/dev/null | grep -qE "[:.]$1[[:space:]]"
-  else return 1
+  if has_cmd ss; then
+    ss -lnt 2>/dev/null | grep -qE "[:.]$1[[:space:]]" && return 0 || return 1
+  elif has_cmd netstat; then
+    netstat -lnt 2>/dev/null | grep -qE "[:.]$1[[:space:]]" && return 0 || return 1
   fi
+  return 1
 }
 
 # 只读查询想尽量用 sudo，但没权限时也不该报错：用 $SUDO_OPT
