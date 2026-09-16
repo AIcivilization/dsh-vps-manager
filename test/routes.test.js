@@ -197,3 +197,67 @@ test('内置菜谱不能被面板删掉', async () => {
   assert.equal(res.body.ok, false)
   assert.match(res.body.error, /内置菜谱不能删除/)
 })
+
+test('面板的执行流程：立刻拿任务号 → 轮询日志 → 单独验证', async () => {
+  const { env, call } = await sandbox()
+  const { mkdir, writeFile } = await import('node:fs/promises')
+  const { paths } = await import('../lib/config.js')
+  await mkdir(paths(env).recipesDir, { recursive: true })
+  await writeFile(join(paths(env).recipesDir, 'slow.yml'), [
+    'schema: 1',
+    'recipes:',
+    '  - id: my-slow',
+    '    kind: install',
+    '    name: 慢活',
+    '    desc: 模拟一个要跑几秒的安装',
+    '    timeout: 60',
+    '    detect: test -f "$HOME/.slow-done"',
+    '    plan: 分三步，每步一秒',
+    '    run: |',
+    '      echo 第一步; sleep 1',
+    '      echo 第二步; sleep 1',
+    '      echo 第三步; touch "$HOME/.slow-done"',
+    '    verify: test -f "$HOME/.slow-done" && echo 验证通过',
+  ].join('\n'))
+
+  // 1) 启动：waitSeconds 0，必须立刻返回，不能在 HTTP 里干等
+  const t0 = Date.now()
+  const started = await call('recipes/run', { id: 'my-slow', alias: 'hk', waitSeconds: 0 })
+  const startCost = Date.now() - t0
+  assert.equal(started.body.ok, false, '这时候还没跑完，ok 应为 false')
+  assert.equal(started.body.status, 'detached')
+  assert.ok(started.body.taskId, '必须给出任务号，面板靠它轮询')
+  assert.ok(startCost < 8000, `启动请求应很快返回，实际 ${startCost}ms`)
+
+  // 2) 轮询：能看到执行过程中的日志
+  let sawPartialLog = false
+  let task = null
+  for (let i = 0; i < 30; i += 1) {
+    const res = await call('tasks/status', { alias: 'hk', taskId: started.body.taskId })
+    assert.equal(res.body.ok, true)
+    task = res.body.task
+    if (task?.state === 'running' && /第一步/.test(res.body.log ?? '')) sawPartialLog = true
+    if (task && task.state !== 'running') break
+    await new Promise((r) => setTimeout(r, 500))
+  }
+  assert.ok(sawPartialLog, '任务还在跑的时候就应该能看到部分日志')
+  assert.equal(task.state, 'done')
+  assert.equal(task.exitCode, 0)
+
+  // 3) 验证：任务结束后单独跑 verify
+  const verified = await call('recipes/verify', { id: 'my-slow', alias: 'hk' })
+  assert.equal(verified.body.ok, true)
+  assert.match(verified.body.output, /验证通过/)
+})
+
+test('没有 verify 的菜谱，验证接口如实说明', async () => {
+  const { env, call } = await sandbox()
+  const { mkdir, writeFile } = await import('node:fs/promises')
+  const { paths } = await import('../lib/config.js')
+  await mkdir(paths(env).recipesDir, { recursive: true })
+  await writeFile(join(paths(env).recipesDir, 'noverify.yml'),
+    'schema: 1\nrecipes:\n  - id: my-noverify\n    kind: config\n    name: 没写验证\n    run: "true"\n')
+  const res = await call('recipes/verify', { id: 'my-noverify', alias: 'hk' })
+  assert.equal(res.body.ok, true)
+  assert.match(res.body.hint, /没有写 verify/)
+})
