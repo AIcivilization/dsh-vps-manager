@@ -191,13 +191,6 @@ test('向导：拿公钥和两种放公钥的命令', async () => {
   assert.match(cmds.body.sshCopyId, /ssh-copy-id -i .*\.pub -p 2222 root@1\.2\.3\.4/)
 })
 
-test('内置菜谱不能被面板删掉', async () => {
-  const { call } = await sandbox()
-  const res = await call('recipes/delete', { id: 'install-docker' })
-  assert.equal(res.body.ok, false)
-  assert.match(res.body.error, /内置菜谱不能删除/)
-})
-
 test('面板的执行流程：立刻拿任务号 → 轮询日志 → 单独验证', async () => {
   const { env, call } = await sandbox()
   const { mkdir, writeFile } = await import('node:fs/promises')
@@ -262,13 +255,3 @@ test('没有 verify 的菜谱，验证接口如实说明', async () => {
   assert.match(res.body.hint, /没有写 verify/)
 })
 
-test('快捷查询路由只收查询类菜谱，且局域网只读模式下照常可用', async () => {
-  const { call } = await sandbox({ lan: true })
-  const ok = await call('recipes/query', { id: 'health', alias: 'hk' })
-  assert.equal(ok.body.ok, true, JSON.stringify(ok.body))
-  assert.match(ok.body.output, /内存|磁盘/)
-
-  const refused = await call('recipes/query', { id: 'install-docker', alias: 'hk' })
-  assert.equal(refused.body.ok, false)
-  assert.match(refused.body.error, /不是查询类菜谱/)
-})

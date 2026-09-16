@@ -52,40 +52,24 @@ function fakeSlots() {
   }
 }
 
-test('bundle 以 ModuleLoader 形式导出，并注册五个挂载点', async () => {
+test('bundle 以 ModuleLoader 形式导出，并注册三个挂载点', async () => {
   const { spec, exported } = await loadClient()
   assert.equal(spec.id, 'dsh-vps-manager')
   assert.deepEqual(exported.inject, ['slots'])
 
   const ctx = fakeSlots()
   exported.apply(ctx)
-  const panellist = ctx.registered.get('sidebar.panellist')
-  const main = ctx.registered.get('main')
   const settings = ctx.registered.get('settings.section')
-
   const toggle = ctx.registered.get('conversation.session.header.actions')
   const dock = ctx.registered.get('conversation.composer.dock')
-  assert.ok(panellist && main && settings && toggle && dock, '五个挂载点都要在')
+  assert.ok(settings && toggle && dock, '三个挂载点都要在')
   assert.equal(toggle.descriptor.id, 'vps-manager')
   assert.equal(dock.descriptor.id, 'vps-manager')
-  assert.equal(panellist.descriptor.id, 'vps-manager')
-  assert.equal(main.descriptor.key, 'vps-manager', 'main 的 key 必须与 panellist 的 id 一致，否则点一下会抛错')
-  assert.notEqual(main.descriptor.key, 'conversation', '不能占用官方保留的 conversation')
-  assert.equal(panellist.descriptor.label(), 'VPS 管理')
   assert.equal(settings.descriptor.id, 'vps-manager')
-})
 
-test('面板首屏能渲染（不抛错），标题与三个标签页都在', async () => {
-  const { exported } = await loadClient()
-  const ctx = fakeSlots()
-  exported.apply(ctx)
-  const html = renderToStaticMarkup(React.createElement(ctx.registered.get('main').component))
-  assert.match(html, /VPS 管理/)
-  assert.match(html, /机器/)
-  assert.match(html, /应用商店/)
-  assert.match(html, /系统维护/, '装软件和系统维护要分开两个页')
-  assert.match(html, /任务/)
-  assert.match(html, /读取中/)
+  // 左侧面板已删除：对话解决不了的才留在 UI 里
+  assert.equal(ctx.registered.get('sidebar.panellist'), undefined, '不该再注册侧栏面板')
+  assert.equal(ctx.registered.get('main'), undefined, '不该再注册主区域')
 })
 
 test('设置页能渲染', async () => {
@@ -94,15 +78,6 @@ test('设置页能渲染', async () => {
   exported.apply(ctx)
   const html = renderToStaticMarkup(React.createElement(ctx.registered.get('settings.section').component))
   assert.match(html, /VPS 管理/)
-})
-
-test('侧边栏图标渲染成 svg', async () => {
-  const { exported } = await loadClient()
-  const ctx = fakeSlots()
-  exported.apply(ctx)
-  const html = renderToStaticMarkup(React.createElement(ctx.registered.get('sidebar.panellist').component, { size: 18, active: true }))
-  assert.match(html, /<svg/)
-  assert.match(html, /width="18"/)
 })
 
 test('每个请求都带 token 和 JSON 头（跨站网页读不到 token）', async () => {
@@ -157,20 +132,6 @@ test('没打开开关的对话：状态条一个像素都不渲染，头部开�
   assert.deepEqual(calls, [], '大多数对话跟 VPS 无关，挂载时不该发任何请求')
   assert.match(toggleHtml, />VPS</, '头部只有 VPS 三个字母加方块')
   assert.doesNotMatch(toggleHtml, /🟢|🔴/, '不用 emoji，用方块颜色表示')
-})
-
-test('面板和设置页照常在打开时才加载（它们本来就是专门去开的）', async () => {
-  const calls = []
-  const { exported } = await loadClient({
-    fetchImpl: async (url) => {
-      calls.push(url)
-      return { status: 200, json: async () => ({ ok: true, hosts: [], recipes: [], settings: {} }) }
-    },
-  })
-  const ctx = fakeSlots()
-  exported.apply(ctx)
-  renderToStaticMarkup(React.createElement(ctx.registered.get('main').component))
-  assert.equal(typeof ctx.registered.get('main').component, 'function')
 })
 
 test('输入框下方：没事就一个像素都不占，只报「不问就不知道」的事', async () => {

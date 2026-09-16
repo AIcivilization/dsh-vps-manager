@@ -2,7 +2,7 @@
 
 [中文](README.zh-CN.md) | English
 
-Manage your VPS fleet from inside DeepSeek Harness: **look things up with one click, tell the AI what to do, install common software from a recipe store.**
+Manage your VPS fleet from inside DeepSeek Harness: **look things up with one click, tell the AI what to do, install common software with one line from the recipe library.**
 
 All three share one execution engine, so locking, backups, task tracking and the audit log are implemented once and behave the same no matter which entrance you use.
 
@@ -12,7 +12,7 @@ All three share one execution engine, so locking, backups, task tracking and the
 
 | | Look things up | Tell the AI | One-click install |
 |---|---|---|---|
-| How | `/vps-sysinfo` and friends | "set up a reverse proxy on hk" | Panel → App store |
+| How | `/vps-sysinfo` and friends | "set up a reverse proxy on hk" | `/vps-recipes` to pick, `/vps-install` to run |
 | Uses the model | No | Yes | No |
 | Cost | Zero tokens | Normal tokens | Near zero |
 | Scope | Fixed read-only queries | Anything you can do over SSH | Curated, idempotent recipes |
@@ -49,7 +49,7 @@ Add `"dsh-vps-manager"` to `dsh.profile.bundles` in `~/.dsh/profiles/desktop/pac
 
 ## Quick start
 
-Open **VPS Manager** in the sidebar and click **Add machine**. The wizard walks through four steps:
+Open **DSH Settings → VPS Manager** and click **Add machine**. The wizard walks through four steps:
 
 1. **Details** — address, port, user, alias, note, group
 2. **Key** — generates a dedicated `~/.ssh/dsh_vps_ed25519`; your existing keys are left alone
@@ -69,7 +69,7 @@ Queries run without the model and cost no tokens. Each result starts with a one-
 
 | Command | What it shows |
 |---|---|
-| **`/vps-help`** | **Everything: all commands with their arguments, how to target a machine, what to say to the AI, where the panel is** |
+| **`/vps-help`** | **Everything: all commands with their arguments, how to target a machine, what to say to the AI, where machines are added** |
 | `/vps-sysinfo` | OS, CPU, memory, disk, load, public IP |
 | `/vps-disk` | Mounts, inodes, largest directories (time-capped) |
 | `/vps-ports` | Listening ports and owning processes |
@@ -82,10 +82,10 @@ Queries run without the model and cost no tokens. Each result starts with a one-
 | `/vps-sh [--yes] <command>` | Run a command on the current machine; output lands in the conversation. Dangerous commands need `--yes` |
 | `/vps-q <recipe id>` | Run any read-only recipe that has no dedicated command |
 | `/vps-list` | Registered machines and status |
-| `/vps-use <alias>` | Set the current machine |
+| `/vps-use <alias>` | Bind this conversation to a machine (`off` to unbind) — the same thing the header switch does |
 | `/vps-recipes [keyword]` | List recipes |
-| `/vps-install <id> [--yes]` | Show the plan, then run it with `--yes` |
-| `/vps-tasks [id]` | Remote tasks and their logs |
+| `/vps-install <id> [key=value …] [--yes]` | Show the plan (with parameters and defaults), then run it with `--yes` |
+| `/vps-tasks [id] [--stop]` | Remote tasks, their logs, and termination |
 | `/vps-doctor` | Self-check: plugin state, current machine, connectivity, recent runs |
 
 All of them default to the current machine and accept `-h <alias>`.
@@ -132,27 +132,36 @@ Add your own two ways:
 
 User recipes are treated as untrusted input: their level is the stricter of what they declare and what static analysis finds, and the first run of new or modified content asks for confirmation.
 
+How to use them: `/vps-recipes [keyword]` to pick, `/vps-install <id>` to see the plan (parameters, defaults and the script itself), then `/vps-install <id> key=value --yes` to run it. Long installs detach into a remote task; `/vps-tasks` follows it and `/vps-tasks <id> --stop` terminates it.
+
 ---
 
-## Panel
+## Interface
 
-Sidebar → **VPS Manager**:
+The rule is: **if the conversation can do it, the UI should not.** The sidebar panel (machine list, app store, system maintenance, task page) has been removed entirely — picking software, checking a task, running maintenance are all one sentence away in the conversation, and a page only adds a step. Three things stayed, because the conversation cannot do them well.
 
-- **Machines** — status, address, privilege, group; test connectivity; open per-machine settings
-- **App store** — software you install (Docker, Nginx, Portainer, Uptime Kuma, fail2ban…): pick a machine, see whether it is already installed, read the script, then install. Long installs detach and the page polls progress
-- **System maintenance** — operations that change state rather than install anything (update, cleanup, timezone, swap, BBR, automatic security updates), kept out of the store because they are not apps
-- **Tasks** — running and finished tasks, live logs, terminate
-- **Machine settings** — alias, address, port, user, jump host, key placement, host fingerprint, confirmation level, removal. Saving a connection change tests it first
+### 1. The VPS switch in the conversation header
+
+Just the word `VPS` followed by one small rounded square per machine, no menus. Green means this conversation is bound to that machine, red means it is not; with several machines the squares are numbered. Click one to bind, click it again to unbind, and only one can be lit at a time.
+
+Turn it on and this conversation is bound to one machine: commands drop the `-h` flag and the AI may omit `host` — you just talk. Turn it off and the conversation has nothing to do with servers again — with the switch off there is **no default machine at all**: commands need an explicit `-h`, and the AI must name the host. (`/vps-use <alias>` and `/vps-use off` do the same thing from the keyboard.) The binding is per conversation, so another window switching machines cannot affect this one.
+
+### 2. The status line under the composer
+
+**Nothing at all** unless something is worth interrupting you for: a background task still running, the machine unreachable, or the disk nearly full. Everything else — queries, installs, questions — is just conversation, because that is what the conversation is for.
+
+### 3. DSH Settings → VPS Manager
+
+Adding machines, editing connections, setting policy: these are forms, which conversations are bad at, so they live in settings — always visible, always editable, never through the model.
+
+- **Machine list** — number (matching the squares in the conversation header), address, privilege, group, note; one-click connectivity test
+- **Add machine** — the four-step wizard described under *Getting started*
+- **Import from ~/.ssh/config** — adopt machines you can already reach
+- **Per-machine settings** — alias, address, port, user, jump host, key placement, host fingerprint, confirmation level, removal. Saving a connection change tests it first
 - **Basics form** (inside machine settings) — fill in the target state (timezone, swap size, BBR, automatic security updates, fail2ban, common CLI tools) and save: only the items that differ from the current state are executed, one remote task each, with live progress
+- **Global settings** — default confirmation level, safety-net seconds, LAN toggle, data paths
 
-There is also a compact **VPS button in the composer tool row** (next to the model/expert controls). A **VPS switch sits in the conversation header** — just the word `VPS` followed by one small square per machine, no menus. Green means this conversation is bound to that machine, red means it is not; with several machines the squares are numbered. Click one to bind, click it again to unbind, and only one can be lit at a time. Turn it on and this conversation is bound to one machine: commands drop the `-h` flag and the AI may omit `host` — you just talk. Turn it off and the conversation has nothing to do with servers again — with the switch off there is **no default machine at all**: commands need an explicit `-h`, and the AI must name the host. (`/vps-use <alias>` and `/vps-use off` do the same thing from the keyboard.) The binding is per conversation, so another window switching machines cannot affect this one.
-
-Below the composer there is **nothing at all** unless something is worth interrupting you for: a background task still running, the machine unreachable, or the disk nearly full. Everything else — queries, installs, questions — is just conversation, because that is what the conversation is for.
-
-DSH Settings → VPS Manager holds only the global settings (default confirmation level, safety-net seconds, LAN toggle, data paths); the machine list lives in the panel only, so the two do not duplicate each other
-
-Panel routes are protected by a per-boot token injected into the page, a same-origin check and JSON-only requests. **They never expose free-form command execution or arbitrary file writes.** If DSH's web server is bound to `0.0.0.0`, everything that changes state is disabled until you opt in.
-
+The routes behind that page are protected by a per-boot token injected into the page, a same-origin check and JSON-only requests. **They never expose free-form command execution or arbitrary file writes.** If DSH's web server is bound to `0.0.0.0`, everything that changes state is disabled until you opt in.
 ---
 
 ## What this does not protect against
@@ -186,7 +195,7 @@ npm install
 npm test
 ```
 
-111 tests, no server required: local `sh -s` stands in for a remote `sshd`, which is enough to exercise the payload protocol, task lifecycle, locking, backup/restore, tier classification, panel routes and panel rendering.
+112 tests, no server required: local `sh -s` stands in for a remote `sshd`, which is enough to exercise the payload protocol, task lifecycle, locking, backup/restore, tier classification, settings routes and UI rendering.
 
 ---
 

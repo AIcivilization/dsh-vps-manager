@@ -186,7 +186,8 @@ test('/vps-help 必须列出全部命令（新增命令漏写会在这里失败�
   assert.match(help.text, /\/vps-logs <服务名>/)
   // 三种用法都要提到
   assert.match(help.text, /跟 AI 说话/)
-  assert.match(help.text, /面板/)
+  assert.match(help.text, /DSH 设置 → VPS 管理/) // 加机器的地方（左侧面板已删除）
+  assert.doesNotMatch(help.text, /左边栏|应用商店/)
 })
 
 test('开关关着时命令不执行；绑定后才有默认机器（用户实测发现的漏洞）', async () => {
@@ -275,4 +276,108 @@ test('提示的第一行必须自带答案（DSH 只显示第一行）', async (
   assert.match(danger[0], /高危已拦下/)
   assert.match(danger[0], /删除文件/)
   assert.match(danger[1], /--yes rm -rf \/tmp\/x/, '第二行给可直接照抄的重发命令')
+})
+
+test('/vps-install 收 key=value 参数：名字错了当场说清这条菜谱收什么', async () => {
+  const { env, runner } = await sandbox()
+  const registered = []
+  registerCommands({ commands: { register: (d) => { registered.push(d); return () => {} } } }, { env, runner })
+  const install = registered.find((c) => c.name === 'vps-install')
+  const inv = { agent: { session: { id: 'sess-install' } } }
+
+  // 写错参数名：不连机器就该拦下，并把可用参数抄给用户
+  const wrong = await install.handler({ ...inv, rawInput: 'setup-swap sizemb=2048' })
+  assert.equal(wrong.kind, 'error')
+  assert.match(wrong.text.split('\n')[0], /参数不对：sizemb/)
+  assert.match(wrong.text, /size_mb=2048/)
+  assert.match(wrong.text, /swappiness=10/)
+
+  // 少了等号也是同一类错
+  const bare = await install.handler({ ...inv, rawInput: 'setup-swap 2048' })
+  assert.equal(bare.kind, 'error')
+  assert.match(bare.text, /要写成 key=value/)
+
+  // 没这条菜谱：直接说没有，不要抛到 resolveAlias 的开关提示上去
+  const nope = await install.handler({ ...inv, rawInput: 'no-such-recipe' })
+  assert.equal(nope.kind, 'error')
+  assert.match(nope.text, /没有这条菜谱/)
+})
+
+test('/vps-install 的计划页把参数和重发命令一起给出来', async () => {
+  const { env, runner, sshOptions } = await sandbox()
+  const registered = []
+  registerCommands({ commands: { register: (d) => { registered.push(d); return () => {} } } }, { env, runner, sshOptions })
+  const inv = { agent: { session: { id: 'sess-plan' } } }
+  await registered.find((c) => c.name === 'vps-use').handler({ ...inv, rawInput: 'hk' })
+
+  const plan = await registered.find((c) => c.name === 'vps-install')
+    .handler({ ...inv, rawInput: 'setup-swap size_mb=4096' })
+  assert.equal(plan.kind, 'success')
+  const first = plan.text.split('\n')[0]
+  assert.match(first, /尚未执行/)
+  assert.match(first, /\/vps-install setup-swap size_mb=4096 -h hk --yes/, '第一行要能直接照抄')
+  assert.match(plan.text, /size_mb = 4096.*本次指定/)
+  assert.match(plan.text, /swappiness = 10/, '没指定的参数要显示默认值')
+})
+
+test('/vps-tasks <任务号> --stop 直接终止，不再需要面板', async () => {
+  const { env, runner, sshOptions } = await sandbox()
+  const registered = []
+  registerCommands({ commands: { register: (d) => { registered.push(d); return () => {} } } }, { env, runner, sshOptions })
+  const tasks = registered.find((c) => c.name === 'vps-tasks')
+  const inv = { agent: { session: { id: 'sess-stop' } } }
+  await registered.find((c) => c.name === 'vps-use').handler({ ...inv, rawInput: 'hk' })
+
+  // --stop 不给任务号：告诉他怎么补
+  const noId = await tasks.handler({ ...inv, rawInput: '--stop' })
+  assert.equal(noId.kind, 'error')
+  assert.match(noId.text.split('\n')[0], /--stop 要跟任务号/)
+
+  // 给了任务号：走 cancel（沙箱里这个任务不存在，远端会说没有这个任务）
+  const stopped = await tasks.handler({ ...inv, rawInput: 't-not-there --stop' })
+  assert.match(stopped.text.split('\n')[0], /^\[hk\] 任务 t-not-there：/)
+  assert.match(stopped.text, /没有这个任务/)
+
+  // 列表页第一行要能一眼看出有没有在跑的
+  const list = await tasks.handler({ ...inv, rawInput: '' })
+  assert.equal(list.kind, 'success')
+  assert.match(list.text.split('\n')[0], /^\[hk\] (没有任务记录|\d+ 个任务)/)
+})
+
+test('/vps-install --yes 自己就是确认：命令没有轮次，弹不出审批框也必须能装', async () => {
+  const { env, runner, sshOptions, home } = await sandbox()
+  const { paths } = await import('../lib/config.js')
+  const { mkdir } = await import('node:fs/promises')
+  const dir = paths(env).recipesDir
+  await mkdir(dir, { recursive: true })
+  await writeFile(join(dir, 'my-smoke.yml'), [
+    'schema: 1',
+    'recipes:',
+    '  - id: my-smoke',
+    '    kind: install',
+    '    name: 冒烟菜谱',
+    '    desc: 只 echo，不碰系统',
+    '    risk: change',
+    '    detect: |',
+    '      exit 1',
+    '    plan: |',
+    '      1. echo',
+    '    run: |',
+    '      echo installed',
+    '    verify: |',
+    '      echo verified',
+  ].join('\n'))
+
+  const registered = []
+  // 注意：ctx 里**没有** approval —— 命令在轮次外运行，宿主根本给不了审批框
+  registerCommands({ commands: { register: (d) => { registered.push(d); return () => {} } } }, { env, runner, sshOptions })
+  const inv = { agent: { session: { id: 'sess-yes' } } }
+  await registered.find((c) => c.name === 'vps-use').handler({ ...inv, rawInput: 'hk' })
+
+  const res = await registered.find((c) => c.name === 'vps-install')
+    .handler({ ...inv, rawInput: 'my-smoke --yes' })
+  assert.equal(res.kind, 'success', res.text)
+  assert.doesNotMatch(res.text, /审批|未获确认/, '--yes 之后不该再去要审批')
+  assert.match(res.text.split('\n')[0], /^\[hk\] 冒烟菜谱：完成/)
+  assert.ok(home)
 })
