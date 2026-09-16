@@ -79,6 +79,8 @@ Queries run without the model and cost no tokens. Each result starts with a one-
 | `/vps-ping` | Quick health line |
 | `/vps-logs <service>` | Last 100 log lines |
 | `/vps-probe` | Re-run the health check (OS, init, privilege, resources) |
+| `/vps-sh [--yes] <command>` | Run a command on the current machine; output lands in the conversation. Dangerous commands need `--yes` |
+| `/vps-q <recipe id>` | Run any read-only recipe that has no dedicated command |
 | `/vps-list` | Registered machines and status |
 | `/vps-use <alias>` | Set the current machine |
 | `/vps-recipes [keyword]` | List recipes |
@@ -143,7 +145,7 @@ Sidebar → **VPS Manager**:
 - **Machine settings** — alias, address, port, user, jump host, key placement, host fingerprint, confirmation level, removal. Saving a connection change tests it first
 - **Basics form** (inside machine settings) — fill in the target state (timezone, swap size, BBR, automatic security updates, fail2ban, common CLI tools) and save: only the items that differ from the current state are executed, one remote task each, with live progress
 
-There is also a compact **VPS button in the composer tool row** (next to the model/expert controls): current machine at a glance, switch machines, and run read-only queries without leaving the conversation.
+There is also a compact **VPS button in the composer tool row** (next to the model/expert controls). It is a launcher, not a second UI: it shows the current machine and its live health, raises at most three suggestions when something actually needs attention, and **every item it offers writes a command into the composer** — you press Enter, the command runs, and the output stays in the conversation. It also has a command box, so the conversation doubles as a terminal for the current machine.
 
 DSH Settings → VPS Manager holds only the global settings (default confirmation level, safety-net seconds, LAN toggle, data paths); the machine list lives in the panel only, so the two do not duplicate each other
 

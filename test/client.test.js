@@ -165,3 +165,16 @@ test('结果交给 AI：写进对话框草稿，而不是替用户发出去', as
   assert.deepEqual(calls, [], '渲染阶段不许碰对话框')
   assert.equal(typeof actions.submit, 'function', 'submit 存在但我们不主动调用：发不发由用户决定')
 })
+
+test('浮层里的每一项都推成对话里的命令，而不是自己显示结果', async () => {
+  const { exported } = await loadClient()
+  const { commandForQuery } = exported.__test
+  // 有专属命令的用专属命令，读起来像人话
+  assert.equal(commandForQuery('disk'), '/vps-disk')
+  assert.equal(commandForQuery('sysinfo'), '/vps-sysinfo')
+  assert.equal(commandForQuery('health'), '/vps-ping')
+  assert.equal(commandForQuery('docker-ps'), '/vps-docker')
+  // 没有专属命令的走通用入口，仍然落在对话里
+  assert.equal(commandForQuery('cert-expiry'), '/vps-q cert-expiry')
+  assert.equal(commandForQuery('login-history'), '/vps-q login-history')
+})

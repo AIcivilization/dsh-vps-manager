@@ -59,7 +59,7 @@ test('apply 注册 5 个工具、13 条命令、1 个 skill，并把可选服务
     'vps_exec', 'vps_hosts', 'vps_recipe', 'vps_task', 'vps_write_file',
   ])
   const names = ctx._commands.map((c) => c.name)
-  assert.equal(names.length, 16, names.join(","))
+  assert.equal(names.length, 18, names.join(","))
   for (const n of names) assert.match(n, /^vps-/, '所有命令必须同前缀，否则打 /vps 只筛出一半')
   assert.ok(names.includes('vps-install'))
   assert.ok(names.includes('vps-tasks'))
