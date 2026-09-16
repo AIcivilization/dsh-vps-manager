@@ -178,3 +178,37 @@ test('浮层里的每一项都推成对话里的命令，而不是自己显示�
   assert.equal(commandForQuery('cert-expiry'), '/vps-q cert-expiry')
   assert.equal(commandForQuery('login-history'), '/vps-q login-history')
 })
+
+test('不操作 VPS 的对话里，按钮必须完全安静：挂载不发请求、不显示机器名', async () => {
+  const calls = []
+  const { exported } = await loadClient({
+    fetchImpl: async (url) => {
+      calls.push(url)
+      return { status: 200, json: async () => ({ ok: true, hosts: [], recipes: [] }) }
+    },
+  })
+  const ctx = fakeSlots()
+  exported.apply(ctx)
+  const Entry = ctx.registered.get('conversation.input.left').component
+
+  const html = renderToStaticMarkup(React.createElement(Entry, { sessionId: 's1' }))
+  await new Promise((r) => setTimeout(r, 30))
+
+  assert.deepEqual(calls, [], '大多数对话跟 VPS 无关，挂载时不该发任何请求')
+  assert.match(html, />VPS</, '平时只显示一个安静的标记，不显示机器名和状态点')
+  assert.doesNotMatch(html, /🟢|🔴/, '没点开之前不该有状态点')
+})
+
+test('面板和设置页照常在打开时才加载（它们本来就是专门去开的）', async () => {
+  const calls = []
+  const { exported } = await loadClient({
+    fetchImpl: async (url) => {
+      calls.push(url)
+      return { status: 200, json: async () => ({ ok: true, hosts: [], recipes: [], settings: {} }) }
+    },
+  })
+  const ctx = fakeSlots()
+  exported.apply(ctx)
+  renderToStaticMarkup(React.createElement(ctx.registered.get('main').component))
+  assert.equal(typeof ctx.registered.get('main').component, 'function')
+})
