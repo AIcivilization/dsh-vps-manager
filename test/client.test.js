@@ -155,8 +155,8 @@ test('没打开开关的对话：状态条一个像素都不渲染，头部开�
 
   assert.equal(dockHtml, '', '没绑定机器的对话，输入框下方不该有任何东西')
   assert.deepEqual(calls, [], '大多数对话跟 VPS 无关，挂载时不该发任何请求')
-  assert.match(toggleHtml, />VPS</, '头部只有一个安静的开关')
-  assert.doesNotMatch(toggleHtml, /🟢|🔴/, '没打开时不显示机器状态')
+  assert.match(toggleHtml, /VPS off/, '头部就是一个开关，关着时写 off')
+  assert.doesNotMatch(toggleHtml, /🟢|🔴/, '不用 emoji，用外框颜色表示开关状态')
 })
 
 test('面板和设置页照常在打开时才加载（它们本来就是专门去开的）', async () => {
@@ -207,4 +207,34 @@ test('绑定了机器但一切正常时，输入框下方仍然什么都不渲�
     React.createElement(ctx.registered.get('conversation.composer.dock').component, { sessionId: 's2' }),
   )
   assert.equal(html, '', '没有要报的事就不该占位置')
+})
+
+test('开关文字：一台不带编号，多台带编号', async () => {
+  const { exported } = await loadClient()
+  const { toggleLabel } = exported.__test
+  // 只有一台机器
+  assert.equal(toggleLabel(0, 1, false), 'VPS off')
+  assert.equal(toggleLabel(0, 1, true), 'VPS on')
+  // 多台：挂编号后缀
+  assert.equal(toggleLabel(0, 3, true), 'VPS1 on')
+  assert.equal(toggleLabel(1, 3, false), 'VPS2 off')
+  assert.equal(toggleLabel(2, 3, false), 'VPS3 off')
+})
+
+test('多台机器时头部是一排开关，没有下拉菜单', async () => {
+  const { exported } = await loadClient({
+    storage: {
+      'dsh-vps:hosts': JSON.stringify([{ alias: 'hk', note: '香港' }, { alias: 'jp', note: '日本' }]),
+      'dsh-vps:bind:s9': 'jp',
+    },
+  })
+  const ctx = fakeSlots()
+  exported.apply(ctx)
+  const html = renderToStaticMarkup(
+    React.createElement(ctx.registered.get('conversation.session.header.actions').component, { sessionId: 's9' }),
+  )
+  assert.match(html, /VPS1 off/, '第一台没绑定 → off')
+  assert.match(html, /VPS2 on/, '第二台绑定了 → on')
+  assert.equal((html.match(/<button/g) ?? []).length, 2, '两台机器两个按钮')
+  assert.doesNotMatch(html, /position:fixed/, '不再有任何弹出层')
 })
