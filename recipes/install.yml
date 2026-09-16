@@ -1,0 +1,105 @@
+schema: 1
+recipes:
+  - id: install-docker
+    kind: install
+    name: 安装 Docker
+    desc: 安装 Docker 引擎与 compose 插件，并设为开机自启
+    tags: [容器, 常用]
+    shell: sh
+    risk: change
+    timeout: 900
+    requires:
+      privilege: root
+      os: [debian, ubuntu, rhel, alpine]
+    detect: has_cmd docker
+    plan: |
+      1. Alpine 用 apk 装 docker 与 compose 插件；其余发行版用 Docker 官方安装脚本
+      2. 设为开机自启并启动
+      3. 用 docker info 验证守护进程真的活着（不是只看版本号）
+    run: |
+      need_root
+      if has_cmd docker; then
+        echo "docker 已存在，跳过安装"
+      elif [ "$OS_FAMILY" = alpine ]; then
+        pkg_install docker docker-cli-compose
+      else
+        tmp=$(mktemp)
+        if has_cmd curl; then
+          curl -fsSL https://get.docker.com -o "$tmp"
+        elif has_cmd wget; then
+          wget -qO "$tmp" https://get.docker.com
+        else
+          pkg_install curl
+          curl -fsSL https://get.docker.com -o "$tmp"
+        fi
+        [ -s "$tmp" ] || not_supported "下载 Docker 安装脚本失败"
+        $SUDO sh "$tmp" </dev/null
+        rm -f "$tmp"
+      fi
+      svc_enable_start docker
+    verify: |
+      $SUDO_OPT docker info >/dev/null 2>&1 || { echo "docker info 失败：守护进程没起来" >&2; exit 1; }
+      $SUDO_OPT docker version --format '{{.Server.Version}}' 2>/dev/null | sed 's/^/Docker 服务端版本: /'
+      svc_active docker || { echo "docker 服务不是运行状态" >&2; exit 1; }
+      echo "docker 运行正常"
+
+  - id: install-nginx
+    kind: install
+    name: 安装 Nginx
+    desc: 安装 Nginx 并设为开机自启
+    tags: [web, 常用]
+    shell: sh
+    risk: change
+    timeout: 600
+    requires:
+      privilege: root
+    detect: has_cmd nginx
+    plan: |
+      1. 按发行版用对应包管理器安装 nginx
+      2. 设为开机自启并启动
+      3. 用 nginx -t 验证配置、用本地 HTTP 请求验证真的能响应
+    run: |
+      need_root
+      pkg_install nginx
+      svc_enable_start nginx
+    verify: |
+      $SUDO_OPT nginx -t || exit 1
+      svc_active nginx || { echo "nginx 服务不是运行状态" >&2; exit 1; }
+      code=$(curl -fsS -o /dev/null -w '%{http_code}' --max-time 5 http://127.0.0.1/ 2>/dev/null || echo 000)
+      echo "本地 HTTP 返回码: $code"
+      [ "$code" = 000 ] && { echo "本地访问不通" >&2; exit 1; }
+      $SUDO_OPT nginx -v 2>&1
+
+  - id: enable-bbr
+    kind: config
+    name: 开启 BBR 拥塞控制
+    desc: 打开 BBR + fq，改善高延迟线路的吞吐
+    tags: [网络, 常用]
+    shell: sh
+    risk: change
+    timeout: 120
+    requires:
+      privilege: root
+      os: [debian, ubuntu, rhel, alpine]
+    detect: |
+      cur=$(sysctl -n net.ipv4.tcp_congestion_control 2>/dev/null)
+      [ "$cur" = bbr ]
+    plan: |
+      1. 检查内核是否支持 bbr（4.9 以上都支持）
+      2. 写入 /etc/sysctl.d/99-dsh-vps-bbr.conf
+      3. sysctl 生效并复查当前拥塞控制算法
+    run: |
+      need_root
+      if ! $SUDO sysctl net.ipv4.tcp_available_congestion_control 2>/dev/null | grep -q bbr; then
+        $SUDO modprobe tcp_bbr 2>/dev/null || true
+      fi
+      $SUDO sysctl net.ipv4.tcp_available_congestion_control 2>/dev/null | grep -q bbr \
+        || not_supported "这个内核不支持 BBR（需要 4.9 以上）"
+      printf 'net.core.default_qdisc=fq\nnet.ipv4.tcp_congestion_control=bbr\n' \
+        | $SUDO tee /etc/sysctl.d/99-dsh-vps-bbr.conf >/dev/null
+      $SUDO sysctl --system >/dev/null 2>&1 || $SUDO sysctl -p /etc/sysctl.d/99-dsh-vps-bbr.conf >/dev/null
+    verify: |
+      cur=$(sysctl -n net.ipv4.tcp_congestion_control 2>/dev/null)
+      qdisc=$(sysctl -n net.core.default_qdisc 2>/dev/null)
+      echo "拥塞控制: $cur    队列: $qdisc"
+      [ "$cur" = bbr ] || exit 1

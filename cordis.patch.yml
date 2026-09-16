@@ -1,0 +1,3 @@
+- insert:
+    - id: vps-manager
+      name: dsh-vps-manager

@@ -1,0 +1,212 @@
+schema: 1
+recipes:
+  - id: probe
+    kind: query
+    name: 机器体检
+    desc: 系统、init、权限、常用工具、资源概况（面板与向导用，输出为 key=value）
+    tags: [内部]
+    timeout: 30
+    run: |
+      printf 'os_id=%s\n' "$OS_ID"
+      printf 'os_ver=%s\n' "$OS_VER"
+      printf 'os_family=%s\n' "$OS_FAMILY"
+      printf 'init=%s\n' "$INIT"
+      printf 'pkg=%s\n' "$PKG"
+      if [ "$SUDO" = "__NO_PRIV__" ]; then printf 'privilege=none\n'
+      elif [ -z "$SUDO" ]; then printf 'privilege=root\n'
+      else printf 'privilege=sudo\n'; fi
+      printf 'arch=%s\n' "$(uname -m 2>/dev/null)"
+      printf 'kernel=%s\n' "$(uname -r 2>/dev/null)"
+      for c in bash curl wget base64 setsid systemctl docker git; do
+        if has_cmd "$c"; then printf 'has_%s=1\n' "$c"; else printf 'has_%s=0\n' "$c"; fi
+      done
+      printf 'cpu=%s\n' "$(nproc 2>/dev/null || echo 0)"
+      free -m 2>/dev/null | awk '/^Mem:/{printf "mem_total_mb=%s\nmem_used_mb=%s\n", $2, $3}'
+      df -m / 2>/dev/null | awk 'NR==2{printf "disk_total_mb=%s\ndisk_used_mb=%s\ndisk_pct=%s\n", $2, $3, $5}'
+      printf 'uptime_s=%s\n' "$(cut -d. -f1 /proc/uptime 2>/dev/null || echo 0)"
+
+  - id: sysinfo
+    kind: query
+    name: 系统信息
+    desc: CPU、内存、磁盘、系统版本、公网 IP、运行时长
+    tags: [基础]
+    timeout: 30
+    run: |
+      mem=$(free -h 2>/dev/null | awk '/^Mem:/{print $3 "/" $2}')
+      dsk=$(df -h / 2>/dev/null | awk 'NR==2{print $5}')
+      printf '%s %s · %s 核 · 内存 %s · 磁盘已用 %s · 负载 %s\n\n' \
+        "$OS_ID" "$OS_VER" "$(nproc 2>/dev/null || echo ?)" "${mem:-?}" "${dsk:-?}" \
+        "$(cut -d' ' -f1 /proc/loadavg 2>/dev/null || echo ?)"
+      printf '主机名: %s\n' "$(hostname 2>/dev/null || cat /etc/hostname 2>/dev/null || echo ?)"
+      printf '系统:   %s %s (%s, init=%s, 包管理=%s)\n' "$OS_ID" "$OS_VER" "$OS_FAMILY" "$INIT" "$PKG"
+      printf '内核:   %s %s\n' "$(uname -r 2>/dev/null)" "$(uname -m 2>/dev/null)"
+      printf '运行:   %s\n' "$(uptime -p 2>/dev/null || uptime 2>/dev/null || echo ?)"
+      if [ "$SUDO" = "__NO_PRIV__" ]; then priv='仅只读（不是 root，也没有免密 sudo）'
+      elif [ -z "$SUDO" ]; then priv='root'
+      else priv='免密 sudo'; fi
+      printf '权限:   %s\n' "$priv"
+      echo
+      printf 'CPU:    %s 核  %s\n' "$(nproc 2>/dev/null || echo ?)" "$(grep -m1 'model name' /proc/cpuinfo 2>/dev/null | cut -d: -f2- | sed 's/^ *//')"
+      free -h 2>/dev/null | awk '/^Mem:/{printf "内存:   %s / %s 已用\n", $3, $2}'
+      df -h / 2>/dev/null | awk 'NR==2{printf "磁盘:   %s / %s 已用 (%s)\n", $3, $2, $5}'
+      printf '负载:   %s\n' "$(cut -d' ' -f1-3 /proc/loadavg 2>/dev/null || echo ?)"
+      printf '公网IP: %s\n' "$(curl -fsS --max-time 5 https://api.ipify.org 2>/dev/null || echo 未知)"
+
+  - id: disk
+    kind: query
+    name: 磁盘占用
+    desc: 各挂载点、inode、以及根目录下最大的几个目录
+    tags: [基础]
+    timeout: 60
+    run: |
+      df -h / 2>/dev/null | awk 'NR==2{printf "根分区 %s/%s 已用（%s），剩 %s\n\n", $3, $2, $5, $4}'
+      echo "== 挂载点 =="
+      df -hT 2>/dev/null || df -h
+      echo
+      echo "== inode =="
+      df -i 2>/dev/null | head -10
+      echo
+      echo "== / 下最大的 10 个目录 =="
+      # 生产机上 du 扫全盘可能很慢（容器、日志多的时候十几秒），加时间上限
+      if has_cmd timeout; then TO="timeout 8"; else TO=""; fi
+      $TO $SUDO_OPT du -xh -d1 / 2>/dev/null | sort -hr | head -11 || echo "（目录扫描超过 8 秒，已跳过）"
+
+  - id: ports
+    kind: query
+    name: 端口监听
+    desc: 正在监听的端口和对应进程
+    tags: [网络]
+    timeout: 30
+    run: |
+      n=$(ss -lnt 2>/dev/null | tail -n +2 | wc -l | tr -d ' ')
+      printf '监听中的 TCP 端口 %s 个\n\n' "${n:-?}"
+      if has_cmd ss; then
+        $SUDO_OPT ss -lntup 2>/dev/null || ss -lntu
+      elif has_cmd netstat; then
+        $SUDO_OPT netstat -lntup 2>/dev/null || netstat -lntu
+      else
+        echo "这台机器没有 ss 也没有 netstat"
+      fi
+
+  - id: services
+    kind: query
+    name: 服务状态
+    desc: 失败的服务和正在运行的服务
+    tags: [基础]
+    timeout: 30
+    run: |
+      if [ "$INIT" = systemd ]; then
+        running=$(systemctl list-units --type=service --state=running --no-legend --no-pager 2>/dev/null | wc -l | tr -d ' ')
+        failed=$(systemctl --failed --no-legend --no-pager 2>/dev/null | wc -l | tr -d ' ')
+        printf '运行中 %s 个服务 · 失败 %s 个\n\n' "${running:-?}" "${failed:-0}"
+      fi
+      case "$INIT" in
+        systemd)
+          echo "== 失败的服务 =="
+          systemctl --failed --no-legend --no-pager 2>/dev/null || echo "（无）"
+          echo
+          echo "== 正在运行 =="
+          systemctl list-units --type=service --state=running --no-legend --no-pager 2>/dev/null | head -40
+          ;;
+        openrc)
+          rc-status --all 2>/dev/null | head -40
+          ;;
+        *)
+          service --status-all 2>/dev/null | head -40 || echo "无法列出服务"
+          ;;
+      esac
+
+  - id: net
+    kind: query
+    name: 网络与流量
+    desc: 网卡地址、累计收发流量、连接数
+    tags: [网络]
+    timeout: 30
+    run: |
+      main=$(ip route show default 2>/dev/null | awk '{print $5; exit}')
+      if [ -n "$main" ] && [ -d "/sys/class/net/$main" ]; then
+        rx=$(cat "/sys/class/net/$main/statistics/rx_bytes" 2>/dev/null || echo 0)
+        tx=$(cat "/sys/class/net/$main/statistics/tx_bytes" 2>/dev/null || echo 0)
+        conn=$(ss -tn state established 2>/dev/null | tail -n +2 | wc -l | tr -d ' ')
+        awk -v n="$main" -v rx="$rx" -v tx="$tx" -v c="$conn" \
+          'BEGIN{printf "%s 收 %.1f GB / 发 %.1f GB · 活动连接 %s\n\n", n, rx/1073741824, tx/1073741824, c}'
+      fi
+      echo "== 网卡 =="
+      ip -br addr 2>/dev/null || ifconfig 2>/dev/null | head -20
+      echo
+      echo "== 累计流量（自开机）=="
+      if [ -d /sys/class/net ]; then
+        for i in /sys/class/net/*; do
+          n=$(basename "$i")
+          [ "$n" = lo ] && continue
+          rx=$(cat "$i/statistics/rx_bytes" 2>/dev/null || echo 0)
+          tx=$(cat "$i/statistics/tx_bytes" 2>/dev/null || echo 0)
+          awk -v n="$n" -v rx="$rx" -v tx="$tx" 'BEGIN{printf "%-10s 收 %.2f GB   发 %.2f GB\n", n, rx/1073741824, tx/1073741824}'
+        done
+      fi
+      echo
+      echo "== 连接数 =="
+      ss -s 2>/dev/null | head -5
+
+  - id: docker-ps
+    kind: query
+    name: 容器列表
+    desc: Docker 容器状态与磁盘占用
+    tags: [docker]
+    timeout: 30
+    run: |
+      if ! has_cmd docker; then
+        echo "这台机器没有安装 docker"
+        exit 0
+      fi
+      up=$($SUDO_OPT docker ps -q 2>/dev/null | wc -l | tr -d ' ')
+      all=$($SUDO_OPT docker ps -aq 2>/dev/null | wc -l | tr -d ' ')
+      printf '容器 %s 个在跑 / 共 %s 个\n\n' "${up:-?}" "${all:-?}"
+      $SUDO_OPT docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}\t{{.Ports}}' 2>/dev/null || docker ps -a
+      echo
+      echo "== 磁盘占用 =="
+      $SUDO_OPT docker system df 2>/dev/null
+
+  - id: logs
+    kind: query
+    name: 服务日志
+    desc: 某个服务最近 100 行日志
+    tags: [排查]
+    timeout: 60
+    params:
+      - name: service
+        desc: 服务名，例如 nginx
+        pattern: '[A-Za-z0-9@._-]{1,64}'
+        required: true
+    run: |
+      printf '%s 最近 100 行日志\n\n' "$P_SERVICE"
+      case "$INIT" in
+        systemd)
+          $SUDO_OPT journalctl -u "$P_SERVICE" -n 100 --no-pager 2>&1 | tail -100
+          ;;
+        *)
+          found=0
+          for f in /var/log/"$P_SERVICE".log /var/log/"$P_SERVICE"/*.log; do
+            if [ -f "$f" ]; then
+              found=1
+              echo "== $f =="
+              $SUDO_OPT tail -50 "$f"
+            fi
+          done
+          [ "$found" = 0 ] && echo "没找到 $P_SERVICE 的日志文件"
+          ;;
+      esac
+
+  - id: health
+    kind: query
+    name: 连通与负载
+    desc: 快速看一眼这台机器是否正常
+    tags: [基础]
+    timeout: 20
+    run: |
+      printf '%s | %s %s | 负载 %s | 运行 %s\n' \
+        "$(hostname 2>/dev/null)" "$OS_ID" "$OS_VER" \
+        "$(cut -d' ' -f1-3 /proc/loadavg 2>/dev/null || echo ?)" \
+        "$(uptime -p 2>/dev/null || echo ?)"
+      free -h 2>/dev/null | awk '/^Mem:/{printf "内存 %s / %s\n", $3, $2}'
+      df -h / 2>/dev/null | awk 'NR==2{printf "磁盘 %s / %s (%s)\n", $3, $2, $5}'

@@ -1,0 +1,69 @@
+{
+  "name": "dsh-vps-manager",
+  "version": "0.1.0",
+  "description": "VPS 管理：固定查询、AI 操作服务器、一键安装菜谱库",
+  "type": "module",
+  "main": "./lib/index.js",
+  "exports": {
+    ".": {
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "default": "./lib/client.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/**",
+    "recipes/**",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    }
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "yaml": "^2.9.1"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "react": ">=18.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "keywords": [
+    "deepseek-harness",
+    "dsh-plugin",
+    "dsh",
+    "vps",
+    "ssh"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AIcivilization/dsh-vps-manager.git"
+  },
+  "homepage": "https://github.com/AIcivilization/dsh-vps-manager#readme",
+  "bugs": {
+    "url": "https://github.com/AIcivilization/dsh-vps-manager/issues"
+  },
+  "author": "AIcivilization",
+  "devDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}
