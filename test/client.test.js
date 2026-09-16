@@ -70,6 +70,7 @@ test('面板首屏能渲染（不抛错），标题与三个标签页都在', as
   assert.match(html, /VPS 管理/)
   assert.match(html, /机器/)
   assert.match(html, /应用商店/)
+  assert.match(html, /系统维护/, '装软件和系统维护要分开两个页')
   assert.match(html, /任务/)
   assert.match(html, /读取中/)
 })

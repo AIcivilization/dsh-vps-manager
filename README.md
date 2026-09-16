@@ -137,7 +137,8 @@ User recipes are treated as untrusted input: their level is the stricter of what
 Sidebar → **VPS Manager**:
 
 - **Machines** — status, address, privilege, group; test connectivity; open per-machine settings
-- **App store** — built-in and your own recipes; pick a machine, see whether it is already installed, read the script, then install. Long installs detach and the page polls progress
+- **App store** — software you install (Docker, Nginx, Portainer, Uptime Kuma, fail2ban…): pick a machine, see whether it is already installed, read the script, then install. Long installs detach and the page polls progress
+- **System maintenance** — operations that change state rather than install anything (update, cleanup, timezone, swap, BBR, automatic security updates), kept out of the store because they are not apps
 - **Tasks** — running and finished tasks, live logs, terminate
 - **Machine settings** — also available under DSH Settings → VPS Manager: alias, address, port, user, jump host, key placement, host fingerprint, confirmation level, removal. Saving a connection change tests it first
 
