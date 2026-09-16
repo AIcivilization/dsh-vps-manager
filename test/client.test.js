@@ -11,13 +11,22 @@ const requireShim = (name) => {
   throw new Error(`面板不该 require ${name}`)
 }
 
-async function loadClient({ fetchImpl } = {}) {
+async function loadClient({ fetchImpl, storage = {} } = {}) {
   let spec = null
   const calls = []
+  const store = new Map(Object.entries(storage))
   globalThis.window = {
     __ModuleLoader__: { load: (s) => { spec = s } },
     __DSH_VPS_TOKEN__: 'test-token-123',
     confirm: () => true,
+    innerHeight: 800,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    localStorage: {
+      getItem: (k) => (store.has(k) ? store.get(k) : null),
+      setItem: (k, v) => store.set(k, v),
+      removeItem: (k) => store.delete(k),
+    },
   }
   globalThis.fetch = fetchImpl ?? (async (url, init) => {
     calls.push({ url, init })
@@ -43,7 +52,7 @@ function fakeSlots() {
   }
 }
 
-test('bundle 以 ModuleLoader 形式导出，并注册四个挂载点', async () => {
+test('bundle 以 ModuleLoader 形式导出，并注册五个挂载点', async () => {
   const { spec, exported } = await loadClient()
   assert.equal(spec.id, 'dsh-vps-manager')
   assert.deepEqual(exported.inject, ['slots'])
@@ -54,9 +63,11 @@ test('bundle 以 ModuleLoader 形式导出，并注册四个挂载点', async ()
   const main = ctx.registered.get('main')
   const settings = ctx.registered.get('settings.section')
 
-  const composer = ctx.registered.get('conversation.input.left')
-  assert.ok(panellist && main && settings && composer, '四个挂载点都要在')
-  assert.equal(composer.descriptor.id, 'vps-manager')
+  const toggle = ctx.registered.get('conversation.session.header.actions')
+  const dock = ctx.registered.get('conversation.composer.dock')
+  assert.ok(panellist && main && settings && toggle && dock, '五个挂载点都要在')
+  assert.equal(toggle.descriptor.id, 'vps-manager')
+  assert.equal(dock.descriptor.id, 'vps-manager')
   assert.equal(panellist.descriptor.id, 'vps-manager')
   assert.equal(main.descriptor.key, 'vps-manager', 'main 的 key 必须与 panellist 的 id 一致，否则点一下会抛错')
   assert.notEqual(main.descriptor.key, 'conversation', '不能占用官方保留的 conversation')
@@ -148,9 +159,8 @@ test('浮层的建议行只在真有问题时出现，且最多三条', async ()
   assert.equal(many.length, 3, '最多三条')
 })
 
-test('结果交给 AI：写进对话框草稿，而不是替用户发出去', async () => {
-  const { exported } = await loadClient()
-  // inputActions 由 conversation.input.left 插槽作为标准 prop 传入
+test('渲染阶段不碰对话框，submit 也永远不主动调用', async () => {
+  const { exported } = await loadClient({ storage: { 'dsh-vps:bind:s1': 'hk' } })
   const calls = []
   const actions = {
     insertText: (t) => calls.push(['insertText', t]),
@@ -159,9 +169,8 @@ test('结果交给 AI：写进对话框草稿，而不是替用户发出去', as
   }
   const ctx = fakeSlots()
   exported.apply(ctx)
-  const Entry = ctx.registered.get('conversation.input.left').component
-  // 渲染时不应自己调用任何输入框动作
-  renderToStaticMarkup(React.createElement(Entry, { inputActions: actions }))
+  const Dock = ctx.registered.get('conversation.composer.dock').component
+  renderToStaticMarkup(React.createElement(Dock, { sessionId: 's1', inputActions: actions }))
   assert.deepEqual(calls, [], '渲染阶段不许碰对话框')
   assert.equal(typeof actions.submit, 'function', 'submit 存在但我们不主动调用：发不发由用户决定')
 })
@@ -179,7 +188,7 @@ test('浮层里的每一项都推成对话里的命令，而不是自己显示�
   assert.equal(commandForQuery('login-history'), '/vps-q login-history')
 })
 
-test('不操作 VPS 的对话里，按钮必须完全安静：挂载不发请求、不显示机器名', async () => {
+test('没打开开关的对话：状态条一个像素都不渲染，头部开关也不发请求', async () => {
   const calls = []
   const { exported } = await loadClient({
     fetchImpl: async (url) => {
@@ -189,14 +198,33 @@ test('不操作 VPS 的对话里，按钮必须完全安静：挂载不发请求
   })
   const ctx = fakeSlots()
   exported.apply(ctx)
-  const Entry = ctx.registered.get('conversation.input.left').component
 
-  const html = renderToStaticMarkup(React.createElement(Entry, { sessionId: 's1' }))
+  const dockHtml = renderToStaticMarkup(
+    React.createElement(ctx.registered.get('conversation.composer.dock').component, { sessionId: 'unbound' }),
+  )
+  const toggleHtml = renderToStaticMarkup(
+    React.createElement(ctx.registered.get('conversation.session.header.actions').component, { sessionId: 'unbound' }),
+  )
   await new Promise((r) => setTimeout(r, 30))
 
+  assert.equal(dockHtml, '', '没绑定机器的对话，输入框下方不该有任何东西')
   assert.deepEqual(calls, [], '大多数对话跟 VPS 无关，挂载时不该发任何请求')
-  assert.match(html, />VPS</, '平时只显示一个安静的标记，不显示机器名和状态点')
-  assert.doesNotMatch(html, /🟢|🔴/, '没点开之前不该有状态点')
+  assert.match(toggleHtml, />VPS</, '头部只有一个安静的开关')
+  assert.doesNotMatch(toggleHtml, /🟢|🔴/, '没打开时不显示机器状态')
+})
+
+test('打开开关的对话：状态条出现并显示绑定的机器', async () => {
+  const { exported } = await loadClient({
+    storage: { 'dsh-vps:bind:s2': 'vps-dsh' },
+    fetchImpl: async () => ({ status: 200, json: async () => ({ ok: true, alias: 'vps-dsh', recipes: [], tasks: [] }) }),
+  })
+  const ctx = fakeSlots()
+  exported.apply(ctx)
+  const html = renderToStaticMarkup(
+    React.createElement(ctx.registered.get('conversation.composer.dock').component, { sessionId: 's2' }),
+  )
+  assert.match(html, /vps-dsh/, '绑定后状态条要显示是哪台机器')
+  assert.match(html, /敲命令/, '状态条里有命令框：对话框就是这台机器的命令行')
 })
 
 test('面板和设置页照常在打开时才加载（它们本来就是专门去开的）', async () => {
