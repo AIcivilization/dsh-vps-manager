@@ -43,7 +43,7 @@ function fakeSlots() {
   }
 }
 
-test('bundle 以 ModuleLoader 形式导出，并注册三个插槽', async () => {
+test('bundle 以 ModuleLoader 形式导出，并注册四个挂载点', async () => {
   const { spec, exported } = await loadClient()
   assert.equal(spec.id, 'dsh-vps-manager')
   assert.deepEqual(exported.inject, ['slots'])
@@ -54,7 +54,9 @@ test('bundle 以 ModuleLoader 形式导出，并注册三个插槽', async () =>
   const main = ctx.registered.get('main')
   const settings = ctx.registered.get('settings.section')
 
-  assert.ok(panellist && main && settings)
+  const composer = ctx.registered.get('conversation.input.left')
+  assert.ok(panellist && main && settings && composer, '四个挂载点都要在')
+  assert.equal(composer.descriptor.id, 'vps-manager')
   assert.equal(panellist.descriptor.id, 'vps-manager')
   assert.equal(main.descriptor.key, 'vps-manager', 'main 的 key 必须与 panellist 的 id 一致，否则点一下会抛错')
   assert.notEqual(main.descriptor.key, 'conversation', '不能占用官方保留的 conversation')
@@ -119,4 +121,47 @@ test('请求失败时把 host 的错误原样带出来', async () => {
     fetchImpl: async () => ({ status: 500, json: async () => { throw new Error('not json') } }),
   })
   await assert.rejects(broken.__test.api('overview'), /服务返回异常（HTTP 500）/)
+})
+
+test('浮层的建议行只在真有问题时出现，且最多三条', async () => {
+  const { exported } = await loadClient()
+  const { suggestions } = exported.__test
+  const ok = { disk_pct: '25%', mem_total_mb: '3800', swap_total_mb: '3071', fail2ban: '1', auto_updates: '1' }
+  assert.deepEqual(suggestions({ reachable: true }, ok), [], '一切正常就不该唠叨')
+
+  const full = suggestions({ reachable: true }, { ...ok, disk_pct: '92%' })
+  assert.equal(full[0].kind, 'query')
+  assert.equal(full[0].id, 'disk')
+  assert.match(full[0].text, /92%/)
+
+  const noF2b = suggestions({ reachable: true }, { ...ok, fail2ban: '0' })
+  assert.equal(noF2b[0].id, 'login-history', '没装 fail2ban 时先让人看有没有人在爆破')
+
+  const small = suggestions({ reachable: true }, { ...ok, mem_total_mb: '1024', swap_total_mb: '0' })
+  assert.match(small[0].text, /swap/)
+
+  const down = suggestions({ reachable: false }, ok)
+  assert.equal(down.length, 1, '连不上时只说这一件事，别堆别的建议')
+  assert.match(down[0].text, /连不上/)
+
+  const many = suggestions({ reachable: true }, { disk_pct: '95%', mem_total_mb: '512', swap_total_mb: '0', fail2ban: '0', auto_updates: '0' })
+  assert.equal(many.length, 3, '最多三条')
+})
+
+test('结果交给 AI：写进对话框草稿，而不是替用户发出去', async () => {
+  const { exported } = await loadClient()
+  // inputActions 由 conversation.input.left 插槽作为标准 prop 传入
+  const calls = []
+  const actions = {
+    insertText: (t) => calls.push(['insertText', t]),
+    focus: () => calls.push(['focus']),
+    submit: () => calls.push(['submit']),
+  }
+  const ctx = fakeSlots()
+  exported.apply(ctx)
+  const Entry = ctx.registered.get('conversation.input.left').component
+  // 渲染时不应自己调用任何输入框动作
+  renderToStaticMarkup(React.createElement(Entry, { inputActions: actions }))
+  assert.deepEqual(calls, [], '渲染阶段不许碰对话框')
+  assert.equal(typeof actions.submit, 'function', 'submit 存在但我们不主动调用：发不发由用户决定')
 })
