@@ -240,3 +240,56 @@ test('面板和设置页照常在打开时才加载（它们本来就是专门�
   renderToStaticMarkup(React.createElement(ctx.registered.get('main').component))
   assert.equal(typeof ctx.registered.get('main').component, 'function')
 })
+
+test('写进输入框用的是 setDraft（InputActions 上没有 insertText）', async () => {
+  const { exported } = await loadClient()
+  const { writeDraft } = exported.__test
+
+  // 空输入框 + 命令 → 直接写进去
+  const calls = []
+  const actions = { setDraft: (t) => calls.push(t), focus: () => calls.push('focus') }
+  assert.deepEqual(writeDraft({ inputActions: actions }, '/vps-disk', { current: '' }), { ok: true })
+  assert.deepEqual(calls, ['/vps-disk', 'focus'])
+
+  // 输入框里有内容 + 命令 → 不覆盖（命令行必须以 / 开头，接在后面不成立）
+  const calls2 = []
+  const res = writeDraft(
+    { inputActions: { setDraft: (t) => calls2.push(t) } },
+    '/vps-disk',
+    { current: '我正在写一段话' },
+  )
+  assert.deepEqual(res, { ok: false, reason: 'draft-busy' })
+  assert.deepEqual(calls2, [], '绝不能把用户写了一半的内容冲掉')
+
+  // 自然语言（交给 AI）→ 可以接在已有内容后面
+  const calls3 = []
+  writeDraft(
+    { inputActions: { setDraft: (t) => calls3.push(t) } },
+    '看看磁盘',
+    { current: '顺便', command: false },
+  )
+  assert.deepEqual(calls3, ['顺便\n看看磁盘'])
+
+  // 宿主没给 inputActions → 明确失败，由调用方提示手动输入
+  assert.deepEqual(writeDraft({}, '/vps-disk', {}), { ok: false, reason: 'no-actions' })
+})
+
+test('只用 InputActions 真实存在的方法', async () => {
+  const { exported } = await loadClient()
+  const used = new Set()
+  const actions = new Proxy({}, {
+    get: (_t, prop) => {
+      used.add(String(prop))
+      return () => {}
+    },
+  })
+  exported.__test.writeDraft({ inputActions: actions }, '/vps-ping', { current: '' })
+  for (const name of used) {
+    assert.ok(
+      ['setDraft', 'focus', 'submit', 'addAttachments', 'removeAttachment', 'pruneAttachments'].includes(name),
+      `用了不存在的方法：${name}`,
+    )
+  }
+  assert.ok(used.has('setDraft'))
+  assert.ok(!used.has('insertText'), 'insertText 是编辑器内部的，不在 InputActions 上')
+})
