@@ -165,3 +165,26 @@ test('命令层：没指定机器且没有当前机器时，提示怎么办', as
   assert.equal(res.kind, 'error')
   assert.match(res.text, /还没有添加机器/)
 })
+
+test('/vps-help 必须列出全部命令（新增命令漏写会在这里失败）', async () => {
+  const { env, runner } = await sandbox()
+  const registered = []
+  registerCommands({ commands: { register: (d) => { registered.push(d); return () => {} } } }, { env, runner })
+
+  const help = await registered.find((c) => c.name === 'vps-help').handler({ rawInput: '' })
+  assert.equal(help.kind, 'success')
+
+  const missing = registered.map((c) => `/${c.name}`).filter((n) => !help.text.includes(n))
+  assert.deepEqual(missing, [], `这些命令没出现在 /vps-help 里：${missing.join('、')}`)
+
+  // 首行要自带信息量：DSH 折叠命令结果时只看得到它
+  const first = help.text.split('\n')[0]
+  assert.match(first, /条命令/)
+  assert.match(first, /当前/)
+  // 用法要写清楚参数，不只是命令名
+  assert.match(help.text, /\/vps-install <菜谱id>/)
+  assert.match(help.text, /\/vps-logs <服务名>/)
+  // 三种用法都要提到
+  assert.match(help.text, /跟 AI 说话/)
+  assert.match(help.text, /面板/)
+})

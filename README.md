@@ -69,7 +69,7 @@ Queries run without the model and cost no tokens. Each result starts with a one-
 
 | Command | What it shows |
 |---|---|
-| `/vps-help` | Command list, how to target a machine, where the panel is |
+| **`/vps-help`** | **Everything: all commands with their arguments, how to target a machine, what to say to the AI, where the panel is** |
 | `/vps-sysinfo` | OS, CPU, memory, disk, load, public IP |
 | `/vps-disk` | Mounts, inodes, largest directories (time-capped) |
 | `/vps-ports` | Listening ports and owning processes |
@@ -176,7 +176,7 @@ npm install
 npm test
 ```
 
-99 tests, no server required: local `sh -s` stands in for a remote `sshd`, which is enough to exercise the payload protocol, task lifecycle, locking, backup/restore, tier classification, panel routes and panel rendering.
+100 tests, no server required: local `sh -s` stands in for a remote `sshd`, which is enough to exercise the payload protocol, task lifecycle, locking, backup/restore, tier classification, panel routes and panel rendering.
 
 ---
 
