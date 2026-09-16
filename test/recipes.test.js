@@ -52,6 +52,23 @@ test('内置查询菜谱不允许含高危写法（CI 闸门）', async () => {
   }
 })
 
+test('菜谱里不许写 `$SUDO VAR=值 命令`（root 登录时 $SUDO 为空，会被当成命令名）', async () => {
+  // 真机实测：vps-dsh（root 登录）上 system-update 以 127 失败，日志只有一行
+  // `DEBIAN_FRONTEND=noninteractive: not found` —— 赋值前缀必须是字面量，
+  // 经过 $SUDO 展开之后 shell 已经不把它当赋值了。正确写法是 $SUDO env VAR=值 命令。
+  const { list } = await loadRecipes({ env: emptyEnv })
+  const bad = /\$(?:SUDO|SUDO_OPT)\s+[A-Za-z_][A-Za-z_0-9]*=/
+  for (const r of list) {
+    for (const [field, script] of [['detect', r.detect], ['run', r.run], ['verify', r.verify]]) {
+      const hit = String(script ?? '')
+        .split('\n')
+        .filter((line) => !line.trim().startsWith('#')) // 注释里写反例是允许的
+        .find((line) => bad.test(line))
+      assert.equal(hit, undefined, `${r.id} 的 ${field} 里有 $SUDO 后接赋值：${hit}　改成 $SUDO env VAR=值 命令`)
+    }
+  }
+})
+
 test('菜谱校验拦住常见错误', () => {
   const base = { id: 'x-thing', kind: 'install', run: 'echo hi' }
   assert.ok(validateRecipe(base))
