@@ -155,8 +155,8 @@ test('没打开开关的对话：状态条一个像素都不渲染，头部开�
 
   assert.equal(dockHtml, '', '没绑定机器的对话，输入框下方不该有任何东西')
   assert.deepEqual(calls, [], '大多数对话跟 VPS 无关，挂载时不该发任何请求')
-  assert.match(toggleHtml, />VPS</, '头部只有 VPS 三个字母加小球')
-  assert.doesNotMatch(toggleHtml, /🟢|🔴/, '不用 emoji，用小球颜色表示')
+  assert.match(toggleHtml, />VPS</, '头部只有 VPS 三个字母加方块')
+  assert.doesNotMatch(toggleHtml, /🟢|🔴/, '不用 emoji，用方块颜色表示')
 })
 
 test('面板和设置页照常在打开时才加载（它们本来就是专门去开的）', async () => {
@@ -209,7 +209,7 @@ test('绑定了机器但一切正常时，输入框下方仍然什么都不渲�
   assert.equal(html, '', '没有要报的事就不该占位置')
 })
 
-test('小球里的数字：一台不写，多台写 1234', async () => {
+test('方块里的数字：一台不写，多台写 1234', async () => {
   const { exported } = await loadClient()
   const { ballLabel } = exported.__test
   assert.equal(ballLabel(0, 1), '', '只有一台就不用编号')
@@ -230,10 +230,10 @@ test('多台机器时头部是一排开关，没有下拉菜单', async () => {
   const html = renderToStaticMarkup(
     React.createElement(ctx.registered.get('conversation.session.header.actions').component, { sessionId: 's9' }),
   )
-  assert.equal((html.match(/<button/g) ?? []).length, 2, '两台机器两个小球')
-  assert.match(html, />1</, '小球里写编号')
+  assert.equal((html.match(/<button/g) ?? []).length, 2, '两台机器两个方块')
+  assert.match(html, />1</, '方块里写编号')
   assert.match(html, />2</)
   assert.equal((html.match(/VPS/g) ?? []).length, 1, 'VPS 三个字母只出现一次，省地方')
-  assert.match(html, /border-radius:50%/, '是小球不是方按钮')
+  assert.match(html, /border-radius:4px/, '圆角方块：数字更好读、点击面积更大')
   assert.doesNotMatch(html, /position:fixed/, '不再有任何弹出层')
 })
