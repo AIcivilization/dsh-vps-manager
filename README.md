@@ -69,6 +69,7 @@ Queries run without the model and cost no tokens. Each result starts with a one-
 
 | Command | What it shows |
 |---|---|
+| `/vps-help` | Command list, how to target a machine, where the panel is |
 | `/vps-sysinfo` | OS, CPU, memory, disk, load, public IP |
 | `/vps-disk` | Mounts, inodes, largest directories (time-capped) |
 | `/vps-ports` | Listening ports and owning processes |

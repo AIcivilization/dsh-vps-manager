@@ -69,6 +69,7 @@ ln -s "$PWD" ~/.dsh/profiles/desktop/node_modules/dsh-vps-manager
 
 | 命令 | 看什么 |
 |---|---|
+| `/vps-help` | 命令清单、怎么指定机器、面板在哪 |
 | `/vps-sysinfo` | 系统、CPU、内存、磁盘、负载、公网 IP |
 | `/vps-disk` | 挂载点、inode、最大的几个目录（有时间上限） |
 | `/vps-ports` | 监听端口和对应进程 |
