@@ -186,7 +186,7 @@ npm install
 npm test
 ```
 
-100 tests, no server required: local `sh -s` stands in for a remote `sshd`, which is enough to exercise the payload protocol, task lifecycle, locking, backup/restore, tier classification, panel routes and panel rendering.
+111 tests, no server required: local `sh -s` stands in for a remote `sshd`, which is enough to exercise the payload protocol, task lifecycle, locking, backup/restore, tier classification, panel routes and panel rendering.
 
 ---
 
