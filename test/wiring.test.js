@@ -188,3 +188,66 @@ test('/vps-help 必须列出全部命令（新增命令漏写会在这里失败�
   assert.match(help.text, /跟 AI 说话/)
   assert.match(help.text, /面板/)
 })
+
+test('开关关着时命令不执行；绑定后才有默认机器（用户实测发现的漏洞）', async () => {
+  const { env, runner, sshOptions } = await sandbox() // hosts.yml 里 current 就是 hk
+  const registered = []
+  registerCommands({ commands: { register: (d) => { registered.push(d); return () => {} } } }, { env, runner, sshOptions })
+  const ping = registered.find((c) => c.name === 'vps-ping')
+  const use = registered.find((c) => c.name === 'vps-use')
+  const inv = { rawInput: '', agent: { session: { id: 'sess-1' } } }
+
+  // 没打开开关：即使 hosts.yml 里有「当前机器」，也不许拿它当默认
+  const denied = await ping.handler(inv)
+  assert.equal(denied.kind, 'error')
+  assert.match(denied.text, /没有打开 VPS 开关/)
+  assert.match(denied.text, /-h/)
+
+  // 显式 -h 仍然随时可用
+  const explicit = await ping.handler({ ...inv, rawInput: '-h hk' })
+  assert.equal(explicit.kind, 'success', explicit.text)
+
+  // 绑定这个对话之后，不带 -h 也能跑
+  const bound = await use.handler({ ...inv, rawInput: 'hk' })
+  assert.equal(bound.kind, 'success')
+  assert.match(bound.text, /只影响这个对话/)
+  const afterBind = await ping.handler(inv)
+  assert.equal(afterBind.kind, 'success', afterBind.text)
+
+  // 关掉开关 → 立刻回到「必须指定机器」
+  const off = await use.handler({ ...inv, rawInput: 'off' })
+  assert.equal(off.kind, 'success')
+  const afterOff = await ping.handler(inv)
+  assert.equal(afterOff.kind, 'error')
+  assert.match(afterOff.text, /没有打开 VPS 开关/)
+})
+
+test('别的对话不受影响：绑定是会话级的', async () => {
+  const { env, runner } = await sandbox()
+  const registered = []
+  registerCommands({ commands: { register: (d) => { registered.push(d); return () => {} } } }, { env, runner })
+  const ping = registered.find((c) => c.name === 'vps-ping')
+  const use = registered.find((c) => c.name === 'vps-use')
+
+  await use.handler({ rawInput: 'hk', agent: { session: { id: 'sess-A' } } })
+  const a = await ping.handler({ rawInput: '', agent: { session: { id: 'sess-A' } } })
+  const b = await ping.handler({ rawInput: '', agent: { session: { id: 'sess-B' } } })
+
+  assert.equal(a.kind, 'success', 'A 对话绑定了，能跑')
+  assert.equal(b.kind, 'error', 'B 对话没绑定，不该被 A 影响')
+})
+
+test('AI 工具同样受开关约束：没绑定又没写 host 就报错', async () => {
+  const { env, runner } = await sandbox()
+  const defs = await buildToolDefinitions({ approval: { request: async () => 'allow' } }, { env, runner })
+  const exec = defs.find((d) => d.name === 'vps_exec')
+
+  await assert.rejects(
+    exec.execute({ script: 'echo hi', intent: 'read' }, { agent: { session: { id: 'sess-none' } }, callId: 'c1' }),
+    /没有指定机器/,
+  )
+
+  // 写了 host 就照常
+  const ok = await exec.execute({ host: 'hk', script: 'echo hi', intent: 'read' }, { agent: { session: { id: 'sess-none' } }, callId: 'c2' })
+  assert.equal(ok.ok, true, ok.hint)
+})
