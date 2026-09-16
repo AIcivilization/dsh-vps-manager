@@ -134,60 +134,6 @@ test('请求失败时把 host 的错误原样带出来', async () => {
   await assert.rejects(broken.__test.api('overview'), /服务返回异常（HTTP 500）/)
 })
 
-test('浮层的建议行只在真有问题时出现，且最多三条', async () => {
-  const { exported } = await loadClient()
-  const { suggestions } = exported.__test
-  const ok = { disk_pct: '25%', mem_total_mb: '3800', swap_total_mb: '3071', fail2ban: '1', auto_updates: '1' }
-  assert.deepEqual(suggestions({ reachable: true }, ok), [], '一切正常就不该唠叨')
-
-  const full = suggestions({ reachable: true }, { ...ok, disk_pct: '92%' })
-  assert.equal(full[0].kind, 'query')
-  assert.equal(full[0].id, 'disk')
-  assert.match(full[0].text, /92%/)
-
-  const noF2b = suggestions({ reachable: true }, { ...ok, fail2ban: '0' })
-  assert.equal(noF2b[0].id, 'login-history', '没装 fail2ban 时先让人看有没有人在爆破')
-
-  const small = suggestions({ reachable: true }, { ...ok, mem_total_mb: '1024', swap_total_mb: '0' })
-  assert.match(small[0].text, /swap/)
-
-  const down = suggestions({ reachable: false }, ok)
-  assert.equal(down.length, 1, '连不上时只说这一件事，别堆别的建议')
-  assert.match(down[0].text, /连不上/)
-
-  const many = suggestions({ reachable: true }, { disk_pct: '95%', mem_total_mb: '512', swap_total_mb: '0', fail2ban: '0', auto_updates: '0' })
-  assert.equal(many.length, 3, '最多三条')
-})
-
-test('渲染阶段不碰对话框，submit 也永远不主动调用', async () => {
-  const { exported } = await loadClient({ storage: { 'dsh-vps:bind:s1': 'hk' } })
-  const calls = []
-  const actions = {
-    insertText: (t) => calls.push(['insertText', t]),
-    focus: () => calls.push(['focus']),
-    submit: () => calls.push(['submit']),
-  }
-  const ctx = fakeSlots()
-  exported.apply(ctx)
-  const Dock = ctx.registered.get('conversation.composer.dock').component
-  renderToStaticMarkup(React.createElement(Dock, { sessionId: 's1', inputActions: actions }))
-  assert.deepEqual(calls, [], '渲染阶段不许碰对话框')
-  assert.equal(typeof actions.submit, 'function', 'submit 存在但我们不主动调用：发不发由用户决定')
-})
-
-test('浮层里的每一项都推成对话里的命令，而不是自己显示结果', async () => {
-  const { exported } = await loadClient()
-  const { commandForQuery } = exported.__test
-  // 有专属命令的用专属命令，读起来像人话
-  assert.equal(commandForQuery('disk'), '/vps-disk')
-  assert.equal(commandForQuery('sysinfo'), '/vps-sysinfo')
-  assert.equal(commandForQuery('health'), '/vps-ping')
-  assert.equal(commandForQuery('docker-ps'), '/vps-docker')
-  // 没有专属命令的走通用入口，仍然落在对话里
-  assert.equal(commandForQuery('cert-expiry'), '/vps-q cert-expiry')
-  assert.equal(commandForQuery('login-history'), '/vps-q login-history')
-})
-
 test('没打开开关的对话：状态条一个像素都不渲染，头部开关也不发请求', async () => {
   const calls = []
   const { exported } = await loadClient({
@@ -213,20 +159,6 @@ test('没打开开关的对话：状态条一个像素都不渲染，头部开�
   assert.doesNotMatch(toggleHtml, /🟢|🔴/, '没打开时不显示机器状态')
 })
 
-test('打开开关的对话：状态条出现并显示绑定的机器', async () => {
-  const { exported } = await loadClient({
-    storage: { 'dsh-vps:bind:s2': 'vps-dsh' },
-    fetchImpl: async () => ({ status: 200, json: async () => ({ ok: true, alias: 'vps-dsh', recipes: [], tasks: [] }) }),
-  })
-  const ctx = fakeSlots()
-  exported.apply(ctx)
-  const html = renderToStaticMarkup(
-    React.createElement(ctx.registered.get('conversation.composer.dock').component, { sessionId: 's2' }),
-  )
-  assert.match(html, /vps-dsh/, '绑定后状态条要显示是哪台机器')
-  assert.match(html, /敲命令/, '状态条里有命令框：对话框就是这台机器的命令行')
-})
-
 test('面板和设置页照常在打开时才加载（它们本来就是专门去开的）', async () => {
   const calls = []
   const { exported } = await loadClient({
@@ -241,55 +173,38 @@ test('面板和设置页照常在打开时才加载（它们本来就是专门�
   assert.equal(typeof ctx.registered.get('main').component, 'function')
 })
 
-test('写进输入框用的是 setDraft（InputActions 上没有 insertText）', async () => {
+test('输入框下方：没事就一个像素都不占，只报「不问就不知道」的事', async () => {
   const { exported } = await loadClient()
-  const { writeDraft } = exported.__test
+  const { alertsFor } = exported.__test
 
-  // 空输入框 + 命令 → 直接写进去
-  const calls = []
-  const actions = { setDraft: (t) => calls.push(t), focus: () => calls.push('focus') }
-  assert.deepEqual(writeDraft({ inputActions: actions }, '/vps-disk', { current: '' }), { ok: true })
-  assert.deepEqual(calls, ['/vps-disk', 'focus'])
+  // 一切正常 —— 什么都不显示
+  assert.deepEqual(alertsFor('hk', { reachable: true, facts: { disk_pct: '25%' }, running: [] }), [])
 
-  // 输入框里有内容 + 命令 → 不覆盖（命令行必须以 / 开头，接在后面不成立）
-  const calls2 = []
-  const res = writeDraft(
-    { inputActions: { setDraft: (t) => calls2.push(t) } },
-    '/vps-disk',
-    { current: '我正在写一段话' },
-  )
-  assert.deepEqual(res, { ok: false, reason: 'draft-busy' })
-  assert.deepEqual(calls2, [], '绝不能把用户写了一半的内容冲掉')
+  // 后台任务在跑：你关掉页面它还在跑，不说你不知道
+  const busy = alertsFor('hk', { reachable: true, facts: {}, running: [{ meta: { recipeId: 'install-docker' } }] })
+  assert.equal(busy.length, 1)
+  assert.match(busy[0].text, /install-docker/)
 
-  // 自然语言（交给 AI）→ 可以接在已有内容后面
-  const calls3 = []
-  writeDraft(
-    { inputActions: { setDraft: (t) => calls3.push(t) } },
-    '看看磁盘',
-    { current: '顺便', command: false },
-  )
-  assert.deepEqual(calls3, ['顺便\n看看磁盘'])
+  // 连不上
+  const down = alertsFor('hk', { reachable: false, facts: {}, running: [] })
+  assert.equal(down[0].tone, 'danger')
+  assert.match(down[0].text, /连不上/)
 
-  // 宿主没给 inputActions → 明确失败，由调用方提示手动输入
-  assert.deepEqual(writeDraft({}, '/vps-disk', {}), { ok: false, reason: 'no-actions' })
+  // 磁盘快满
+  const full = alertsFor('hk', { reachable: true, facts: { disk_pct: '92%' }, running: [] })
+  assert.equal(full[0].tone, 'danger')
+  assert.match(full[0].text, /92%/)
+
+  // 磁盘没满就不提
+  assert.deepEqual(alertsFor('hk', { reachable: true, facts: { disk_pct: '60%' }, running: [] }), [])
 })
 
-test('只用 InputActions 真实存在的方法', async () => {
-  const { exported } = await loadClient()
-  const used = new Set()
-  const actions = new Proxy({}, {
-    get: (_t, prop) => {
-      used.add(String(prop))
-      return () => {}
-    },
-  })
-  exported.__test.writeDraft({ inputActions: actions }, '/vps-ping', { current: '' })
-  for (const name of used) {
-    assert.ok(
-      ['setDraft', 'focus', 'submit', 'addAttachments', 'removeAttachment', 'pruneAttachments'].includes(name),
-      `用了不存在的方法：${name}`,
-    )
-  }
-  assert.ok(used.has('setDraft'))
-  assert.ok(!used.has('insertText'), 'insertText 是编辑器内部的，不在 InputActions 上')
+test('绑定了机器但一切正常时，输入框下方仍然什么都不渲染', async () => {
+  const { exported } = await loadClient({ storage: { 'dsh-vps:bind:s2': 'vps-dsh' } })
+  const ctx = fakeSlots()
+  exported.apply(ctx)
+  const html = renderToStaticMarkup(
+    React.createElement(ctx.registered.get('conversation.composer.dock').component, { sessionId: 's2' }),
+  )
+  assert.equal(html, '', '没有要报的事就不该占位置')
 })
