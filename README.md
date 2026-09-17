@@ -1,5 +1,7 @@
 # dsh-vps-manager
 
+**Use your VPS inside DSH as seamlessly as over SSH: besides a curated set of common commands, you can also have the model in your conversation operate the VPS.**
+
 English | [中文](README.zh-CN.md)
 
 Manage your VPS from DeepSeek Harness (DSH). Check server status with commands that skip the model and cost no tokens, tell the AI what to do and let it work on the server, and handle common installs and maintenance with recipes.

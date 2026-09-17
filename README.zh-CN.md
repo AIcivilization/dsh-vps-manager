@@ -1,5 +1,7 @@
 # dsh-vps-manager
 
+**在 DSH 中和 SSH 一样无感地使用 VPS，除了精选的部分常用命令之外，使用时还能让对话中的大模型对 VPS 进行操作。**
+
 [English](README.md) | 中文
 
 在 DeepSeek Harness（DSH）里管理你的 VPS：用命令查看服务器状态（不走模型、不花 token），跟 AI 说一句话让它登上服务器干活，常见软件和系统维护按菜谱完成。
