@@ -78,6 +78,17 @@ test('说明里写清系统，模型按系统写命令', async () => {
   assert.match(withServices, /80\/443 端口已被占用：caddy。.*不要另装 nginx/)
   assert.match(withServices, /在跑的容器：mailserver/)
   assert.match(withServices, /动手改之前先查现状/)
+  // 服务名照抄、必须遵守的几条：实测小模型把 dsh-web 猜成 dsh，查不到就想杀进程重启
+  const { env: env6 } = await sandbox({ facts: { os_id: 'ubuntu', os_ver: '24.04', services: 'caddy dsh-web docker fail2ban ' } })
+  const rules = await boundText('vps-dsh', env6)
+  assert.match(rules, /在跑的服务（准确的服务名，操作服务时照抄，不要猜）：caddy、dsh-web、docker、fail2ban/)
+  assert.match(rules, /必须遵守：/)
+  assert.match(rules, /名字不要猜/)
+  assert.match(rules, /不要 pkill、kill 之后再手动启动/)
+  assert.match(rules, /不要把「查不到」变成重启、重装、改监听地址、改防火墙/)
+  assert.match(rules, /默认现有配置是对的/)
+  assert.equal(rules.match(/动手改之前先查现状/g)?.length, 1, '不要重复同一条')
+
   const { env: env5 } = await sandbox({ facts: { os_id: 'ubuntu', os_ver: '24.04', web_listeners: '' } })
   assert.match(await boundText('vps-dsh', env5), /80\/443 端口：没有程序在监听/)
 })

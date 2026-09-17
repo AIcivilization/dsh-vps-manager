@@ -87,7 +87,7 @@ Machines already defined in `~/.ssh/config` can be taken over with "Import from 
 
 The conversation header has a **VPS switch**: the word `VPS` followed by one small square per machine. With several machines the squares show numbers, matching the numbers on the settings page.
 
-- **Click a square**: this conversation enters **VPS mode** and the square turns green. From then on `/vps-` commands act on that machine, and the plugin tells the model which machine this conversation operates on, what system it runs (package manager, init system, privilege), which program holds ports 80/443, and which containers are running. The model writes commands for that system, and knows what you mean by "this machine" or "the server"
+- **Click a square**: this conversation enters **VPS mode** and the square turns green. From then on `/vps-` commands act on that machine, and the plugin tells the model which machine this conversation operates on, what system it runs (package manager, init system, privilege), which program holds ports 80/443, which services and containers are running, plus a few rules it must follow (never guess names, handle systemd services only through systemctl, never turn a failed lookup into a restart or reinstall). The model writes commands for that system, and knows what you mean by "this machine" or "the server"
 - **In VPS mode the model cannot use local bash**: a call is refused with a pointer to the VPS tools, so the model does not investigate server problems on your own computer. Reading files, searching and similar tools are unaffected
 - **Click it again**: VPS mode ends, the square turns red, and local bash is available again. With nothing bound there is **no default machine at all**: commands do not run, and the AI must name the machine it operates on
 - Each conversation can be bound to one machine at a time. **A binding only applies to its own conversation**: one window can operate the server in VPS mode while another keeps working on local code, without affecting each other
@@ -175,7 +175,7 @@ Before any script runs, the plugin decides its risk level. **The level the model
 |---|---|
 | **Read-only** | `df -h`, `systemctl status`, `docker ps`, `journalctl` |
 | **Change** | `apt-get install`, `sed -i`, `systemctl restart`, writing files |
-| **Dangerous** | `rm -rf`, `mkfs`, firewall changes (`ufw`, `iptables`), `passwd`, `reboot`, `curl … \| sh` |
+| **Dangerous** | `rm -rf`, `mkfs`, firewall changes (`ufw`, `iptables`), `passwd`, `reboot`, killing processes (`kill`, `pkill`, `killall`), `curl … \| sh` |
 
 Whether a confirmation dialog appears depends on the machine's confirmation level (machine > group > global):
 
@@ -282,7 +282,7 @@ npm install
 npm test
 ```
 
-142 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`.
+144 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`.
 
 ---
 

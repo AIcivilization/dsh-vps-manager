@@ -157,3 +157,35 @@ test('只是提到防火墙或 reboot 字样不算高危（命令位置才算）
   assert.equal(tier('$SUDO nft add rule inet filter input drop'), 'danger')
   assert.equal(tier('$SUDO ufw allow 22/tcp'), 'danger')
 })
+
+test('find：查找是只读；带 -exec / -delete / -fprint 才算改动', () => {
+  // 实测：这条只是读 Caddyfile，却因为 find 不在白名单里弹了确认框
+  const caddy = 'cat /etc/caddy/Caddyfile 2>/dev/null || find /etc/caddy* -name "*.conf" -o -name "Caddyfile" 2>/dev/null | head -5'
+  assert.equal(classifyScript(caddy).tier, 'read', JSON.stringify(classifyScript(caddy)))
+  assert.equal(classifyScript('find /var/log -name "*.log" -mtime +7').tier, 'read')
+  assert.equal(classifyScript('find / -type f -size +500M 2>/dev/null | head').tier, 'read')
+
+  assert.notEqual(classifyScript('find /tmp -name "*.tmp" -exec rm {} \;').tier, 'read')
+  assert.notEqual(classifyScript('find /tmp -execdir chmod 777 {} +').tier, 'read')
+  assert.notEqual(classifyScript('find / -fprint /etc/cron.d/x').tier, 'read')
+  assert.equal(classifyScript('find /var/www -name "*.bak" -delete').tier, 'danger')
+})
+
+test('杀进程判高危：systemd 管着的服务要用 systemctl', () => {
+  // 实测：模型查不到日志，就想杀掉 systemd 管着的 DSH 再手动起一个
+  const real = 'pkill -f "dsh web" || true; sleep 2; /usr/bin/node /usr/lib/node_modules/@deepseek-ai/dsh/lib/bin.js web --no-open --port 8787 &'
+  const r = classifyScript(real)
+  assert.equal(r.tier, 'danger')
+  assert.equal(r.dangers[0].category, 'process')
+  assert.match(r.dangers[0].why, /systemctl/)
+
+  for (const s of ['killall nginx', 'kill -9 724', 'kill 724', '$SUDO pkill caddy', 'sudo -n pkill -f dsh', 'sudo -u root killall node']) {
+    assert.equal(classifyScript(s).tier, 'danger', s)
+  }
+  // 不算杀进程
+  assert.notEqual(classifyScript('kill -0 724').tier, 'danger', 'kill -0 只是探活')
+  assert.notEqual(classifyScript('kill -l').tier, 'danger')
+  assert.equal(classifyScript('pgrep -a dsh').tier, 'read')
+  assert.equal(classifyScript('grep -n pkill /var/log/auth.log').tier, 'read', 'grep 模式里出现 pkill 不算')
+  assert.equal(classifyScript('systemctl status dsh-web.service --no-pager').tier, 'read')
+})

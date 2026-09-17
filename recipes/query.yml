@@ -50,6 +50,16 @@ recipes:
       containers=''
       if has_cmd docker; then containers=$($SUDO_OPT docker ps --format '{{.Names}}' 2>/dev/null | head -8 | tr '\n' ' '); fi
       printf 'containers=%s\n' "$containers"
+      # —— 在跑的服务名：写进 AI 说明，免得它猜名字（实测把 dsh-web 猜成 dsh，查不到就想重启）——
+      svcs=''
+      if [ "$INIT" = systemd ]; then
+        svcs=$(systemctl list-units --type=service --state=running --no-legend --plain 2>/dev/null | awk '{print $1}' | sed 's/[.]service$//' \
+          | grep -vE '^(systemd-|dbus|getty@|serial-getty@|user@|polkit|rsyslog|cron|atd|irqbalance|multipathd|ModemManager|networkd-dispatcher|unattended-upgrades|packagekit|udisks2|upower|snapd|accounts-daemon|chrony|ntp|qemu-guest-agent|cloud-|lxcfs|haveged|rngd|acpid|smartd|thermald|wpa_supplicant|NetworkManager|avahi|cups|containerd|ssh|sshd|getty)' \
+          | head -20 | tr '\n' ' ')
+      elif has_cmd rc-status; then
+        svcs=$(rc-status -s 2>/dev/null | awk '/started/ {print $1}' | head -20 | tr '\n' ' ')
+      fi
+      printf 'services=%s\n' "$svcs"
 
   - id: sysinfo
     kind: query
