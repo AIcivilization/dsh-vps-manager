@@ -197,6 +197,8 @@ test('头部顺序：VPS → 终端按钮 → 机器方块', async () => {
   const second = html.indexOf('>2</button>')
   assert.ok(vps >= 0 && term > vps, '终端按钮紧跟在 VPS 后面')
   assert.ok(first > term && second > first, '机器方块在终端按钮之后，按编号排')
+  assert.match(html, /data-vps-group=""[^>]*border:1px solid var\(--dsw-alias-border-l3/, '外面一圈浅色框，看得出是一组按钮')
+  assert.ok(html.startsWith('<span data-vps-group=""') && html.endsWith('</span>'), '框包住整组：VPS、终端、方块都在里面')
 })
 
 test('多台机器时头部是一排开关，没有下拉菜单', async () => {
