@@ -310,3 +310,5 @@ npm test
 ## License
 
 [MIT](LICENSE)
+
+Bundled third-party code: `lib/vendor/xterm/` contains [xterm.js](https://github.com/xtermjs/xterm.js) 6.0.0 and addon-fit 0.11.0, MIT licensed, copyright the xterm.js authors; see [lib/vendor/xterm/LICENSE](lib/vendor/xterm/LICENSE).

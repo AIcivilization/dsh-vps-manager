@@ -310,3 +310,5 @@ npm test
 ## 许可
 
 [MIT](LICENSE)
+
+附带的第三方代码：`lib/vendor/xterm/` 下是 [xterm.js](https://github.com/xtermjs/xterm.js) 6.0.0 与 addon-fit 0.11.0，MIT 许可，版权归 xterm.js 作者，许可原文见 [lib/vendor/xterm/LICENSE](lib/vendor/xterm/LICENSE)。
