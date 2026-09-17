@@ -51,11 +51,17 @@ Everything goes over SSH key login and shares one execution mechanism:
 
 ## Install
 
+**DSH Desktop**: click the DSH icon in the menu bar (the system tray on Windows) → "Open DSH Terminal", and run in that terminal:
+
 ```bash
 dsh plugin add github:AIcivilization/dsh-vps-manager
 ```
 
+**Command-line DSH (`dsh web`)**: run the same command in an ordinary terminal.
+
 **Restart DSH** afterwards. Plugins are loaded when DSH starts.
+
+To uninstall, run `dsh plugin remove dsh-vps-manager` and restart DSH. Uninstalling keeps your machine list, keys and audit log (see [Where data lives](#where-data-lives)).
 
 ---
 

@@ -51,11 +51,17 @@
 
 ## 安装
 
+**DSH Desktop**：点菜单栏（Windows 上是任务栏托盘）的 DSH 图标 →「打开 DSH 终端」，在弹出的终端里执行：
+
 ```bash
 dsh plugin add github:AIcivilization/dsh-vps-manager
 ```
 
-装好后**重启 DSH**。插件在 DSH 启动时加载。
+**命令行版 DSH（`dsh web`）**：在普通终端里执行同一条命令。
+
+装好后**重启 DSH**，插件在 DSH 启动时加载。
+
+卸载：`dsh plugin remove dsh-vps-manager`，然后重启 DSH。卸载不会删除你的机器清单、钥匙和审计日志（见[数据放在哪](#数据放在哪)）。
 
 ---
 
