@@ -67,5 +67,6 @@ VPS 模式的说明里写着系统、包管理器、init 和权限。**按它写
 ## 常用信息
 
 - 脚本里可以直接用前导提供的变量和函数：`$SUDO`（root 时为空）、`$SUDO_OPT`（没权限时为空）、`$PKG`、`$INIT`、`$OS_ID`、`$OS_FAMILY`、`has_cmd`、`pkg_install`、`svc_enable_start`、`svc_active`、`need_root`、`not_supported`
-- 用户刚用 `/vps-*` 命令看过的结果你是看不到的。需要时用 `vps_recipe action=run` 跑对应的查询菜谱（`sysinfo`、`disk`、`ports`、`services`、`net`、`docker-ps`、`logs`、`health`），很便宜
+- 用户自己用 `/vps-sh` 执行过的命令和输出，会以「[VPS 终端]」开头的消息附给你（敏感内容已打码）。用户说「上面」「刚才那个报错」时，指的多半就是它
+- 其他 `/vps-*` 命令的结果你是看不到的。需要时用 `vps_recipe action=run` 跑对应的查询菜谱（`sysinfo`、`disk`、`ports`、`services`、`net`、`docker-ps`、`logs`、`health`），很便宜
 - 远端有并发锁：同一台机器同时只能跑一个改动任务。拿到 `locked` 说明有别的任务在跑，返回值里有它是谁

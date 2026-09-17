@@ -107,6 +107,8 @@ dsh plugin add github:AIcivilization/dsh-vps-manager
 1. 命令作用在**当前对话绑定的机器**上；没有绑定就不执行。
 2. **下表里没写参数的命令，只发命令名本身。** DSH 只会把声明了参数的命令后面的文字交给插件。在不收参数的命令后面加字，整句会被当成普通消息发给模型。需要确认的操作都是先出计划，再单独发 `/vps-yes`。
 
+**自己敲的命令会附给 AI**：DSH 本身不会把命令结果交给模型。插件会记下你用 `/vps-sh` 执行的最近几条命令和输出（令牌、密码、私钥等先打码），在你下次跟 AI 说话时一起附上。所以你可以先自己查，再直接问「看看上面为什么报错」。不想附上的那条，在命令前加 `--private`。
+
 ### 入口
 
 | 命令 | 作用 |
@@ -127,7 +129,7 @@ dsh plugin add github:AIcivilization/dsh-vps-manager
 | `/vps-ping` | 主机名、系统、负载、运行时长 |
 | `/vps-logs <服务名>` | 某个服务最近 100 行日志 |
 | `/vps-q <菜谱id>` | 运行任意一条查询菜谱，如 `ip-info`、`top-procs`、`cron-list`、`cert-expiry`、`firewall-status`、`updates`、`login-history` |
-| `/vps-sh <命令>` | 在机器上执行一条命令，输出直接显示在对话里。判定为高危的命令会先被拦下，发 `/vps-yes` 才执行 |
+| `/vps-sh <命令>` | 在机器上执行命令，输出直接显示在对话里，像一个简易终端：同一个对话里记住 `cd` 到的目录；`top`、`tail -f`、`journalctl -f`、`less`、`watch` 这类会一直刷新或翻页的命令自动改成一次性输出，`vim`、进入交互 shell 这类做不了的会说明原因；判定为高危的先拦下，发 `/vps-yes` 才执行。前面加 `--bg` 放到后台跑，加 `--private` 表示这条输出不附给 AI |
 
 ### 机器
 
@@ -282,7 +284,7 @@ npm install
 npm test
 ```
 
-144 个测试，不需要真实服务器：用本机的 `sh -s` 代替远端 `sshd`，覆盖载荷协议、远端任务、并发锁、备份还原、风险判定、VPS 模式、卸载、命令、设置页接口与界面渲染。装了 DSH Desktop 的机器上，还会拿 DSH 自带的 `dsh-tools`、`dsh-skill`、`dsh-user-approval` 核对工具定义、返回值、skill 字段和审批结果词汇。
+151 个测试，不需要真实服务器：用本机的 `sh -s` 代替远端 `sshd`，覆盖载荷协议、远端任务、并发锁、备份还原、风险判定、VPS 模式、卸载、命令、设置页接口与界面渲染。装了 DSH Desktop 的机器上，还会拿 DSH 自带的 `dsh-tools`、`dsh-skill`、`dsh-user-approval` 核对工具定义、返回值、skill 字段和审批结果词汇。
 
 ---
 

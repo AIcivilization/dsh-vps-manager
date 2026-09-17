@@ -107,6 +107,8 @@ Commands skip the model and cost no tokens. DSH folds a command's result down to
 1. Commands act on **the machine bound to the current conversation**. If nothing is bound, they do not run.
 2. **Commands listed without arguments below must be sent as the bare command name.** DSH only passes the text after a command to the plugin when the command declares arguments. Add text after a command that takes none, and the whole line is sent to the model as an ordinary message. Anything that needs confirmation shows a plan first, and you confirm by sending `/vps-yes` on its own.
 
+**Commands you type are shared with the AI**: DSH itself never passes command results to the model. The plugin keeps your last few `/vps-sh` commands and their output (tokens, passwords and private keys masked first) and attaches them the next time you talk to the AI, so you can investigate yourself and then just ask "why did that fail?". Prefix `--private` to keep a command out of it.
+
 ### Entry points
 
 | Command | What it does |
@@ -127,7 +129,7 @@ Commands skip the model and cost no tokens. DSH folds a command's result down to
 | `/vps-ping` | Hostname, OS, load, uptime |
 | `/vps-logs <service>` | The last 100 log lines of a service |
 | `/vps-q <recipe id>` | Runs any query recipe, e.g. `ip-info`, `top-procs`, `cron-list`, `cert-expiry`, `firewall-status`, `updates`, `login-history` |
-| `/vps-sh <command>` | Runs one command on the machine and shows the output in the conversation. Commands judged dangerous are held until you send `/vps-yes` |
+| `/vps-sh <command>` | Runs a command on the machine and shows the output in the conversation, like a simple terminal: the directory you `cd` into is remembered within the conversation; commands that keep refreshing or page (`top`, `tail -f`, `journalctl -f`, `less`, `watch`) are turned into one-shot output, and things that cannot work here (`vim`, interactive shells) say why; commands judged dangerous are held until you send `/vps-yes`. Prefix `--bg` to run in the background, `--private` to keep this output away from the AI |
 
 ### Machines
 
@@ -282,7 +284,7 @@ npm install
 npm test
 ```
 
-144 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`.
+151 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`.
 
 ---
 
