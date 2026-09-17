@@ -133,9 +133,14 @@ test('命令层：查询命令直接出结果，抬头写清楚是哪台机器',
   assert.match(res.text, /系统:/)
 
   const list = registered.find((c) => c.name === 'vps-list')
-  const listed = await list.handler({ rawInput: '' })
-  assert.match(listed.text, /★/)
-  assert.match(listed.text, /hk/)
+  // ★ 标的是「这个对话绑定的」，不是全局当前机器（没绑定就没有 ★）
+  const unbound = await list.handler({ rawInput: '', agent: { session: { id: 'sess-list' } } })
+  assert.equal(unbound.text.split('\n')[0], '1 台机器 · 这个对话没有绑定机器')
+  assert.doesNotMatch(unbound.text, /★/)
+  await registered.find((c) => c.name === 'vps-use').handler({ rawInput: 'hk', agent: { session: { id: 'sess-list' } } })
+  const listed = await list.handler({ rawInput: '', agent: { session: { id: 'sess-list' } } })
+  assert.equal(listed.text.split('\n')[0], '1 台机器 · 这个对话绑定 hk（★）')
+  assert.match(listed.text, /★ .*hk/)
 })
 
 test('命令层：/vps-install 不加 --yes 只出计划，不执行', async () => {
