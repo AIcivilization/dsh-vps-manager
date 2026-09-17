@@ -86,7 +86,7 @@ Machines already defined in `~/.ssh/config` can be taken over with "Import from 
 
 ## Choosing a machine in a conversation
 
-The conversation header has a **VPS switch**: the word `VPS` followed by one small square per machine. With several machines the squares show numbers, matching the numbers on the settings page.
+The conversation header has a **VPS switch**: the word `VPS`, then the terminal button `>_`, then one small square per machine. Each square shows its number (1 for the first machine, 2 for the second, and so on), matching the numbers on the settings page.
 
 - **Click a square**: this conversation enters **VPS mode** and the square turns green. From then on `/vps-` commands act on that machine, and the plugin tells the model which machine this conversation operates on, what system it runs (package manager, init system, privilege), which program holds ports 80/443, which services and containers are running, plus a few rules it must follow (never guess names, handle systemd services only through systemctl, never turn a failed lookup into a restart or reinstall). The model writes commands for that system, and knows what you mean by "this machine" or "the server"
 - **In VPS mode the model cannot use local bash**: a call is refused with a pointer to the VPS tools, so the model does not investigate server problems on your own computer. Reading files, searching and similar tools are unaffected
@@ -101,7 +101,7 @@ Nothing is shown below the input box, except a single line in three cases: a tas
 
 ## Terminal in the conversation
 
-Once a machine is bound, a **`>_`** button appears after the squares in the conversation header. Click it and a real terminal opens below the input box, working just like an SSH session:
+The **`>_`** button right after `VPS` in the conversation header is the terminal. Once a machine is bound, click it and a real terminal opens below the input box, working just like an SSH session (with only one machine you can click it before binding, and it binds that machine for you):
 
 - Menu scripts, `top`, `htop`, `vim`, `docker exec -it`, `mysql` and other programs that need keystrokes all work, as do Ctrl+C, arrow keys and CJK text
 - Drag the bottom-right corner to change the height; full-screen programs redraw at the new size, and the height is remembered
@@ -303,7 +303,7 @@ npm install
 npm test
 ```
 
-172 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend, the terminal connection (authentication, local-only access, input and output, window size, cleanup on disconnect) and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`.
+173 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend, the terminal connection (authentication, local-only access, input and output, window size, cleanup on disconnect) and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`.
 
 ---
 

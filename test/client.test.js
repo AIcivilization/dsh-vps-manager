@@ -171,13 +171,32 @@ test('绑定了机器但一切正常时，输入框下方仍然什么都不渲�
   assert.equal(html, '', '没有要报的事就不该占位置')
 })
 
-test('方块里的数字：一台不写，多台写 1234', async () => {
+test('方块里的编号：第一台 1，第二台 2，只有一台也写 1', async () => {
   const { exported } = await loadClient()
   const { ballLabel } = exported.__test
-  assert.equal(ballLabel(0, 1), '', '只有一台就不用编号')
-  assert.equal(ballLabel(0, 4), '1')
-  assert.equal(ballLabel(1, 4), '2')
-  assert.equal(ballLabel(3, 4), '4')
+  assert.equal(ballLabel(0), '1', '只有一台也写编号')
+  assert.equal(ballLabel(1), '2')
+  assert.equal(ballLabel(3), '4')
+})
+
+test('头部顺序：VPS → 终端按钮 → 机器方块', async () => {
+  const { exported } = await loadClient({
+    storage: {
+      'dsh-vps:hosts': JSON.stringify([{ alias: 'hk', note: '' }, { alias: 'jp', note: '' }]),
+      'dsh-vps:bind:s7': 'hk',
+    },
+  })
+  const ctx = fakeSlots()
+  exported.apply(ctx)
+  const html = renderToStaticMarkup(
+    React.createElement(ctx.registered.get('conversation.session.header.actions').component, { sessionId: 's7' }),
+  )
+  const vps = html.indexOf('>VPS<')
+  const term = html.indexOf('&gt;_')
+  const first = html.indexOf('>1</button>')
+  const second = html.indexOf('>2</button>')
+  assert.ok(vps >= 0 && term > vps, '终端按钮紧跟在 VPS 后面')
+  assert.ok(first > term && second > first, '机器方块在终端按钮之后，按编号排')
 })
 
 test('多台机器时头部是一排开关，没有下拉菜单', async () => {
@@ -193,7 +212,7 @@ test('多台机器时头部是一排开关，没有下拉菜单', async () => {
     React.createElement(ctx.registered.get('conversation.session.header.actions').component, { sessionId: 's9' }),
   )
   assert.equal((html.match(/<button/g) ?? []).length, 3, '两台机器两个方块 + 绑定后的终端按钮')
-  assert.match(html, />&gt;_</, '绑定了机器才有终端按钮')
+  assert.match(html, />&gt;_</, '终端按钮')
   assert.match(html, />1</, '方块里写编号')
   assert.match(html, />2</)
   assert.equal((html.match(/VPS/g) ?? []).length, 1, 'VPS 三个字母只出现一次，省地方')
@@ -201,7 +220,7 @@ test('多台机器时头部是一排开关，没有下拉菜单', async () => {
   assert.doesNotMatch(html, /position:fixed/, '不再有任何弹出层')
 })
 
-test('终端按钮：没绑定机器时不出现', async () => {
+test('终端按钮：没绑定也一直在（位置不跳），但显示为淡色', async () => {
   const { exported } = await loadClient({
     storage: { 'dsh-vps:hosts': JSON.stringify([{ alias: 'hk', note: '' }]) },
   })
@@ -210,8 +229,10 @@ test('终端按钮：没绑定机器时不出现', async () => {
   const html = renderToStaticMarkup(
     React.createElement(ctx.registered.get('conversation.session.header.actions').component, { sessionId: 'free' }),
   )
-  assert.doesNotMatch(html, /&gt;_/, '没绑定机器，终端无从连起')
-  assert.equal((html.match(/<button/g) ?? []).length, 1)
+  assert.match(html, /&gt;_/, '终端按钮一直在')
+  assert.match(html, /data-vps-terminal=""[^>]*opacity:0\.55/, '没绑定时淡色')
+  assert.match(html, />1<\/button>/, '只有一台也写编号 1')
+  assert.equal((html.match(/<button/g) ?? []).length, 2)
 })
 
 test('终端连接地址跟着页面走：Desktop、dsh web 局域网、https 反向代理都能用', async () => {
