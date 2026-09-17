@@ -87,10 +87,12 @@ Machines already defined in `~/.ssh/config` can be taken over with "Import from 
 
 The conversation header has a **VPS switch**: the word `VPS` followed by one small square per machine. With several machines the squares show numbers, matching the numbers on the settings page.
 
-- **Click a square**: this conversation is bound to that machine and the square turns green. From then on `/vps-` commands act on it, and you no longer have to tell the AI which machine you mean
-- **Click it again**: the binding is removed and the square turns red. With nothing bound there is **no default machine at all**: commands do not run, and the AI must name the machine it operates on
-- Each conversation can be bound to one machine at a time. A binding only applies to its own conversation, so switching machines in another conversation does not affect this one
+- **Click a square**: this conversation enters **VPS mode** and the square turns green. From then on `/vps-` commands act on that machine, and the plugin tells the model which machine this conversation operates on and what system it runs (package manager, init system, privilege). The model writes commands for that system, and knows what you mean by "this machine" or "the server"
+- **In VPS mode the model cannot use local bash**: a call is refused with a pointer to the VPS tools, so the model does not investigate server problems on your own computer. Reading files, searching and similar tools are unaffected
+- **Click it again**: VPS mode ends, the square turns red, and local bash is available again. With nothing bound there is **no default machine at all**: commands do not run, and the AI must name the machine it operates on
+- Each conversation can be bound to one machine at a time. **A binding only applies to its own conversation**: one window can operate the server in VPS mode while another keeps working on local code, without affecting each other
 - The same from the keyboard: `/vps-use <alias>` binds, `/vps-use off` unbinds
+- A machine that has never had a health check gets one in the background when the switch is turned on, so the model receives its system details
 
 Nothing is shown below the input box, except a single line in three cases: a task is running on the machine, the machine is unreachable, or its disk is at least 85% full.
 
@@ -272,7 +274,7 @@ npm install
 npm test
 ```
 
-125 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, commands, the settings-page backend and UI rendering.
+132 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, commands, the settings-page backend and UI rendering. On a machine with DSH Desktop installed, tool definitions and return values are also validated against DSH's own `dsh-tools`.
 
 ---
 

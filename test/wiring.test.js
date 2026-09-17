@@ -13,23 +13,48 @@ function fakeCtx({ approval } = {}) {
   const tools = []
   const commands = []
   const skills = []
+  const guards = []
+  const listeners = []
   const injected = new Map()
-  return {
-    tools: { register: (def) => { tools.push(def); return () => {} } },
-    commands: { register: (def) => { commands.push(def); return () => {} } },
+  // 仿 cordis：没在 inject 里声明就直接读 skills / agents，会抛（DSH 实测报错原文）
+  const services = {
     skills: { register: (def) => { skills.push(def); return () => {} } },
+    commands: { register: (def) => { commands.push(def); return () => {} } },
+  }
+  const scoped = (names) => new Proxy({}, {
+    get(_t, key) {
+      if (key === 'on') return (event, fn, opts) => { listeners.push({ event, fn, opts }); return () => {} }
+      if (key in services) {
+        if (!names.includes(key)) throw new Error(`cannot get property "${key}" without inject`)
+        return services[key]
+      }
+      return undefined
+    },
+  })
+  const ctx = {
+    tools: {
+      register: (def) => { tools.push(def); return () => {} },
+      guard: (fn) => { guards.push(fn); return () => {} },
+    },
     approval: approval ? { request: approval } : undefined,
-    logger: { warn: () => {} },
+    logger: { warn: (m) => ctx._warnings.push(m) },
     inject(names, cb) {
       injected.set(names.join(','), cb)
-      // commands 立即回调（模拟服务已挂载），webServer 不回调（模拟 headless）
-      if (names.includes('commands')) cb(this)
+      // commands / skills / agents 立即回调（模拟服务已挂载），webServer 不回调（模拟 headless）
+      if (!names.includes('webServer')) cb(scoped(names))
     },
     _tools: tools,
     _commands: commands,
     _skills: skills,
+    _guards: guards,
+    _listeners: listeners,
     _injected: injected,
+    _warnings: [],
   }
+  for (const key of ['skills', 'commands']) {
+    Object.defineProperty(ctx, key, { get() { throw new Error(`cannot get property "${key}" without inject`) } })
+  }
+  return ctx
 }
 
 async function sandbox() {
@@ -50,23 +75,30 @@ async function sandbox() {
   return { home, env, runner, sshOptions: { configFile: sshConfig } }
 }
 
-test('apply 注册 5 个工具、13 条命令、1 个 skill，并把可选服务放进 inject', async () => {
+test('apply：5 个工具、21 条命令、1 个 skill、本机 bash 守卫、VPS 模式监听，全部注册成功', async () => {
   const ctx = fakeCtx()
-  apply(ctx)
-  await new Promise((r) => setTimeout(r, 50)) // 工具与 skill 是异步注册
+  const home = await mkdtemp(join(tmpdir(), 'dsh-vps-apply-'))
+  apply(ctx, { env: { HOME: home, DSH_HOME: join(home, '.dsh') } })
+  await new Promise((r) => setTimeout(r, 100)) // 工具与 skill 是异步注册
+
+  // 注册失败只会进日志，所以日志里不能有任何「失败」
+  assert.deepEqual(ctx._warnings, [], `注册时有警告：${ctx._warnings.join(' | ')}`)
 
   assert.deepEqual(ctx._tools.map((t) => t.name).sort(), [
     'vps_exec', 'vps_hosts', 'vps_recipe', 'vps_task', 'vps_write_file',
   ])
   const names = ctx._commands.map((c) => c.name)
-  assert.equal(names.length, 21, names.join(","))
+  assert.equal(names.length, 21, names.join(','))
   for (const n of names) assert.match(n, /^vps-/, '所有命令必须同前缀，否则打 /vps 只筛出一半')
-  assert.ok(names.includes('vps-install'))
-  assert.ok(names.includes('vps-tasks'))
   assert.equal(ctx._skills.length, 1)
+  assert.match(ctx._skills[0].name, /^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'DSH 的 skill 名规则')
+  assert.ok(ctx._skills[0].description.length > 0)
   assert.equal(ctx._skills[0].invocation.modelInvocable, true)
   assert.equal(ctx._skills[0].invocation.userInvocable, false)
+  assert.equal(ctx._guards.length, 1, '本机 bash 守卫要挂上')
+  assert.deepEqual(ctx._listeners.map((l) => [l.event, l.opts?.prepend]), [['agent/pre-step', true]])
   assert.ok(ctx._injected.has('webServer'), 'webServer 必须走 inject，headless 下不注册')
+  assert.ok(ctx._injected.has('skills') && ctx._injected.has('agents'), 'skills 与 agents 必须走 inject')
 })
 
 test('工具层：没有审批就拒绝改动，用户允许后才执行', async () => {
