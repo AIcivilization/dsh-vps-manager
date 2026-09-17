@@ -78,6 +78,7 @@ test('设置页能渲染', async () => {
   exported.apply(ctx)
   const html = renderToStaticMarkup(React.createElement(ctx.registered.get('settings.section').component))
   assert.match(html, /VPS 管理/)
+  assert.match(html, /卸载…/, '设置页底部要有卸载入口')
 })
 
 test('每个请求都带 token 和 JSON 头（跨站网页读不到 token）', async () => {

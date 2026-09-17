@@ -63,7 +63,7 @@ dsh plugin add github:AIcivilization/dsh-vps-manager
 
 **Restart DSH** afterwards. Plugins are loaded when DSH starts.
 
-To uninstall, run `dsh plugin remove dsh-vps-manager` and restart DSH. Uninstalling keeps your machine list, keys and audit log (see [Where data lives](#where-data-lives)).
+To uninstall, open **DSH Settings → VPS Manager**, scroll to the bottom and click "Uninstall…" (see [Settings page](#settings-page)). You can also run `dsh plugin remove dsh-vps-manager` in a terminal and restart DSH; that removes only the plugin and keeps the machine list, keys, SSH configuration and audit log.
 
 ---
 
@@ -238,6 +238,14 @@ Your own recipes are treated as untrusted: their risk level is the stricter of w
 - **Basics**: fill in the state you want (timezone, swap size, BBR, automatic security updates, fail2ban, common CLI tools). On save, only the items that differ from the current state are run, each as a remote task with progress shown
 - **Global settings**: default confirmation level, safety-net duration, and whether changes may be made from the settings page when DSH's web server is open to the local network
 - **Data location**
+- **Uninstall**: tick what to do, confirm, and see the result of each step. On DSH Desktop the plugin can be removed directly, followed by a one-click DSH restart; elsewhere you get the terminal command to run
+  - Remove the plugin itself (ticked by default)
+  - Remove the SSH connection settings (ticked by default): the `Include` line the plugin added at the top of `~/.ssh/config` is removed and `config.d/dsh-vps.conf` is renamed as a backup, so both can be restored
+  - Clean up the plugin directory `~/.cache/dsh-vps` on the servers (machines with a running task are skipped)
+  - Revoke the plugin key's login access on the servers (its line is removed from `authorized_keys`, after a backup). If that key is your only way into a server, you will be locked out
+  - Delete the plugin's dedicated key, and delete the plugin data (machine list, audit log, your own recipes); these cannot be restored
+
+  Server-side items run first, because once the local configuration and key are gone the servers can no longer be reached. Only the first two items are ticked by default
 
 The settings page's backend only accepts same-origin JSON requests carrying a token generated at random each time DSH starts. **It offers no arbitrary command execution and cannot write arbitrary files.** When DSH's web server is bound to `0.0.0.0`, operations that change a server are turned off by default.
 
@@ -274,7 +282,7 @@ npm install
 npm test
 ```
 
-132 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, commands, the settings-page backend and UI rendering. On a machine with DSH Desktop installed, tool definitions and return values are also validated against DSH's own `dsh-tools`.
+139 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend and UI rendering. On a machine with DSH Desktop installed, tool definitions and return values are also validated against DSH's own `dsh-tools`.
 
 ---
 
