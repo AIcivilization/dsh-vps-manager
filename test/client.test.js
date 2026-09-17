@@ -192,10 +192,61 @@ test('多台机器时头部是一排开关，没有下拉菜单', async () => {
   const html = renderToStaticMarkup(
     React.createElement(ctx.registered.get('conversation.session.header.actions').component, { sessionId: 's9' }),
   )
-  assert.equal((html.match(/<button/g) ?? []).length, 2, '两台机器两个方块')
+  assert.equal((html.match(/<button/g) ?? []).length, 3, '两台机器两个方块 + 绑定后的终端按钮')
+  assert.match(html, />&gt;_</, '绑定了机器才有终端按钮')
   assert.match(html, />1</, '方块里写编号')
   assert.match(html, />2</)
   assert.equal((html.match(/VPS/g) ?? []).length, 1, 'VPS 三个字母只出现一次，省地方')
   assert.match(html, /border-radius:4px/, '圆角方块：数字更好读、点击面积更大')
   assert.doesNotMatch(html, /position:fixed/, '不再有任何弹出层')
+})
+
+test('终端按钮：没绑定机器时不出现', async () => {
+  const { exported } = await loadClient({
+    storage: { 'dsh-vps:hosts': JSON.stringify([{ alias: 'hk', note: '' }]) },
+  })
+  const ctx = fakeSlots()
+  exported.apply(ctx)
+  const html = renderToStaticMarkup(
+    React.createElement(ctx.registered.get('conversation.session.header.actions').component, { sessionId: 'free' }),
+  )
+  assert.doesNotMatch(html, /&gt;_/, '没绑定机器，终端无从连起')
+  assert.equal((html.match(/<button/g) ?? []).length, 1)
+})
+
+test('终端连接地址跟着页面走：Desktop、dsh web 局域网、https 反向代理都能用', async () => {
+  const { exported } = await loadClient()
+  const { terminalUrl } = exported.__test
+  assert.equal(
+    terminalUrl('http://127.0.0.1:52100', 's 1', 90, 20),
+    'ws://127.0.0.1:52100/api-vps/ws/terminal?sessionId=s+1&cols=90&rows=20',
+  )
+  assert.equal(
+    terminalUrl('http://192.168.1.8:8787', 's1', 80, 24),
+    'ws://192.168.1.8:8787/api-vps/ws/terminal?sessionId=s1&cols=80&rows=24',
+  )
+  assert.equal(
+    terminalUrl('https://dsh.example.com', 's1', 80, 24),
+    'wss://dsh.example.com/api-vps/ws/terminal?sessionId=s1&cols=80&rows=24',
+    'https 页面必须用 wss，否则浏览器拦截',
+  )
+})
+
+test('输入框下方：绑定了机器但没点开终端时，仍然什么都不渲染', async () => {
+  const { exported } = await loadClient({ storage: { 'dsh-vps:bind:s3': 'hk' } })
+  const ctx = fakeSlots()
+  exported.apply(ctx)
+  const html = renderToStaticMarkup(
+    React.createElement(ctx.registered.get('conversation.composer.dock').component, { sessionId: 's3' }),
+  )
+  assert.equal(html, '')
+})
+
+test('界面代码里的协议名、路径、xterm 版本与服务端一致', async () => {
+  const { readFile } = await import('node:fs/promises')
+  const client = await readFile(new URL('../lib/client.js', import.meta.url), 'utf8')
+  const server = await import('../lib/terminal-server.js')
+  assert.ok(client.includes(`'${server.TERMINAL_PROTOCOL}'`), '子协议名')
+  assert.ok(client.includes(`'${server.TERMINAL_PATH}'`), '连接路径')
+  assert.ok(client.includes(`XTERM_VERSION = '${server.XTERM_VERSION}'`), 'xterm 版本号（缓存地址）')
 })

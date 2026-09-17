@@ -20,6 +20,7 @@ Everything goes over SSH key login and shares one execution mechanism:
 - [Install](#install)
 - [Adding a machine](#adding-a-machine)
 - [Choosing a machine in a conversation](#choosing-a-machine-in-a-conversation)
+- [Terminal in the conversation](#terminal-in-the-conversation)
 - [Commands](#commands)
 - [Talking to the AI](#talking-to-the-ai)
 - [Recipes](#recipes)
@@ -98,6 +99,23 @@ Nothing is shown below the input box, except a single line in three cases: a tas
 
 ---
 
+## Terminal in the conversation
+
+Once a machine is bound, a **`>_`** button appears after the squares in the conversation header. Click it and a real terminal opens below the input box, working just like an SSH session:
+
+- Menu scripts, `top`, `htop`, `vim`, `docker exec -it`, `mysql` and other programs that need keystrokes all work, as do Ctrl+C, arrow keys and CJK text
+- Drag the bottom-right corner to change the height; full-screen programs redraw at the new size, and the height is remembered
+- **Clicking `>_` again or "收起" (collapse) disconnects**, and the shell on the server ends with it; switching to another conversation or reloading the page does the same. To keep something running after you disconnect, use `nohup`, `tmux` or `/vps-sh --bg`
+- If the connection drops, "重新连接" (reconnect) opens a new shell
+- What you type and see here **does not go to the AI**; run a command with `/vps-sh` when you want the AI to see its output
+- Opening and closing are recorded in the audit log (keystrokes are not)
+
+**It works in both DSH Desktop and `dsh web`**: the connection follows the page address (an `https` page automatically uses an encrypted connection). Every connection must pass three checks: DSH's own sign-in check, an origin that is the DSH page itself, and the plugin token embedded in that page. On top of that, **by default the terminal only opens on the computer running DSH**: when you reach `dsh web` through a LAN address or a reverse proxy, first tick "允许从其他设备打开 VPS 终端" (allow opening the VPS terminal from other devices) under DSH Settings → VPS Manager. The terminal is full control of the server, so only turn this on for access paths you trust.
+
+No native module has to be compiled on your machine: the pseudo-terminal on the server is requested with `ssh -tt`, and window-size changes are applied over a second SSH connection. The terminal display is [xterm.js](https://xtermjs.org) (MIT licensed, bundled with the plugin and loaded the first time you open a terminal).
+
+---
+
 ## Commands
 
 Commands skip the model and cost no tokens. DSH folds a command's result down to one line, so the first line of every result is the conclusion.
@@ -129,7 +147,7 @@ Commands skip the model and cost no tokens. DSH folds a command's result down to
 | `/vps-ping` | Hostname, OS, load, uptime |
 | `/vps-logs <service>` | The last 100 log lines of a service |
 | `/vps-q <recipe id>` | Runs any query recipe, e.g. `ip-info`, `top-procs`, `cron-list`, `cert-expiry`, `firewall-status`, `updates`, `login-history` |
-| `/vps-sh <command>` | Runs a command on the machine and shows the output in the conversation, like a simple terminal: the directory you `cd` into is remembered within the conversation; commands that keep refreshing or page (`top`, `tail -f`, `journalctl -f`, `less`, `watch`) are turned into one-shot output, and things that cannot work here (`vim`, interactive shells) say why; commands judged dangerous are held until you send `/vps-yes`. Prefix `--bg` to run in the background, `--private` to keep this output away from the AI |
+| `/vps-sh <command>` | Runs a command on the machine and shows the output in the conversation: the directory you `cd` into is remembered within the conversation; commands that keep refreshing or page (`top`, `tail -f`, `journalctl -f`, `less`, `watch`) are turned into one-shot output, and things that cannot work here (`vim`, interactive shells) point you to the [terminal](#terminal-in-the-conversation); commands judged dangerous are held until you send `/vps-yes`. Prefix `--bg` to run in the background, `--private` to keep this output away from the AI |
 
 ### Machines
 
@@ -238,7 +256,7 @@ Your own recipes are treated as untrusted: their risk level is the stricter of w
 - **Add machine**, and **Import from ~/.ssh/config**
 - **Per-machine settings**: alias, address, port, user, jump host, public key placement, host fingerprint, confirmation level, removal
 - **Basics**: fill in the state you want (timezone, swap size, BBR, automatic security updates, fail2ban, common CLI tools). On save, only the items that differ from the current state are run, each as a remote task with progress shown
-- **Global settings**: default confirmation level, safety-net duration, and whether changes may be made from the settings page when DSH's web server is open to the local network
+- **Global settings**: default confirmation level, safety-net duration, whether changes may be made from the settings page when DSH's web server is open to the local network, and whether the [terminal](#terminal-in-the-conversation) may be opened from other devices (off by default)
 - **Data location**
 - **Uninstall**: tick what to do, confirm, and see the result of each step. On DSH Desktop the plugin can be removed directly, followed by a one-click DSH restart; elsewhere you get the terminal command to run
   - Remove the plugin itself (ticked by default)
@@ -257,6 +275,7 @@ The settings page's backend only accepts same-origin JSON requests carrying a to
 
 - **Risk-level confirmation guards against AI mistakes, not against an AI set on getting around it.** Static analysis cannot recognise every disguised form, and the model can also use DSH's own bash tool to ssh into the server directly
 - **DSH's sandbox does not cover the ssh processes this plugin starts itself**
+- **Nothing typed in the terminal goes through risk-level confirmation.** You are typing the commands yourself, exactly as in SSH, and the plugin does not intercept them
 - **There is no general rollback.** What you have is file backups, the connectivity safety net and recipes that can be run again. Take a snapshot in your provider's console before reinstalling the OS, upgrading to a new major release, or repartitioning
 
 ---
@@ -284,7 +303,7 @@ npm install
 npm test
 ```
 
-151 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`.
+172 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend, the terminal connection (authentication, local-only access, input and output, window size, cleanup on disconnect) and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`.
 
 ---
 

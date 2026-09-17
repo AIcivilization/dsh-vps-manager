@@ -109,6 +109,41 @@ test('apply：5 个工具、21 条命令、1 个 skill、本机 bash 守卫、VP
   assert.ok(ctx._injected.has('skills') && ctx._injected.has('agents'), 'skills 与 agents 必须走 inject')
 })
 
+test('webServer 挂载后：设置页路由与终端共用一个 token，插件卸载时一并反注册', async () => {
+  const ctx = fakeCtx()
+  const home = await mkdtemp(join(tmpdir(), 'dsh-vps-web-'))
+  apply(ctx, { env: { HOME: home, DSH_HOME: join(home, '.dsh') } })
+
+  const exact = new Map()
+  const upgrades = new Map()
+  const taps = []
+  const effects = []
+  const webServer = {
+    config: { host: '127.0.0.1', port: 0 },
+    register: ({ path }) => { exact.set(path, true); return () => exact.delete(path) },
+    registerUpgrade: ({ path }) => { upgrades.set(path, true); return () => upgrades.delete(path) },
+    tapIndex: (fn) => { taps.push(fn); return () => {} },
+  }
+  const webCtx = {
+    webServer,
+    get: () => undefined,
+    effect: (fn, label) => { effects.push({ dispose: fn(), label }) },
+  }
+  await ctx._injected.get('webServer')(webCtx)
+
+  assert.deepEqual(ctx._warnings, [], `注册时有警告：${ctx._warnings.join(' | ')}`)
+  assert.ok(upgrades.has('/api-vps/ws/terminal'), '终端连接要注册')
+  for (const f of ['xterm.mjs', 'addon-fit.mjs', 'xterm.css']) assert.ok(exact.has(`/api-vps/assets/${f}`), f)
+  assert.ok(exact.has('/api-vps/overview'))
+  const html = taps[0]('<head></head>')
+  assert.match(html, /__DSH_VPS_TOKEN__="[a-f0-9]{48}"/, '页面里只注入一个 token，终端和路由共用')
+
+  assert.equal(effects.length, 2)
+  for (const e of effects) await e.dispose()
+  assert.equal(upgrades.size, 0, '卸载后终端路由要撤掉，否则重载时报重复注册')
+  assert.equal(exact.size, 0)
+})
+
 test('工具层：没有审批就拒绝改动，用户允许后才执行', async () => {
   const { env, runner, sshOptions } = await sandbox()
   const asked = []

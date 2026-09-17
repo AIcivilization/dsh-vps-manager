@@ -38,6 +38,9 @@ test('改不了的交互命令：不执行，说清怎么办', () => {
   assert.match(adaptInteractive('mysql').refuse, /mysql -e/)
   assert.match(adaptInteractive('ssh').refuse, /你已经在这台服务器上了/)
   assert.match(adaptInteractive('docker exec -it mailserver bash').refuse, /docker exec <容器> ls/)
+  for (const cmd of ['vim x', 'bash', 'mysql', 'docker exec -it mailserver bash']) {
+    assert.match(adaptInteractive(cmd).refuse, /点对话头部方块后面的 >_ 打开终端/, `${cmd} 要指路到真终端`)
+  }
 })
 
 test('目录标记：取出结束时的目录，并从输出里去掉', () => {
