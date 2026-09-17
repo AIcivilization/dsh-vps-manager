@@ -40,7 +40,8 @@ recipes:
         apt)
           $SUDO apt-get update -qq
           # 用 env 传环境变量：root 登录时 $SUDO 为空，`$SUDO VAR=值 命令` 会把 VAR=值 当成命令名（实测 127）
-          $SUDO env DEBIAN_FRONTEND=noninteractive apt-get upgrade -y -qq -o Dpkg::Options::=--force-confold
+          # Dpkg::Use-Pty=0：去掉逐 5% 的进度行（实测一次升级刷出上百行，把服务重启摘要挤出了 4KB 结果）
+          $SUDO env DEBIAN_FRONTEND=noninteractive apt-get upgrade -y -qq -o Dpkg::Use-Pty=0 -o Dpkg::Options::=--force-confold
           ;;
         dnf) $SUDO dnf -y -q upgrade --refresh ;;
         yum) $SUDO yum -y -q update ;;
@@ -101,7 +102,7 @@ recipes:
         apt)
           $SUDO apt-get clean -qq
           $SUDO apt-get autoclean -qq
-          [ "$P_REMOVE_UNUSED" = yes ] && $SUDO env DEBIAN_FRONTEND=noninteractive apt-get autoremove -y -qq
+          [ "$P_REMOVE_UNUSED" = yes ] && $SUDO env DEBIAN_FRONTEND=noninteractive apt-get autoremove -y -qq -o Dpkg::Use-Pty=0
           ;;
         dnf|yum)
           $SUDO $PKG clean all -q

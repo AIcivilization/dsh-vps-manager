@@ -86,7 +86,9 @@ pkg_install() {
   case "$PKG" in
     apt)
       [ -d /var/lib/apt/lists ] && [ -z "$(ls -A /var/lib/apt/lists 2>/dev/null)" ] && pkg_update
-      $SUDO apt-get install -y -qq -o Dpkg::Options::=--force-confold "$@"
+      # env 传变量：root 登录时 $SUDO 为空，`$SUDO VAR=值 命令` 会把 VAR=值 当命令名
+      # Dpkg::Use-Pty=0：关掉 "(Reading database ... 5%" 这类进度刷屏，否则日志被它占满
+      $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq -o Dpkg::Use-Pty=0 -o Dpkg::Options::=--force-confold "$@"
       ;;
     dnf) $SUDO dnf install -y -q "$@" ;;
     yum) $SUDO yum install -y -q "$@" ;;

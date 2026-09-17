@@ -315,6 +315,7 @@ test('/vps-install 的计划页把参数和重发命令一起给出来', async (
   assert.equal(plan.kind, 'success')
   const first = plan.text.split('\n')[0]
   assert.match(first, /尚未执行/)
+  assert.doesNotMatch(first, /装/, '配置类菜谱（swap、时区、系统更新）没有「装没装」，不许说「还没装」')
   assert.match(first, /\/vps-install setup-swap size_mb=4096 -h hk --yes/, '第一行要能直接照抄')
   assert.match(plan.text, /size_mb = 4096.*本次指定/)
   assert.match(plan.text, /swappiness = 10/, '没指定的参数要显示默认值')

@@ -57,8 +57,11 @@ test('菜谱里不许写 `$SUDO VAR=值 命令`（root 登录时 $SUDO 为空，
   // `DEBIAN_FRONTEND=noninteractive: not found` —— 赋值前缀必须是字面量，
   // 经过 $SUDO 展开之后 shell 已经不把它当赋值了。正确写法是 $SUDO env VAR=值 命令。
   const { list } = await loadRecipes({ env: emptyEnv })
+  const { readFile } = await import('node:fs/promises')
+  const prelude = await readFile(new URL('../lib/prelude.sh', import.meta.url), 'utf8')
   const bad = /\$(?:SUDO|SUDO_OPT)\s+[A-Za-z_][A-Za-z_0-9]*=/
-  for (const r of list) {
+  // 前导脚本（pkg_install 等）每条菜谱都会用到，一起扫
+  for (const r of [...list, { id: 'prelude.sh', run: prelude }]) {
     for (const [field, script] of [['detect', r.detect], ['run', r.run], ['verify', r.verify]]) {
       const hit = String(script ?? '')
         .split('\n')
