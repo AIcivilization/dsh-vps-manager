@@ -59,7 +59,7 @@ test('apply 注册 5 个工具、13 条命令、1 个 skill，并把可选服务
     'vps_exec', 'vps_hosts', 'vps_recipe', 'vps_task', 'vps_write_file',
   ])
   const names = ctx._commands.map((c) => c.name)
-  assert.equal(names.length, 19, names.join(","))
+  assert.equal(names.length, 21, names.join(","))
   for (const n of names) assert.match(n, /^vps-/, '所有命令必须同前缀，否则打 /vps 只筛出一半')
   assert.ok(names.includes('vps-install'))
   assert.ok(names.includes('vps-tasks'))
@@ -148,7 +148,7 @@ test('命令层：/vps-install 不加 --yes 只出计划，不执行', async () 
   assert.equal(plan.kind, 'success')
   assert.match(plan.text, /计划：/)
   assert.match(plan.text, /脚本：/)
-  assert.match(plan.text, /--yes/, '必须告诉用户怎么确认')
+  assert.match(plan.text.split('\n')[0], /确认发 \/vps-yes/, '第一行必须告诉用户怎么确认')
   assert.match(plan.text, /检测结果/)
 
   const bad = await install.handler({ rawInput: '' })
@@ -202,11 +202,9 @@ test('开关关着时命令不执行；绑定后才有默认机器（用户实�
   const denied = await ping.handler(inv)
   assert.equal(denied.kind, 'error')
   assert.match(denied.text, /未开 VPS 开关/)
-  assert.match(denied.text, /-h/)
-
-  // 显式 -h 仍然随时可用
-  const explicit = await ping.handler({ ...inv, rawInput: '-h hk' })
-  assert.equal(explicit.kind, 'success', explicit.text)
+  // 不能再叫人「加 -h」：/vps-ping 没声明 input，DSH 会把带参数的整句交给模型
+  assert.doesNotMatch(denied.text, /-h /)
+  assert.match(denied.text, /\/vps-use hk/)
 
   // 绑定这个对话之后，不带 -h 也能跑
   const bound = await use.handler({ ...inv, rawInput: 'hk' })
@@ -263,7 +261,7 @@ test('提示的第一行必须自带答案（DSH 只显示第一行）', async (
   // 没开开关：第一行就要说清怎么办，不能被「三选一：」这类铺垫占掉
   const denied = firstLine(await registered.find((c) => c.name === 'vps-ping').handler(inv))
   assert.match(denied, /未开 VPS 开关/)
-  assert.match(denied, /-h hk/, '第一行要给出可直接照抄的办法')
+  assert.match(denied, /\/vps-use hk/, '第一行要给出可直接照抄、而且真能到达插件的办法')
   assert.ok(denied.length <= 45, `第一行太长会被截断：${denied.length} 字`)
 
   // 绑定成功：第一行是结果，不是套话
@@ -275,7 +273,7 @@ test('提示的第一行必须自带答案（DSH 只显示第一行）', async (
   const danger = dangerRes.text.split('\n')
   assert.match(danger[0], /高危已拦下/)
   assert.match(danger[0], /删除文件/)
-  assert.match(danger[1], /--yes rm -rf \/tmp\/x/, '第二行给可直接照抄的重发命令')
+  assert.equal(danger[1], '确认要跑就发 /vps-yes（5 分钟内有效）', '第二行给不带参数的确认命令')
 })
 
 test('/vps-install 收 key=value 参数：名字错了当场说清这条菜谱收什么', async () => {
@@ -316,26 +314,29 @@ test('/vps-install 的计划页把参数和重发命令一起给出来', async (
   const first = plan.text.split('\n')[0]
   assert.match(first, /尚未执行/)
   assert.doesNotMatch(first, /装/, '配置类菜谱（swap、时区、系统更新）没有「装没装」，不许说「还没装」')
-  assert.match(first, /\/vps-install setup-swap size_mb=4096 -h hk --yes/, '第一行要能直接照抄')
+  assert.match(first, /确认发 \/vps-yes$/, '第一行给不带参数的确认命令')
   assert.match(plan.text, /size_mb = 4096.*本次指定/)
   assert.match(plan.text, /swappiness = 10/, '没指定的参数要显示默认值')
 })
 
-test('/vps-tasks <任务号> --stop 直接终止，不再需要面板', async () => {
+test('/vps-task <任务号> --stop 直接终止；/vps-tasks 只列清单', async () => {
   const { env, runner, sshOptions } = await sandbox()
   const registered = []
   registerCommands({ commands: { register: (d) => { registered.push(d); return () => {} } } }, { env, runner, sshOptions })
   const tasks = registered.find((c) => c.name === 'vps-tasks')
+  const task = registered.find((c) => c.name === 'vps-task')
+  assert.ok(task.input, '/vps-task 要收任务号，必须声明 input，否则 DSH 不把参数交给插件')
+  assert.equal(tasks.input, undefined, '/vps-tasks 要回车就列，不能声明 input')
   const inv = { agent: { session: { id: 'sess-stop' } } }
   await registered.find((c) => c.name === 'vps-use').handler({ ...inv, rawInput: 'hk' })
 
-  // --stop 不给任务号：告诉他怎么补
-  const noId = await tasks.handler({ ...inv, rawInput: '--stop' })
+  // 不给任务号：告诉他怎么补
+  const noId = await task.handler({ ...inv, rawInput: '--stop' })
   assert.equal(noId.kind, 'error')
-  assert.match(noId.text.split('\n')[0], /--stop 要跟任务号/)
+  assert.match(noId.text.split('\n')[0], /^用法：\/vps-task <任务号>/)
 
   // 给了任务号：走 cancel（沙箱里这个任务不存在，远端会说没有这个任务）
-  const stopped = await tasks.handler({ ...inv, rawInput: 't-not-there --stop' })
+  const stopped = await task.handler({ ...inv, rawInput: 't-not-there --stop' })
   assert.match(stopped.text.split('\n')[0], /^\[hk\] 任务 t-not-there：/)
   assert.match(stopped.text, /没有这个任务/)
 
@@ -381,4 +382,119 @@ test('/vps-install --yes 自己就是确认：命令没有轮次，弹不出审�
   assert.doesNotMatch(res.text, /审批|未获确认/, '--yes 之后不该再去要审批')
   assert.match(res.text.split('\n')[0], /^\[hk\] 冒烟菜谱：完成/)
   assert.ok(home)
+})
+
+test('/vps-yes：只执行这个对话刚登记的那一件，执行一次就作废，5 分钟后作废', async () => {
+  const { env, runner, sshOptions } = await sandbox()
+  const { paths } = await import('../lib/config.js')
+  const { mkdir } = await import('node:fs/promises')
+  const dir = paths(env).recipesDir
+  await mkdir(dir, { recursive: true })
+  await writeFile(join(dir, 'my-echo.yml'), [
+    'schema: 1',
+    'recipes:',
+    '  - id: my-echo',
+    '    kind: install',
+    '    name: 回声菜谱',
+    '    desc: 只 echo，不碰系统',
+    '    risk: change',
+    '    params:',
+    '      - name: word',
+    '        pattern: "[a-z]{1,10}"',
+    '        default: hello',
+    '    detect: |',
+    '      exit 1',
+    '    plan: |',
+    '      1. echo',
+    '    run: |',
+    '      echo "said $P_WORD"',
+    '    verify: |',
+    '      echo ok',
+  ].join('\n'))
+
+  let t = 1_000_000
+  const registered = []
+  registerCommands({ commands: { register: (d) => { registered.push(d); return () => {} } } }, { env, runner, sshOptions, now: () => t })
+  const cmd = (name) => registered.find((c) => c.name === name)
+  const a = { agent: { session: { id: 'sess-a' } } }
+  const b = { agent: { session: { id: 'sess-b' } } }
+  await cmd('vps-use').handler({ ...a, rawInput: 'hk' })
+  await cmd('vps-use').handler({ ...b, rawInput: 'hk' })
+
+  assert.equal(cmd('vps-yes').input, undefined, '/vps-yes 必须是光名字命令，回车就执行')
+
+  // 什么都没登记
+  const nothing = await cmd('vps-yes').handler({ ...a, rawInput: '' })
+  assert.equal(nothing.kind, 'error')
+  assert.match(nothing.text, /^没有等你确认的操作/)
+
+  // a 出计划（带参数）；b 的 /vps-yes 碰不到 a 的
+  const plan = await cmd('vps-install').handler({ ...a, rawInput: 'my-echo word=bye' })
+  assert.match(plan.text.split('\n')[0], /确认发 \/vps-yes$/)
+  assert.equal((await cmd('vps-yes').handler({ ...b, rawInput: '' })).kind, 'error', '别的对话不能确认')
+
+  // a 确认：按计划时的参数执行
+  const done = await cmd('vps-yes').handler({ ...a, rawInput: '' })
+  assert.equal(done.kind, 'success', done.text)
+  assert.match(done.text.split('\n')[0], /^\[hk\] 回声菜谱：完成　word=bye/)
+  assert.match(done.text, /said bye/)
+
+  // 一次确认只执行一次
+  assert.match((await cmd('vps-yes').handler({ ...a, rawInput: '' })).text, /^没有等你确认的操作/)
+
+  // 过期：出计划后 6 分钟才确认
+  await cmd('vps-install').handler({ ...a, rawInput: 'my-echo' })
+  t += 6 * 60_000
+  const late = await cmd('vps-yes').handler({ ...a, rawInput: '' })
+  assert.equal(late.kind, 'error')
+  assert.match(late.text, /^\[hk\] 确认已过期.*重新发 \/vps-install my-echo/)
+
+  // 被拦下的高危命令同样走 /vps-yes
+  const target = join(paths(env).base, 'to-delete')
+  await mkdir(target, { recursive: true })
+  const blocked = await cmd('vps-sh').handler({ ...a, rawInput: `rm -rf ${target}` })
+  assert.match(blocked.text.split('\n')[0], /高危已拦下/)
+  const ran = await cmd('vps-yes').handler({ ...a, rawInput: '' })
+  assert.equal(ran.kind, 'success', ran.text)
+  assert.match(ran.text, /已按高危执行/)
+})
+
+test('闸门：不许叫用户在「只认光名字」的命令后面写参数（DSH 会把整句交给模型）', async () => {
+  // 宿主规则（dsh-client-ui-commands matchEnter）：没声明 input 的命令只认 `/名字`；
+  // 后面带字就不算命令。实测 `/vps-reboot -h vps-dsh --yes` 被模型接走，模型自己 ssh 去重启了。
+  const { env, runner } = await sandbox()
+  const registered = []
+  registerCommands({ commands: { register: (d) => { registered.push(d); return () => {} } } }, { env, runner })
+  const bare = registered.filter((d) => d.input === undefined).map((d) => d.name)
+  assert.ok(bare.includes('vps-reboot') && bare.includes('vps-yes') && bare.includes('vps-tasks'))
+
+  // /vps-help 里的用法：光名字命令后面不许跟任何东西
+  const help = (await registered.find((c) => c.name === 'vps-help').handler({ rawInput: '' })).text
+  for (const name of bare) {
+    const line = help.split('\n').find((l) => l.trim().startsWith(`/${name} `) || l.trim() === `/${name}`)
+    assert.ok(line, `/vps-help 里没有 /${name}`)
+    const usage = line.trim().split(/\s{2,}/)[0]
+    assert.equal(usage, `/${name}`, `/${name} 没声明 input，用法里不能写参数：${usage}`)
+  }
+
+  // 所有给人看的文字：lib 源码里的字符串、skill、两份 README
+  const { readdir, readFile } = await import('node:fs/promises')
+  const root = new URL('../', import.meta.url)
+  const files = [
+    ...(await readdir(new URL('lib/', root))).filter((f) => f.endsWith('.js')).map((f) => `lib/${f}`),
+    'lib/skills/vps-operator.md',
+    'README.md',
+    'README.zh-CN.md',
+  ]
+  const pattern = new RegExp(`/(${bare.map((n) => n.replace(/-/g, '\\-')).join('|')})(?![\\w-]) +(?:--?[A-Za-z]|<|\\[|[A-Za-z0-9])`)
+  const hits = []
+  for (const file of files) {
+    const text = await readFile(new URL(file, root), 'utf8')
+    text.split('\n').forEach((line, i) => {
+      const trimmed = line.trim()
+      if (file.endsWith('.js') && (trimmed.startsWith('//') || trimmed.startsWith('*'))) return // 注释里写反例可以
+      if (pattern.test(line)) hits.push(`${file}:${i + 1}  ${trimmed.slice(0, 100)}`)
+    })
+  }
+  assert.deepEqual(hits, [], `这些地方叫人在光名字命令后面写参数，DSH 里到不了插件：\n${hits.join('\n')}`)
 })

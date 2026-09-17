@@ -79,17 +79,21 @@ Queries run without the model and cost no tokens. Each result starts with a one-
 | `/vps-ping` | Quick health line |
 | `/vps-logs <service>` | Last 100 log lines |
 | `/vps-probe` | Re-run the health check (OS, init, privilege, resources) |
-| `/vps-reboot [--yes]` | Reboot the server. First checks why a reboot is needed, whether now is safe, and which containers will stop; `--yes` reboots, waits for the machine to come back, and reports kernel, containers and failed services |
-| `/vps-sh [--yes] <command>` | Run a command on the current machine; output lands in the conversation. Dangerous commands need `--yes` |
+| `/vps-reboot` | Reboot the server. First checks why a reboot is needed, whether now is safe, and which containers will stop; `/vps-yes` reboots, waits for the machine to come back, and reports kernel, containers and failed services |
+| `/vps-sh <command>` | Run a command on the current machine; output lands in the conversation. Dangerous commands are held until you send `/vps-yes` |
 | `/vps-q <recipe id>` | Run any read-only recipe that has no dedicated command |
 | `/vps-list` | Registered machines and status |
 | `/vps-use <alias>` | Bind this conversation to a machine (`off` to unbind) — the same thing the header switch does |
-| `/vps-recipes [keyword]` | List recipes |
-| `/vps-install <id> [key=value …] [--yes]` | Show the plan (with parameters and defaults), then run it with `--yes` |
-| `/vps-tasks [id] [--stop]` | Remote tasks, their logs, and termination |
+| `/vps-recipes` | List recipes |
+| `/vps-install <id> [key=value …]` | Show the plan (with parameters and defaults); `/vps-yes` runs it |
+| `/vps-tasks` | List remote tasks |
+| `/vps-task <id> [--stop]` | One task's state and log; `--stop` terminates it |
 | `/vps-doctor` | Self-check: plugin state, current machine, connectivity, recent runs |
+| **`/vps-yes`** | **Confirm the plan you just saw**: reboot, install, or a held dangerous command. This conversation only, valid for 5 minutes, runs once |
 
-All of them default to the current machine and accept `-h <alias>`.
+Every command acts on **the machine bound to this conversation** (the VPS switch in the header, or `/vps-use <alias>`); with nothing bound, nothing runs.
+
+**Why confirmation is a separate `/vps-yes` instead of a `--yes` flag:** in DSH, a command that declares no arguments only matches the bare `/name`. Type anything after it and the whole line goes to the model as an ordinary prompt — the plugin never sees it. Commands like `/vps-reboot` must run on Enter, so they cannot declare arguments, and the confirmation has to be a second argument-free command.
 
 ---
 
@@ -133,7 +137,7 @@ Add your own two ways:
 
 User recipes are treated as untrusted input: their level is the stricter of what they declare and what static analysis finds, and the first run of new or modified content asks for confirmation.
 
-How to use them: `/vps-recipes [keyword]` to pick, `/vps-install <id>` to see the plan (parameters, defaults and the script itself), then `/vps-install <id> key=value --yes` to run it. Long installs detach into a remote task; `/vps-tasks` follows it and `/vps-tasks <id> --stop` terminates it.
+How to use them: `/vps-recipes` to pick, `/vps-install <id> key=value` to see the plan (parameters, defaults and the script itself), then `/vps-yes` to run it. Long installs detach into a remote task; `/vps-tasks` lists tasks, `/vps-task <id>` follows one and `/vps-task <id> --stop` terminates it.
 
 ---
 
@@ -145,7 +149,7 @@ The rule is: **if the conversation can do it, the UI should not.** The sidebar p
 
 Just the word `VPS` followed by one small rounded square per machine, no menus. Green means this conversation is bound to that machine, red means it is not; with several machines the squares are numbered. Click one to bind, click it again to unbind, and only one can be lit at a time.
 
-Turn it on and this conversation is bound to one machine: commands drop the `-h` flag and the AI may omit `host` — you just talk. Turn it off and the conversation has nothing to do with servers again — with the switch off there is **no default machine at all**: commands need an explicit `-h`, and the AI must name the host. (`/vps-use <alias>` and `/vps-use off` do the same thing from the keyboard.) The binding is per conversation, so another window switching machines cannot affect this one.
+Turn it on and this conversation is bound to one machine: commands act on it and the AI may omit `host` — you just talk. Turn it off and the conversation has nothing to do with servers again — with the switch off there is **no default machine at all**: commands do not run, and the AI must name the host. (`/vps-use <alias>` and `/vps-use off` do the same thing from the keyboard.) The binding is per conversation, so another window switching machines cannot affect this one.
 
 ### 2. The status line under the composer
 
@@ -196,7 +200,7 @@ npm install
 npm test
 ```
 
-123 tests, no server required: local `sh -s` stands in for a remote `sshd`, which is enough to exercise the payload protocol, task lifecycle, locking, backup/restore, tier classification, settings routes and UI rendering.
+125 tests, no server required: local `sh -s` stands in for a remote `sshd`, which is enough to exercise the payload protocol, task lifecycle, locking, backup/restore, tier classification, settings routes and UI rendering.
 
 ---
 

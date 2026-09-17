@@ -95,14 +95,14 @@ test('计划页第一行就是结论，并给出可照抄的确认命令', () =>
   const plan = formatPlan({ alias: 'vps-dsh', head: '[vps-dsh · 1.2.3.4] 洛杉矶', check: { ok: true, ...(() => { const kv = parseKv(CHECK_OUT); return { kv, assessment: assessCheck(kv) } })() } })
   assert.equal(plan.kind, 'success')
   const lines = plan.text.split('\n')
-  assert.equal(lines[0], '[vps-dsh] 该重启了：内核 124 → 139 · libc6 待生效 · 确认发 /vps-reboot -h vps-dsh --yes')
+  assert.equal(lines[0], '[vps-dsh] 该重启了：内核 124 → 139 · libc6 待生效 · 确认发 /vps-yes')
   assert.match(plan.text, /mailserver　会自己起来（重启策略 always）/)
 
   const kvBusy = parseKv(`${CHECK_OUT}\npkg_busy=1234 apt-get upgrade -y;`)
   const blocked = formatPlan({ alias: 'vps-dsh', head: '', check: { ok: true, kv: kvBusy, assessment: assessCheck(kvBusy) } })
   assert.equal(blocked.kind, 'error')
   assert.match(blocked.text.split('\n')[0], /^\[vps-dsh\] 现在别重启：包管理器正在装东西/)
-  assert.doesNotMatch(blocked.text, /--yes/, '拦下时不能给出确认命令')
+  assert.doesNotMatch(blocked.text, /vps-yes/, '拦下时不能给出确认命令')
 })
 
 test('重启全流程：等旧 boot_id 消失、连不上、再连上，等容器起来再报告', async () => {
