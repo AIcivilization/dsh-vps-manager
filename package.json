@@ -1,7 +1,26 @@
 {
   "name": "dsh-vps-manager",
   "version": "0.1.0",
-  "description": "VPS 管理：固定查询、AI 操作服务器、一键安装菜谱库",
+  "description": "Manage your VPS from DeepSeek Harness over SSH: zero-token commands, AI tools with risk-tiered confirmation, and a recipe library. · 在 DSH 里通过 SSH 管理 VPS：不花 token 的命令、按风险分级确认的 AI 工具、菜谱库。",
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "vps",
+    "ssh",
+    "server",
+    "devops"
+  ],
+  "license": "MIT",
+  "author": "AIcivilization",
+  "homepage": "https://github.com/AIcivilization/dsh-vps-manager#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AIcivilization/dsh-vps-manager.git"
+  },
+  "bugs": {
+    "url": "https://github.com/AIcivilization/dsh-vps-manager/issues"
+  },
   "type": "module",
   "main": "./lib/index.js",
   "exports": {
@@ -18,7 +37,8 @@
     "recipes/**",
     "cordis.patch.yml",
     "README.md",
-    "README.zh-CN.md"
+    "README.zh-CN.md",
+    "LICENSE"
   ],
   "dsh": {
     "bundle": {
@@ -29,7 +49,8 @@
     }
   },
   "engines": {
-    "node": ">=22.13"
+    "node": ">=22.13",
+    "dsh": ">=0.1.5-rc.2 <0.2.0-0"
   },
   "scripts": {
     "test": "node --test test/*.test.js"
@@ -39,30 +60,17 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-tools": ">=0.1.5-rc.2 <0.2.0-0",
     "react": ">=18.0.0"
   },
   "peerDependenciesMeta": {
+    "@deepseek-ai/dsh-tools": {
+      "optional": true
+    },
     "react": {
       "optional": true
     }
   },
-  "keywords": [
-    "deepseek-harness",
-    "dsh-plugin",
-    "dsh",
-    "vps",
-    "ssh"
-  ],
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/AIcivilization/dsh-vps-manager.git"
-  },
-  "homepage": "https://github.com/AIcivilization/dsh-vps-manager#readme",
-  "bugs": {
-    "url": "https://github.com/AIcivilization/dsh-vps-manager/issues"
-  },
-  "author": "AIcivilization",
   "devDependencies": {
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
