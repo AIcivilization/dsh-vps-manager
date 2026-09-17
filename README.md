@@ -79,6 +79,7 @@ Queries run without the model and cost no tokens. Each result starts with a one-
 | `/vps-ping` | Quick health line |
 | `/vps-logs <service>` | Last 100 log lines |
 | `/vps-probe` | Re-run the health check (OS, init, privilege, resources) |
+| `/vps-reboot [--yes]` | Reboot the server. First checks why a reboot is needed, whether now is safe, and which containers will stop; `--yes` reboots, waits for the machine to come back, and reports kernel, containers and failed services |
 | `/vps-sh [--yes] <command>` | Run a command on the current machine; output lands in the conversation. Dangerous commands need `--yes` |
 | `/vps-q <recipe id>` | Run any read-only recipe that has no dedicated command |
 | `/vps-list` | Registered machines and status |
@@ -195,7 +196,7 @@ npm install
 npm test
 ```
 
-112 tests, no server required: local `sh -s` stands in for a remote `sshd`, which is enough to exercise the payload protocol, task lifecycle, locking, backup/restore, tier classification, settings routes and UI rendering.
+123 tests, no server required: local `sh -s` stands in for a remote `sshd`, which is enough to exercise the payload protocol, task lifecycle, locking, backup/restore, tier classification, settings routes and UI rendering.
 
 ---
 
