@@ -39,6 +39,17 @@ recipes:
         has_cmd "$c" || miss=$((miss + 1))
       done
       printf 'tools_missing=%s\n' "$miss"
+      # —— 已经在跑的 Web 服务与容器：给 AI 的说明要写，免得它另装一个去抢 80/443（实测差点另装 nginx 撞上 caddy）——
+      web=''
+      if has_cmd ss; then
+        web=$($SUDO_OPT ss -ltnpH 2>/dev/null | awk '$4 ~ /:(80|443)$/' | grep -o 'users:(("[^"]*"' | sed 's/users:(("//; s/"$//' | sort -u | tr '\n' ' ')
+      elif has_cmd netstat; then
+        web=$($SUDO_OPT netstat -ltnp 2>/dev/null | awk '$4 ~ /:(80|443)$/ {print $7}' | sed 's#.*/##' | sort -u | tr '\n' ' ')
+      fi
+      printf 'web_listeners=%s\n' "$web"
+      containers=''
+      if has_cmd docker; then containers=$($SUDO_OPT docker ps --format '{{.Names}}' 2>/dev/null | head -8 | tr '\n' ' '); fi
+      printf 'containers=%s\n' "$containers"
 
   - id: sysinfo
     kind: query

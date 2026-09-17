@@ -162,10 +162,18 @@ test('没有审批界面时，改动类一律拒绝（失败关闭）', async ()
   assert.equal(rows[0].finalTier, 'change')
 })
 
+/** 仿 cordis 宿主：没 inject 就读 ctx.approval 会抛，只能 ctx.get('approval')；结果词汇照真实 dsh-user-approval */
+function hostWithApproval(request) {
+  const approval = { request }
+  return Object.defineProperty({ get: (name) => (name === 'approval' ? approval : undefined) }, 'approval', {
+    get() { throw new Error('cannot get property "approval" without inject') },
+  })
+}
+
 test('用户点允许就放行；全自动档根本不问', async () => {
   const { env } = await sandbox()
   let asked = 0
-  const ctx = { approval: { request: async () => { asked += 1; return 'allow' } } }
+  const ctx = hostWithApproval(async () => { asked += 1; return 'allowed-once' })
 
   const allowed = await gate({ ctx, tier: 'danger', confirmLevel: 'careful', summary: 'x', env })
   assert.equal(allowed.allowed, true)
@@ -177,7 +185,7 @@ test('用户点允许就放行；全自动档根本不问', async () => {
   assert.equal(asked, 1, '全自动档不应再问')
 
   const denied = await gate({
-    ctx: { approval: { request: async () => 'deny' } },
+    ctx: hostWithApproval(async () => 'rejected'),
     tier: 'change',
     confirmLevel: 'careful',
     summary: 'x',

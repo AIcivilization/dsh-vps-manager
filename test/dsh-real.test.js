@@ -72,3 +72,43 @@ test('真实校验：参数合法、返回值是无损 JSON 且符合声明、re
   await assert.rejects(tools.vps_exec.execute({ host: 'hk' }, exec), /script/)
   await assert.rejects(tools.vps_recipe.execute({ action: 'nope' }, exec))
 })
+
+const APP = '/Applications/DSH Desktop.app/Contents/Resources/app/node_modules/@deepseek-ai'
+
+test('真实 dsh-skill：加载时要求是字符串的字段，我们的 skill 一个不缺', { skip }, async () => {
+  const { readFile } = await import('node:fs/promises')
+  const lib = await readFile(`${APP}/dsh-skill/lib/index.js`, 'utf8')
+  // validateDefinition 里无条件检查的那些：if (typeof X !== "string") throw … X must be a string
+  // （path 这类写成 `X !== void 0 && typeof X …` 的是可选字段，不算）
+  const required = [...lib.matchAll(/if \(typeof (\w+) !== "string"\) throw new TypeError\(`loaded skill "\$\{name\}" \1 must be a string/g)].map((m) => m[1])
+  assert.ok(!required.includes('path'), 'path 是可选字段')
+  assert.ok(required.includes('source') && required.includes('content'), `没从源码里读到字段清单：${required}`)
+
+  const { registerSkill } = await import('../lib/index.js')
+  let registered
+  await registerSkill({ skills: { register: (def) => { registered = def; return () => {} } } })
+  // 照 SkillRegistry.register 补默认值：invocation 与 provider
+  const loaded = { invocation: { modelInvocable: true, userInvocable: true }, provider: 'runtime', ...registered }
+  for (const field of required) {
+    assert.equal(typeof loaded[field], 'string', `skill 缺字段 ${field}（DSH 加载时会报 “${field} must be a string”）`)
+  }
+  const { isSkillName } = await import(pathToFileURL(`${APP}/dsh-skill/lib/index.js`).href)
+  assert.equal(isSkillName(registered.name), true)
+})
+
+test('真实 dsh-user-approval：结果词汇与请求字段对得上', { skip }, async () => {
+  const { readFile } = await import('node:fs/promises')
+  const lib = await readFile(`${APP}/dsh-user-approval/lib/index.js`, 'utf8')
+  const block = /const OUTCOMES = \[([^\]]*)\]/.exec(lib)?.[1] ?? ''
+  const outcomes = [...block.matchAll(/"([^"]+)"/g)].map((m) => m[1]).sort()
+  const { APPROVAL_OUTCOMES, requestApproval } = await import('../lib/safety.js')
+  assert.deepEqual(Object.values(APPROVAL_OUTCOMES).sort(), outcomes, '审批结果词汇变了，requestApproval 要跟着改')
+  assert.match(lib, /toolName: req\.toolName/, '真实服务读的是 toolName')
+
+  // 用真实词汇走一遍：只有 allowed-once 放行
+  const hostWith = (outcome) => ({ get: () => ({ request: async (req) => { assert.equal(req.toolName, 'vps_exec'); return outcome } }) })
+  for (const outcome of outcomes) {
+    const res = await requestApproval(hostWith(outcome), { agent: {}, tool: 'vps_exec', reason: 'x' })
+    assert.equal(res.decision === 'allow', outcome === 'allowed-once', `${outcome} → ${res.decision}`)
+  }
+})

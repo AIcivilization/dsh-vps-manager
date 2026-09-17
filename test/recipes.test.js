@@ -72,6 +72,19 @@ test('菜谱里不许写 `$SUDO VAR=值 命令`（root 登录时 $SUDO 为空，
   }
 })
 
+test('全部菜谱脚本语法正确（前导 + detect / run / verify 逐条 sh -n）', async () => {
+  const { readFile } = await import('node:fs/promises')
+  const prelude = await readFile(new URL('../lib/prelude.sh', import.meta.url), 'utf8')
+  const { list } = await loadRecipes({ env: emptyEnv })
+  for (const r of list) {
+    for (const [field, script] of [['detect', r.detect], ['run', r.run], ['verify', r.verify]]) {
+      if (!script) continue
+      const res = await runProcess('sh', ['-n'], { input: `${prelude}\n${script}`, timeoutMs: 10_000 })
+      assert.equal(res.exitCode, 0, `${r.id} 的 ${field} 语法错误：${res.stderr}`)
+    }
+  }
+})
+
 test('菜谱校验拦住常见错误', () => {
   const base = { id: 'x-thing', kind: 'install', run: 'echo hi' }
   assert.ok(validateRecipe(base))

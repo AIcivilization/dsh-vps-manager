@@ -57,6 +57,14 @@ function fakeCtx({ approval } = {}) {
   return ctx
 }
 
+/** 仿 cordis 宿主：没 inject 就读 ctx.approval 会抛，只能 ctx.get('approval')；结果词汇照真实 dsh-user-approval */
+function hostWithApproval(request) {
+  const approval = { request }
+  return Object.defineProperty({ get: (name) => (name === 'approval' ? approval : undefined) }, 'approval', {
+    get() { throw new Error('cannot get property "approval" without inject') },
+  })
+}
+
 async function sandbox() {
   const home = await mkdtemp(join(tmpdir(), 'dsh-vps-wire-'))
   const env = { HOME: home, DSH_HOME: join(home, '.dsh') }
@@ -105,10 +113,10 @@ test('工具层：没有审批就拒绝改动，用户允许后才执行', async
   const { env, runner, sshOptions } = await sandbox()
   const asked = []
 
-  const denyCtx = { approval: { request: async (req) => { asked.push(req); return 'deny' } } }
+  const denyCtx = hostWithApproval(async (req) => { asked.push(req); return 'rejected' })
   const [defs1, defs2] = await Promise.all([
     buildToolDefinitions(denyCtx, { env, runner }),
-    buildToolDefinitions({ approval: { request: async (req) => { asked.push(req); return 'allow' } } }, { env, runner }),
+    buildToolDefinitions(hostWithApproval(async (req) => { asked.push(req); return 'allowed-once' }), { env, runner }),
   ])
   const denyExec = defs1.find((d) => d.name === 'vps_exec')
   const allowExec = defs2.find((d) => d.name === 'vps_exec')
@@ -121,6 +129,8 @@ test('工具层：没有审批就拒绝改动，用户允许后才执行', async
   assert.equal(denied.status, 'denied')
   assert.equal(denied.tier, 'change')
   assert.match(asked[0].reason, /改动：建目录/)
+  assert.equal(asked[0].toolName, 'vps_exec', '真实 dsh-user-approval 读的是 toolName')
+  assert.equal(asked[0].tool, undefined)
 
   const allowed = await allowExec.execute(
     { host: 'hk', script: 'echo 执行了', intent: 'change', reason: '测试' },
@@ -133,7 +143,7 @@ test('工具层：没有审批就拒绝改动，用户允许后才执行', async
 test('工具层：只读脚本不弹确认', async () => {
   const { env, runner } = await sandbox()
   let asked = 0
-  const ctx = { approval: { request: async () => { asked += 1; return 'allow' } } }
+  const ctx = hostWithApproval(async () => { asked += 1; return 'allowed-once' })
   const defs = await buildToolDefinitions(ctx, { env, runner })
   const exec = defs.find((d) => d.name === 'vps_exec')
   const res = await exec.execute({ host: 'hk', script: 'uname -s; id -u', intent: 'read' }, { agent: 'a', callId: 'c3' })
@@ -275,7 +285,7 @@ test('别的对话不受影响：绑定是会话级的', async () => {
 
 test('AI 工具同样受开关约束：没绑定又没写 host 就报错', async () => {
   const { env, runner } = await sandbox()
-  const defs = await buildToolDefinitions({ approval: { request: async () => 'allow' } }, { env, runner })
+  const defs = await buildToolDefinitions(hostWithApproval(async () => 'allowed-once'), { env, runner })
   const exec = defs.find((d) => d.name === 'vps_exec')
 
   await assert.rejects(

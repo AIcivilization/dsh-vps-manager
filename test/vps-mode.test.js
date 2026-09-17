@@ -69,8 +69,17 @@ test('说明里写清系统，模型按系统写命令', async () => {
   assert.match(await boundText('vps-dsh', env2), /还没有体检过.*cat \/etc\/os-release/)
 
   // 只读权限要提前说
-  const { env: env3 } = await sandbox({ facts: { os_id: 'debian', os_ver: '12', privilege: 'readonly' } })
+  const { env: env3 } = await sandbox({ facts: { os_id: 'debian', os_ver: '12', privilege: 'none' } }) // 体检写的是 none
   assert.match(await boundText('vps-dsh', env3), /没有管理员权限/)
+
+  // 已经在跑的 Web 服务和容器要写进去：实测模型没看端口就想另装 nginx，差点撞上 caddy
+  const { env: env4 } = await sandbox({ facts: { os_id: 'ubuntu', os_ver: '24.04', privilege: 'root', web_listeners: 'caddy ', containers: 'mailserver ' } })
+  const withServices = await boundText('vps-dsh', env4)
+  assert.match(withServices, /80\/443 端口已被占用：caddy。.*不要另装 nginx/)
+  assert.match(withServices, /在跑的容器：mailserver/)
+  assert.match(withServices, /动手改之前先查现状/)
+  const { env: env5 } = await sandbox({ facts: { os_id: 'ubuntu', os_ver: '24.04', web_listeners: '' } })
+  assert.match(await boundText('vps-dsh', env5), /80\/443 端口：没有程序在监听/)
 })
 
 test('pre-step：开关打开发一次，重复的步骤不再发，关掉发一次关闭说明', async () => {
