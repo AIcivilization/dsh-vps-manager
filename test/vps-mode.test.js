@@ -153,3 +153,24 @@ test('两个窗口互不影响：只有绑定的对话收到说明、被拦 bash
   await bindSession('sess-window-1', null, env)
   assert.equal(bash(vpsWindow), undefined, '关掉开关立刻放行')
 })
+
+test('自己敲的 /vps-sh 输出：下次跟 AI 说话时附上一次，令牌打码', async () => {
+  const { env } = await sandbox()
+  const { recordTerminal } = await import('../lib/terminal.js')
+  const agents = fakeAgents()
+  registerVpsMode(agents.ctx, { env })
+  const session = fakeSession('sess-typed')
+
+  recordTerminal('sess-typed', { alias: 'vps-dsh', cwd: '/root', command: 'journalctl -u dsh-web.service -n 5', exitCode: 0, status: 'done', output: 'dsh web: http://127.0.0.1:8787/?token=abcdef123456' })
+  const first = await agents.step(session)
+  assert.equal(first.length, 1)
+  assert.match(first[0], /^\[VPS 终端\] 用户在对话里自己执行了下面这些命令/)
+  assert.match(first[0], /\$ journalctl -u dsh-web\.service -n 5　（vps-dsh:\/root，退出码 0）/)
+  assert.match(first[0], /token=\*\*\*/)
+  assert.doesNotMatch(first[0], /abcdef123456/, '令牌不能交给模型')
+  assert.equal(session.events.at(-1).data.source.sections[0].name, 'vps-terminal')
+
+  assert.deepEqual(await agents.step(session), [], '同一批只附一次')
+  assert.equal(lastAnnouncement(session), null, '终端记录不能被当成 VPS 模式说明')
+})
+

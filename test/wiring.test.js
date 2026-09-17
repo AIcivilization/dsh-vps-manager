@@ -545,3 +545,66 @@ test('闸门：不许叫用户在「只认光名字」的命令后面写参数�
   }
   assert.deepEqual(hits, [], `这些地方叫人在光名字命令后面写参数，DSH 里到不了插件：\n${hits.join('\n')}`)
 })
+
+test('/vps-sh 迷你终端：记住目录、目录没了回家目录、交互命令改写、--private、--bg、超时提示', async () => {
+  const { env, runner, sshOptions } = await sandbox()
+  const { mkdtemp: mk, rm } = await import('node:fs/promises')
+  const { takeUnshared } = await import('../lib/terminal.js')
+  const registered = []
+  registerCommands({ commands: { register: (d) => { registered.push(d); return () => {} } } }, { env, runner, sshOptions, shReadTimeoutSeconds: 2 })
+  const sh = registered.find((c) => c.name === 'vps-sh')
+  const inv = (rawInput) => ({ rawInput, agent: { session: { id: 'sess-term' } } })
+  await registered.find((c) => c.name === 'vps-use').handler(inv('hk'))
+
+  const dir = await mk(join(tmpdir(), 'dsh-vps-cwd-'))
+  const went = await sh.handler(inv(`cd ${dir}`))
+  assert.equal(went.kind, 'success', went.text)
+  assert.equal(went.text.split('\n')[0], `[hk:${dir}] $ cd ${dir}`)
+  assert.match(went.text, new RegExp(`（当前目录：${dir}）`))
+  assert.doesNotMatch(went.text, /下次问 AI 时会附上/, '光换目录不附给 AI，也就不用提示')
+
+  const here = await sh.handler(inv('pwd'))
+  assert.match(here.text, /下次问 AI 时会附上这段输出/, '第一条会附给 AI 的命令要提示')
+  assert.match(here.text.split('\n')[0], new RegExp(`^\\[hk:${dir}\\] \\$ pwd　${dir}$`), '下一条在记住的目录里执行')
+  assert.doesNotMatch(here.text, /__DSH_VPS_CWD__/, '目录标记不能漏进输出')
+  assert.doesNotMatch((await sh.handler(inv('pwd'))).text, /下次问 AI/, '只提示一次')
+
+  // cd 失败：目录不变
+  const bad = await sh.handler(inv('cd /definitely-not-here-xyz'))
+  assert.equal(bad.kind, 'error')
+  assert.match((await sh.handler(inv('pwd'))).text.split('\n')[0], new RegExp(`\\$ pwd　${dir}$`))
+
+  // 记住的目录被删了：回到家目录并说明
+  await rm(dir, { recursive: true, force: true })
+  const gone = await sh.handler(inv('pwd'))
+  assert.match(gone.text, /已经不存在，回到家目录/)
+  assert.doesNotMatch(gone.text.split('\n')[0], new RegExp(dir))
+
+  // 交互命令改写：输出里说明改了什么，并照改后的执行
+  const logFile = join(await mk(join(tmpdir(), 'dsh-vps-log-')), 'app.log')
+  await writeFile(logFile, 'line1\nline2\n')
+  const tailed = await sh.handler(inv(`tail -f ${logFile}`))
+  assert.equal(tailed.kind, 'success', tailed.text)
+  assert.match(tailed.text, /（tail -f 会一直等新内容，改成最后 100 行）/)
+  assert.match(tailed.text, /line2/)
+
+  const vim = await sh.handler(inv('vim /etc/hosts'))
+  assert.equal(vim.kind, 'error')
+  assert.match(vim.text, /^没执行：vim 是交互式编辑器/)
+
+  // --private：执行，但不记给 AI
+  takeUnshared('sess-term')
+  await sh.handler(inv('--private echo secret-stuff'))
+  await sh.handler(inv('echo shared-stuff'))
+  const shared = takeUnshared('sess-term')
+  assert.deepEqual(shared.map((e) => e.command), ['echo shared-stuff'])
+
+  // --bg：放到后台，立刻给任务号
+  const bg = await sh.handler(inv('--bg sleep 1'))
+  assert.equal(bg.kind, 'success', bg.text)
+  assert.match(bg.text, /在后台跑，任务 \S+，用 \/vps-task \S+ 看进度/)
+
+  // 只读命令超时：提示用 --bg
+  const slow = await sh.handler(inv('sleep 5'))
+  assert.match(slow.text, /超过 2 秒还没结束，已停止等待。跑得久的命令在前面加 --bg 放到后台/)
+})
