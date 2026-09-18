@@ -18,6 +18,7 @@ import {
   isTrusted,
   validateConnection,
   writeHosts,
+  normalizeTerminalPrefs,
 } from '../lib/config.js'
 
 async function sandbox() {
@@ -162,4 +163,13 @@ test('自定义菜谱按哈希记信任', async () => {
   assert.equal(await isTrusted('deadbeef', env), false)
   await trustHash('deadbeef', { id: 'my-thing', source: 'panel' }, env)
   assert.equal(await isTrusted('deadbeef', env), true)
+})
+
+test('终端设置规范化：三种颜色方案、字号 11–20、保留时长', () => {
+  assert.deepEqual(normalizeTerminalPrefs(undefined), { theme: 'system', fontSize: 13, keepMinutes: 10 })
+  assert.deepEqual(normalizeTerminalPrefs({ theme: 'light', fontSize: '15', keepMinutes: 60 }), { theme: 'light', fontSize: 15, keepMinutes: 60 })
+  assert.equal(normalizeTerminalPrefs({ theme: 'dark' }).theme, 'dark')
+  assert.equal(normalizeTerminalPrefs({ fontSize: 10 }).fontSize, 13)
+  assert.equal(normalizeTerminalPrefs({ fontSize: 21 }).fontSize, 13)
+  assert.equal(normalizeTerminalPrefs({ keepMinutes: 0 }).keepMinutes, 10)
 })

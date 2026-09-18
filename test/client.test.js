@@ -273,3 +273,39 @@ test('界面代码里的协议名、路径、xterm 版本与服务端一致', as
   assert.ok(client.includes(`'${server.TERMINAL_PATH}'`), '连接路径')
   assert.ok(client.includes(`XTERM_VERSION = '${server.XTERM_VERSION}'`), 'xterm 版本号（缓存地址）')
 })
+
+test('设置页有「终端」栏目：颜色方案三选一、字号、断线保留、其他设备', async () => {
+  const { exported } = await loadClient({
+    fetchImpl: async () => ({
+      status: 200,
+      json: async () => ({ ok: true, hosts: [], recipes: [], settings: { confirm: 'careful', terminal: { theme: 'dark', fontSize: 15, keepMinutes: 30 } } }),
+    }),
+  })
+  const ctx = fakeSlots()
+  exported.apply(ctx)
+  // 设置页要等 overview 回来才渲染设置卡片：直接渲染卡片组件的输出不方便，这里用内部句柄核对取值逻辑
+  const { normalizeTermPrefs, termChrome } = exported.__test
+  assert.deepEqual(normalizeTermPrefs({ theme: 'dark', fontSize: 15, keepMinutes: 30 }), { theme: 'dark', fontSize: 15, keepMinutes: 30 })
+  assert.deepEqual(normalizeTermPrefs({ theme: 'x' }), { theme: 'system', fontSize: 13, keepMinutes: 10 })
+  assert.match(termChrome('system').bg, /^var\(--dsw-/, '跟随系统：用 DSH 的主题变量')
+  assert.equal(termChrome('dark').bg, '#2c2c2e', '暗色：固定用 DSH 深色的输入框底色')
+  assert.equal(termChrome('light').bg, '#ffffff', '白色：固定白底')
+  assert.equal(termChrome('dark').code, termChrome('system').code, '字体不随颜色方案变')
+})
+
+test('设置页源码里「终端」栏目的选项齐全', async () => {
+  const { readFile } = await import('node:fs/promises')
+  const src = await readFile(new URL('../lib/client.js', import.meta.url), 'utf8')
+  for (const label of ['跟随系统', '暗色', '白色', '断线后保留', '允许从其他设备打开 VPS 终端', '字号']) {
+    assert.ok(src.includes(`'${label}'`), `缺少「${label}」`)
+  }
+  assert.ok(src.includes("h(TerminalSettingsCard, { settings, setSettings })"), '终端卡片挂在设置页里')
+})
+
+test('终端已开多久的文字', async () => {
+  const { exported } = await loadClient()
+  const { minutesSince } = exported.__test
+  assert.equal(minutesSince(Date.now()), '刚打开')
+  assert.equal(minutesSince(Date.now() - 5 * 60000), '已开 5 分钟')
+  assert.equal(minutesSince(Date.now() - 125 * 60000), '已开 2 小时 5 分钟')
+})

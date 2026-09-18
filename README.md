@@ -104,13 +104,21 @@ Nothing is shown below the input box, except a single line in three cases: a tas
 The **`>_`** button right after `VPS` in the conversation header is the terminal. Once a machine is bound, click it and a real terminal opens below the input box, working just like an SSH session (with only one machine you can click it before binding, and it binds that machine for you):
 
 - Menu scripts, `top`, `htop`, `vim`, `docker exec -it`, `mysql` and other programs that need keystrokes all work, as do Ctrl+C, arrow keys and CJK text
-- Drag the bottom-right corner to change the height; full-screen programs redraw at the new size, and the height is remembered
-- **Clicking `>_` again or "收起" (collapse) disconnects**, and the shell on the server ends with it; switching to another conversation or reloading the page does the same. To keep something running after you disconnect, use `nohup`, `tmux` or `/vps-sh --bg`
-- If the connection drops, "重新连接" (reconnect) opens a new shell
+- Three round buttons at the top right of the terminal:
+  - **Red ×**: end this terminal; the shell on the server and anything running in it end too
+  - **Yellow −**: minimize to a bar below the input box ("terminal running in the background · open N minutes"); the terminal keeps running, and clicking the bar brings it back
+  - **Green**: maximize; the terminal fills the conversation area and the input box moves to the top. Click again (or double-click the title bar) to restore
+- The `>_` button in the header is still a switch: not open → open; open → minimize; minimized → restore. While minimized it shows a small green dot
+- **Minimizing, switching to another conversation and coming back keeps the terminal and everything on it**
+- **Reloading the page or losing the network**: the server keeps the terminal for a while (10 minutes by default, adjustable in settings). Come back within that time and it reconnects automatically, replaying the output you missed; only after that does it end
+- At normal size, drag the bottom-right corner to change the height; full-screen programs redraw at the new size, and the height is remembered
+- Turning the VPS switch off or moving to another machine ends that conversation's terminal
 - What you type and see here **does not go to the AI**; run a command with `/vps-sh` when you want the AI to see its output
-- Opening and closing are recorded in the audit log (keystrokes are not)
+- Opening and ending are recorded in the audit log (keystrokes are not)
 
-**It works in both DSH Desktop and `dsh web`**: the connection follows the page address (an `https` page automatically uses an encrypted connection). Every connection must pass three checks: DSH's own sign-in check, an origin that is the DSH page itself, and the plugin token embedded in that page. On top of that, **by default the terminal only opens on the computer running DSH**: when you reach `dsh web` through a LAN address or a reverse proxy, first tick "允许从其他设备打开 VPS 终端" (allow opening the VPS terminal from other devices) under DSH Settings → VPS Manager. The terminal is full control of the server, so only turn this on for access paths you trust.
+**Settings** (DSH Settings → VPS Manager → 终端 / Terminal): colour scheme (follow system / dark / light, where follow system matches DSH's appearance), font size (11–20), how long to keep the terminal after a disconnect (5 minutes / 10 minutes / 30 minutes / 1 hour), and whether other devices may open it.
+
+**It works in both DSH Desktop and `dsh web`**: the connection follows the page address (an `https` page automatically uses an encrypted connection). Every connection must pass three checks: DSH's own sign-in check, an origin that is the DSH page itself, and the plugin token embedded in that page. On top of that, **by default the terminal only opens on the computer running DSH**: when you reach `dsh web` through a LAN address or a reverse proxy, first tick "允许从其他设备打开 VPS 终端" (allow opening the VPS terminal from other devices) under DSH Settings → VPS Manager → Terminal. The terminal is full control of the server, so only turn this on for access paths you trust.
 
 No native module has to be compiled on your machine: the pseudo-terminal on the server is requested with `ssh -tt`, and window-size changes are applied over a second SSH connection. The terminal display is [xterm.js](https://xtermjs.org) (MIT licensed, bundled with the plugin and loaded the first time you open a terminal).
 
@@ -256,7 +264,8 @@ Your own recipes are treated as untrusted: their risk level is the stricter of w
 - **Add machine**, and **Import from ~/.ssh/config**
 - **Per-machine settings**: alias, address, port, user, jump host, public key placement, host fingerprint, confirmation level, removal
 - **Basics**: fill in the state you want (timezone, swap size, BBR, automatic security updates, fail2ban, common CLI tools). On save, only the items that differ from the current state are run, each as a remote task with progress shown
-- **Global settings**: default confirmation level, safety-net duration, whether changes may be made from the settings page when DSH's web server is open to the local network, and whether the [terminal](#terminal-in-the-conversation) may be opened from other devices (off by default)
+- **Global settings**: default confirmation level, safety-net duration, and whether changes may be made from the settings page when DSH's web server is open to the local network
+- **Terminal**: colour scheme (follow system / dark / light), font size, how long to keep the terminal after a disconnect, and whether the [terminal](#terminal-in-the-conversation) may be opened from other devices (off by default)
 - **Data location**
 - **Uninstall**: tick what to do, confirm, and see the result of each step. On DSH Desktop the plugin can be removed directly, followed by a one-click DSH restart; elsewhere you get the terminal command to run
   - Remove the plugin itself (ticked by default)
@@ -303,7 +312,7 @@ npm install
 npm test
 ```
 
-173 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend, the terminal connection (authentication, local-only access, input and output, window size, cleanup on disconnect) and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`.
+184 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend, the terminal connection (authentication, local-only access, input and output, window size, keeping and resuming after a disconnect, cleanup) and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`.
 
 ---
 

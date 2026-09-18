@@ -16,6 +16,7 @@ import {
   clampSize,
   createMarkFilter,
   isLoopbackRequest,
+  OutputRing,
   registerTerminal,
   remoteScript,
   resizeScript,
@@ -166,12 +167,13 @@ async function sandbox(options = {}) {
   const terminal = registerTerminal(srv.webCtx, {
     env,
     token,
-    // 假装的远端：先报 tty，然后把收到的每一行回显出来；收到 bye 就以 7 退出
+    keepMs: options.keepMs ?? (() => 60_000),
+    // 假装的远端：先报 tty，然后把收到的每一行回显出来；bye 以 7 退出；slow 过一会儿才输出
     spawnTerminal: options.spawnTerminal ?? (({ alias, cols, rows }) => {
       const child = spawn('sh', ['-c', [
         `printf '__DSH_TTY__=/dev/pts/9\\r\\n'`,
         `printf 'hello from %s %sx%s\\r\\n' ${alias} ${cols} ${rows}`,
-        'while IFS= read -r line; do [ "$line" = bye ] && exit 7; printf "got:%s\\r\\n" "$line"; done',
+        'while IFS= read -r line; do case "$line" in bye) exit 7;; slow) sleep 0.4; printf "slow-done\\r\\n";; *) printf "got:%s\\r\\n" "$line";; esac; done',
       ].join('; ')], { stdio: ['pipe', 'pipe', 'pipe'] })
       children.push(child)
       return child
@@ -182,11 +184,16 @@ async function sandbox(options = {}) {
     },
   })
 
-  const connect = ({ sessionId = 's1', protocols = [TERMINAL_PROTOCOL, token], headers = {}, cols = 90, rows = 20 } = {}) => {
-    const url = `ws://127.0.0.1:${srv.port}${TERMINAL_PATH}?sessionId=${encodeURIComponent(sessionId)}&cols=${cols}&rows=${rows}`
+  const connect = ({ sessionId = 's1', protocols = [TERMINAL_PROTOCOL, token], headers = {}, cols = 90, rows = 20, resume, since, resumeOnly } = {}) => {
+    const q = new URLSearchParams({ sessionId, cols: String(cols), rows: String(rows) })
+    if (resume) q.set('resume', resume)
+    if (since !== undefined) q.set('since', String(since))
+    if (resumeOnly) q.set('resumeOnly', '1')
+    const url = `ws://127.0.0.1:${srv.port}${TERMINAL_PATH}?${q}`
     const ws = new WebSocket(url, protocols, { origin: `http://127.0.0.1:${srv.port}`, headers })
-    const frames = { text: '', json: [] }
+    const frames = { text: '', json: [], bytes: 0 }
     ws.on('message', (data, isBinary) => {
+      if (isBinary) frames.bytes += data.length
       if (isBinary) frames.text += data.toString()
       else frames.json.push(JSON.parse(String(data)))
     })
@@ -230,7 +237,12 @@ test('连上以后：看不到 tty 报告行，打字有回显，退出码和收
     await c.opened
     await until(() => c.frames.text.includes('hello from hk 90x20'))
     assert.doesNotMatch(c.frames.text, /__DSH_TTY__/, 'tty 报告行不能显示给用户')
-    assert.deepEqual(c.frames.json[0], { t: 'ready', alias: 'hk', resizable: true })
+    const ready = c.frames.json[0]
+    assert.equal(ready.t, 'ready')
+    assert.equal(ready.alias, 'hk')
+    assert.equal(ready.resizable, true)
+    assert.equal(ready.resumed, false)
+    assert.match(ready.id, /^[0-9a-f-]{36}$/, '会话 id 给浏览器，断线后凭它接回')
 
     c.ws.send(JSON.stringify({ t: 'i', d: 'ls -la\n' }))
     await until(() => c.frames.text.includes('got:ls -la'))
@@ -265,21 +277,140 @@ test('调整窗口：连续拖动只发最后一次，用的是远端报告的 t
   }
 })
 
-test('浏览器关掉连接：本机的 ssh 进程被结束，不留孤儿', async () => {
+test('断开连接不结束会话：接回来从断开的位置补发输出，接着能用', async () => {
   const box = await sandbox()
   try {
-    const c = box.connect()
-    await c.opened
-    await until(() => box.children.length === 1)
+    const a = box.connect()
+    await a.opened
+    await until(() => a.frames.text.includes('hello from hk'))
+    const id = a.frames.json[0].id
+    // 发一个要过一会儿才出结果的命令，马上断开：结果是在「没人连着」的时候出来的
+    a.ws.send(JSON.stringify({ t: 'i', d: 'slow\n' }))
+    const received = a.frames.bytes
+    a.ws.close()
+    await a.closed
+    await new Promise((r) => setTimeout(r, 600))
+    assert.equal(box.terminal.live.size, 1, '连接断了，会话还在')
+    assert.equal(box.children[0].exitCode, null, 'ssh 还在跑')
+
+    const b = box.connect({ resume: id, since: received })
+    await b.opened
+    await until(() => b.frames.text.includes('slow-done'))
+    const ready = b.frames.json.find((m) => m.t === 'ready')
+    assert.equal(ready.resumed, true)
+    assert.equal(ready.id, id)
+    assert.equal(ready.offset, received, '从浏览器已收到的位置接着发')
+    assert.doesNotMatch(b.frames.text, /hello from/, '已经收到过的不重复发')
+    assert.equal(box.children.length, 1, '没有另开 ssh')
+
+    b.ws.send(JSON.stringify({ t: 'i', d: 'again\n' }))
+    await until(() => b.frames.text.includes('got:again'))
+  } finally {
+    await box.cleanup()
+  }
+})
+
+test('页面刷新后从头补发；点「结束」才真正结束 ssh', async () => {
+  const box = await sandbox()
+  try {
+    const a = box.connect()
+    await a.opened
+    await until(() => a.frames.text.includes('hello from hk'))
+    const id = a.frames.json[0].id
+    a.ws.close()
+    await a.closed
+
+    // 刷新后浏览器什么都没有：since=0，把环里的内容整个补回来
+    const b = box.connect({ resume: id, since: 0, resumeOnly: true })
+    await b.opened
+    await until(() => b.frames.text.includes('hello from hk 90x20'))
+
     const child = box.children[0]
     const exited = new Promise((resolve) => child.on('exit', resolve))
-    c.ws.close()
+    b.ws.send(JSON.stringify({ t: 'end' }))
     await exited
-    assert.ok(child.exitCode !== null || child.signalCode !== null)
+    await b.closed
     await until(() => box.terminal.live.size === 0)
   } finally {
     await box.cleanup()
   }
+})
+
+test('断开后超过保留时间：ssh 结束；再来接回只得到「已经没了」，不会偷偷另开一个', async () => {
+  const box = await sandbox({ keepMs: () => 150 })
+  try {
+    const a = box.connect()
+    await a.opened
+    await until(() => a.frames.json.some((m) => m.t === 'ready'))
+    const id = a.frames.json[0].id
+    const child = box.children[0]
+    const exited = new Promise((resolve) => child.on('exit', resolve))
+    a.ws.close()
+    await exited
+    await until(() => box.terminal.live.size === 0)
+
+    const b = box.connect({ resume: id, since: 0, resumeOnly: true })
+    await b.opened
+    await b.closed
+    assert.deepEqual(b.frames.json, [{ t: 'gone' }])
+    assert.equal(box.children.length, 1, '收起状态下会话没了，不该自己再开一个')
+  } finally {
+    await box.cleanup()
+  }
+})
+
+test('同一个终端在另一个窗口打开：旧窗口让位，不会两边抢着输入', async () => {
+  const box = await sandbox()
+  try {
+    const a = box.connect()
+    await a.opened
+    await until(() => a.frames.json.some((m) => m.t === 'ready'))
+    const id = a.frames.json[0].id
+    const b = box.connect({ resume: id, since: a.frames.bytes })
+    await b.opened
+    const code = await a.closed
+    assert.equal(code, 4409)
+    assert.ok(a.frames.json.some((m) => m.t === 'taken'))
+    b.ws.send(JSON.stringify({ t: 'i', d: 'mine\n' }))
+    await until(() => b.frames.text.includes('got:mine'))
+    assert.equal(box.terminal.live.size, 1)
+  } finally {
+    await box.cleanup()
+  }
+})
+
+test('对话换了机器或关了开关：它在旧机器上的终端结束，别的对话不受影响', async () => {
+  const box = await sandbox()
+  try {
+    await bindSession('s2', 'hk', box.env)
+    const a = box.connect({ sessionId: 's1' })
+    const b = box.connect({ sessionId: 's2' })
+    await Promise.all([a.opened, b.opened])
+    await until(() => box.terminal.live.size === 2)
+    box.terminal.endFor('s1', '')
+    await a.closed
+    await until(() => box.terminal.live.size === 1)
+    box.terminal.endFor('s2', 'hk') // 绑的还是 hk：不动
+    assert.equal(box.terminal.live.size, 1)
+  } finally {
+    await box.cleanup()
+  }
+})
+
+test('输出环：超过上限丢最旧的，按偏移补发', () => {
+  const ring = new OutputRing(10)
+  ring.push(Buffer.from('abcdef'))
+  ring.push(Buffer.from('ghij'))
+  assert.equal(ring.end, 10)
+  assert.equal(ring.since(4).data.toString(), 'efghij')
+  ring.push(Buffer.from('klm'))
+  assert.equal(ring.base, 6, '丢掉最旧的一整块')
+  assert.equal(ring.since(0).from, 6, '要的太早就从还留着的地方给')
+  assert.equal(ring.since(0).data.toString(), 'ghijklm')
+  assert.equal(ring.since(13).data.length, 0)
+  ring.push(Buffer.from('0123456789ABCDEF'))
+  assert.equal(ring.size, 10, '单块超上限只留尾巴')
+  assert.equal(ring.since(0).data.toString(), '6789ABCDEF')
 })
 
 test('鉴权不过直接拒绝升级：没 token、token 错、跨站、DSH 登录校验不过', async () => {

@@ -47,14 +47,14 @@ function fakeWebServer({ host = '127.0.0.1' } = {}) {
   }
 }
 
-async function sandbox({ lan = false } = {}) {
+async function sandbox({ lan = false, terminals } = {}) {
   const home = await mkdtemp(join(tmpdir(), 'dsh-vps-routes-'))
   const env = { HOME: home, DSH_HOME: join(home, '.dsh') }
   await writeHosts({ current: 'hk', hosts: { hk: { note: '香港', group: '生产' } } }, env)
   const runner = (alias, payload, opts = {}) =>
     runProcess('sh', ['-s'], { input: payload, env: { ...process.env, HOME: home }, ...opts })
   const ws = fakeWebServer({ host: lan ? '0.0.0.0' : '127.0.0.1' })
-  const reg = registerRoutes({ webServer: ws }, { env, runner })
+  const reg = registerRoutes({ webServer: ws }, { env, runner, terminals })
   const call = async (path, body, headers = {}) => {
     const handler = ws.routes.get(`/api-vps/${path}`)
     assert.ok(handler, `没有注册路由 ${path}`)
@@ -255,3 +255,22 @@ test('没有 verify 的菜谱，验证接口如实说明', async () => {
   assert.match(res.body.hint, /没有写 verify/)
 })
 
+
+test('终端设置：保存后读得回来，非法值落回默认', async () => {
+  const { env, call } = await sandbox()
+  const first = await call('terminal/prefs', {})
+  assert.deepEqual(first.body.terminal, { theme: 'system', fontSize: 13, keepMinutes: 10 }, '默认：跟随系统、13 号字、保留 10 分钟')
+  await call('settings/save', { settings: { terminal: { theme: 'dark', fontSize: 16, keepMinutes: 30 } } })
+  assert.deepEqual((await call('terminal/prefs', {})).body.terminal, { theme: 'dark', fontSize: 16, keepMinutes: 30 })
+  await call('settings/save', { settings: { terminal: { theme: 'purple', fontSize: 99, keepMinutes: -1 } } })
+  assert.deepEqual((await readHosts(env)).settings.terminal, { theme: 'system', fontSize: 13, keepMinutes: 10 })
+})
+
+test('开关换机器或关掉：对话里连着旧机器的终端结束', async () => {
+  const calls = []
+  const { env, call } = await sandbox({ terminals: { endFor: (...args) => calls.push(args) } })
+  await writeHosts({ current: 'hk', hosts: { hk: { note: '' }, jp: { note: '' } } }, env)
+  await call('session/bind', { sessionId: 's1', alias: 'jp' })
+  await call('session/bind', { sessionId: 's1', alias: null })
+  assert.deepEqual(calls, [['s1', 'jp'], ['s1', '']])
+})
