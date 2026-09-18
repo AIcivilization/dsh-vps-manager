@@ -104,7 +104,9 @@ test('classifySshFailure 把常见报错翻译成原因', () => {
     ['root@1.2.3.4: Permission denied (publickey).', 'auth_failed'],
     ['ssh: connect to host 1.2.3.4 port 22: Connection refused', 'refused'],
     ['ssh: connect to host 1.2.3.4 port 22: Operation timed out', 'timeout'],
-    ['ssh: Could not resolve hostname nope: Name or service not known', 'dns'],
+    ['ssh: Could not resolve hostname nope.example.com: Name or service not known', 'dns'],
+    // 解析不了的是机器别名本身：SSH 配置里没有这台（卸载后重装时实测）
+    ['ssh: Could not resolve hostname vps-dsh: nodename nor servname provided, or not known', 'alias_missing'],
     ['Load key "/x/id_ed25519": incorrect passphrase supplied', 'key_passphrase'],
   ]
   for (const [stderr, reason] of cases) {
@@ -113,4 +115,12 @@ test('classifySshFailure 把常见报错翻译成原因', () => {
     assert.ok(r.hint.length > 0)
   }
   assert.equal(classifySshFailure('something weird', 255).reason, 'ssh_unknown')
+})
+
+test('别名解析不了：提示是连接配置不见了、重启 DSH 会自动恢复，不说「地址填错」', () => {
+  const r = classifySshFailure('ssh: Could not resolve hostname vps-dsh: nodename nor servname provided, or not known', 255)
+  assert.match(r.hint, /SSH 配置里找不到「vps-dsh」/)
+  assert.match(r.hint, /重启 DSH 会自动从备份恢复/)
+  assert.doesNotMatch(r.hint, /地址是否填错/)
+  assert.equal(classifySshFailure('ssh: Could not resolve hostname 1.2.3: x', 255).reason, 'dns', '带点的当成地址')
 })

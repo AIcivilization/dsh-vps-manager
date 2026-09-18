@@ -19,6 +19,7 @@ import {
   validateConnection,
   writeHosts,
   normalizeTerminalPrefs,
+  repairSshSetup,
 } from '../lib/config.js'
 
 async function sandbox() {
@@ -172,4 +173,40 @@ test('终端设置规范化：三种颜色方案、字号 11–20、保留时长
   assert.equal(normalizeTerminalPrefs({ fontSize: 10 }).fontSize, 13)
   assert.equal(normalizeTerminalPrefs({ fontSize: 21 }).fontSize, 13)
   assert.equal(normalizeTerminalPrefs({ keepMinutes: 0 }).keepMinutes, 10)
+})
+
+async function uninstalledHome({ managed = true, backupHosts = 'vps-dsh' } = {}) {
+  const home = await mkdtemp(join(tmpdir(), 'dsh-vps-repair-'))
+  const env = { HOME: home, DSH_HOME: join(home, '.dsh') }
+  await writeHosts({ current: 'vps-dsh', hosts: { 'vps-dsh': { note: '洛杉矶', managed } } }, env)
+  await mkdir(join(home, '.ssh', 'config.d'), { recursive: true })
+  const userConfig = 'Host vps\n    HostName 1.2.3.4\n    User root\n'
+  await writeFile(join(home, '.ssh', 'config'), userConfig)
+  await writeFile(join(home, '.ssh', 'config.d', 'dsh-vps.conf.uninstall-bak'),
+    `# 由 dsh-vps-manager 维护\n\nHost ${backupHosts}\n  HostName 1.2.3.4\n  User root\n`)
+  return { home, env, userConfig }
+}
+
+test('卸载时移走了 SSH 配置、之后重装：启动时从备份恢复并补回 Include 行', async () => {
+  const { home, env, userConfig } = await uninstalledHome()
+  const res = await repairSshSetup(env)
+  assert.equal(res.repaired.length, 2, res.repaired.join(' | '))
+  const dropin = await readFile(join(home, '.ssh', 'config.d', 'dsh-vps.conf'), 'utf8')
+  assert.match(dropin, /Host vps-dsh/)
+  const config = await readFile(join(home, '.ssh', 'config'), 'utf8')
+  assert.match(config, /^# Added by dsh-vps-manager\nInclude config\.d\/dsh-vps\.conf\n/)
+  assert.ok(config.endsWith(userConfig), '用户自己写的内容一字不动')
+  assert.deepEqual((await repairSshSetup(env)).repaired, [], '修好之后再跑什么都不做')
+})
+
+test('不该动的时候不动：机器是导入的（不归插件管）、或备份里没有这些机器', async () => {
+  const imported = await uninstalledHome({ managed: false })
+  assert.deepEqual((await repairSshSetup(imported.env)).repaired, [])
+  assert.equal(await readFile(join(imported.home, '.ssh', 'config'), 'utf8'), imported.userConfig)
+
+  const other = await uninstalledHome({ backupHosts: 'someone-else' })
+  assert.deepEqual((await repairSshSetup(other.env)).repaired, [])
+
+  const empty = await mkdtemp(join(tmpdir(), 'dsh-vps-repair-'))
+  assert.deepEqual((await repairSshSetup({ HOME: empty, DSH_HOME: join(empty, '.dsh') })).repaired, [], '一台机器都没有')
 })
