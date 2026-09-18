@@ -309,3 +309,31 @@ test('终端已开多久的文字', async () => {
   assert.equal(minutesSince(Date.now() - 5 * 60000), '已开 5 分钟')
   assert.equal(minutesSince(Date.now() - 125 * 60000), '已开 2 小时 5 分钟')
 })
+
+test('方块颜色 = 连接状态：灰 没选、黄 连接中、绿 连上、红 连不上', async () => {
+  const { exported } = await loadClient()
+  const { chipTone, alertsFor } = exported.__test
+  assert.equal(chipTone(false, { state: 'ok' }), 'off', '没选的那台一律灰，不管它连不连得上')
+  assert.equal(chipTone(true, null), 'checking', '选了但还没测出结果：不能先显示绿')
+  assert.equal(chipTone(true, { state: 'checking' }), 'checking')
+  assert.equal(chipTone(true, { state: 'ok' }), 'ok')
+  assert.equal(chipTone(true, { state: 'fail', hint: 'x' }), 'fail')
+
+  const down = alertsFor('vps-dsh', { reachable: false, hint: 'SSH 配置里找不到「vps-dsh」这台机器', running: [] })
+  assert.equal(down[0].tone, 'danger')
+  assert.equal(down[0].action, 'retry', '连不上的那一行带「重试」')
+  assert.match(down[0].text, /vps-dsh 连不上：SSH 配置里找不到/)
+  assert.deepEqual(alertsFor('vps-dsh', { reachable: null, running: [] }), [], '还在测：输入框下方不占地方')
+})
+
+test('选了机器但还没测出结果的头部：方块是黄的，不是绿的', async () => {
+  const { exported } = await loadClient({ storage: { 'dsh-vps:hosts': JSON.stringify([{ alias: 'hk', note: '' }]), 'dsh-vps:bind:s5': 'hk' } })
+  const ctx = fakeSlots()
+  exported.apply(ctx)
+  const html = renderToStaticMarkup(
+    React.createElement(ctx.registered.get('conversation.session.header.actions').component, { sessionId: 's5' }),
+  )
+  assert.match(html, /data-vps-chip="checking"/)
+  assert.doesNotMatch(html, /data-vps-chip="ok"/)
+  assert.match(html, /正在连接 hk/)
+})

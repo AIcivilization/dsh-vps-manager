@@ -90,9 +90,16 @@ Machines already defined in `~/.ssh/config` can be taken over with "Import from 
 
 The conversation header has a **VPS switch**: the word `VPS`, then the terminal button `>_`, then one small square per machine. Each square shows its number (1 for the first machine, 2 for the second, and so on), matching the numbers on the settings page.
 
-- **Click a square**: this conversation enters **VPS mode** and the square turns green. From then on `/vps-` commands act on that machine, and the plugin tells the model which machine this conversation operates on, what system it runs (package manager, init system, privilege), which program holds ports 80/443, which services and containers are running, plus a few rules it must follow (never guess names, handle systemd services only through systemctl, never turn a failed lookup into a restart or reinstall). The model writes commands for that system, and knows what you mean by "this machine" or "the server"
+- **A square's colour is the real connection state**, not just whether it is selected:
+  - **Grey**: this conversation has not selected that machine
+  - **Yellow (pulsing)**: selected, connecting
+  - **Green**: selected, and just checked to be reachable
+  - **Red**: selected, but unreachable. The reason is shown below the input box (for example "the SSH configuration has no entry for this machine") with a retry button; hovering the square shows it too
+
+  A live check runs when you turn the switch on, open the conversation, or come back to the DSH window (tens of milliseconds over the shared connection). Every command, AI tool call and terminal connection also records whether it reached the server, and the square follows
+- **Click a square**: this conversation enters **VPS mode**. From then on `/vps-` commands act on that machine, and the plugin tells the model which machine this conversation operates on, what system it runs (package manager, init system, privilege), which program holds ports 80/443, which services and containers are running, plus a few rules it must follow (never guess names, handle systemd services only through systemctl, never turn a failed lookup into a restart or reinstall). The model writes commands for that system, and knows what you mean by "this machine" or "the server"
 - **In VPS mode the model cannot use local bash**: a call is refused with a pointer to the VPS tools, so the model does not investigate server problems on your own computer. Reading files, searching and similar tools are unaffected
-- **Click it again**: VPS mode ends, the square turns red, and local bash is available again. With nothing bound there is **no default machine at all**: commands do not run, and the AI must name the machine it operates on
+- **Click it again**: VPS mode ends, the square turns grey, and local bash is available again. With nothing bound there is **no default machine at all**: commands do not run, and the AI must name the machine it operates on
 - Each conversation can be bound to one machine at a time. **A binding only applies to its own conversation**: one window can operate the server in VPS mode while another keeps working on local code, without affecting each other
 - The same from the keyboard: `/vps-use <alias>` binds, `/vps-use off` unbinds
 - A machine that has never had a health check gets one in the background when the switch is turned on, so the model receives its system details
@@ -314,7 +321,7 @@ npm install
 npm test
 ```
 
-184 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend, the terminal connection (authentication, local-only access, input and output, window size, keeping and resuming after a disconnect, cleanup) and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`.
+194 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend, the terminal connection (authentication, local-only access, input and output, window size, keeping and resuming after a disconnect, cleanup) and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`.
 
 ---
 

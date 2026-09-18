@@ -47,14 +47,14 @@ function fakeWebServer({ host = '127.0.0.1' } = {}) {
   }
 }
 
-async function sandbox({ lan = false, terminals } = {}) {
+async function sandbox({ lan = false, terminals, reachRun } = {}) {
   const home = await mkdtemp(join(tmpdir(), 'dsh-vps-routes-'))
   const env = { HOME: home, DSH_HOME: join(home, '.dsh') }
   await writeHosts({ current: 'hk', hosts: { hk: { note: '香港', group: '生产' } } }, env)
   const runner = (alias, payload, opts = {}) =>
     runProcess('sh', ['-s'], { input: payload, env: { ...process.env, HOME: home }, ...opts })
   const ws = fakeWebServer({ host: lan ? '0.0.0.0' : '127.0.0.1' })
-  const reg = registerRoutes({ webServer: ws }, { env, runner, terminals })
+  const reg = registerRoutes({ webServer: ws }, { env, runner, terminals, reachRun })
   const call = async (path, body, headers = {}) => {
     const handler = ws.routes.get(`/api-vps/${path}`)
     assert.ok(handler, `没有注册路由 ${path}`)
@@ -273,4 +273,29 @@ test('开关换机器或关掉：对话里连着旧机器的终端结束', async
   await call('session/bind', { sessionId: 's1', alias: 'jp' })
   await call('session/bind', { sessionId: 's1', alias: null })
   assert.deepEqual(calls, [['s1', 'jp'], ['s1', '']])
+})
+
+test('对话状态：要求检测时现测连接，带回原因；不要求就读记下的', async () => {
+  let calls = 0
+  const { call } = await sandbox({
+    reachRun: async () => {
+      calls += 1
+      return { ok: false, hint: 'SSH 配置里找不到「hk」这台机器' }
+    },
+  })
+  await call('session/bind', { sessionId: 's1', alias: 'hk' })
+  const checked = await call('session/status', { sessionId: 's1', check: 'force' })
+  assert.equal(checked.body.alias, 'hk')
+  assert.equal(checked.body.reachable, false)
+  assert.match(checked.body.hint, /找不到/)
+  assert.ok(checked.body.checkedAt)
+  assert.equal(calls, 1)
+
+  const plain = await call('session/status', { sessionId: 's1' })
+  assert.equal(plain.body.reachable, false, '不检测时读记下的结果')
+  assert.match(plain.body.hint, /找不到/)
+  assert.equal(calls, 1, '不要求检测就不连服务器')
+
+  const unbound = await call('session/status', { sessionId: 'nobody', check: true })
+  assert.deepEqual(unbound.body, { ok: true, alias: '' })
 })
