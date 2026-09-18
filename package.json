@@ -1,6 +1,6 @@
 {
   "name": "dsh-vps-manager",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Manage your VPS from DeepSeek Harness over SSH: zero-token commands, an in-conversation terminal, AI tools with risk-tiered confirmation, and a recipe library. · 在 DSH 里通过 SSH 管理 VPS：不花 token 的命令、对话里的终端、按风险分级确认的 AI 工具、菜谱库。",
   "keywords": [
     "deepseek-harness",

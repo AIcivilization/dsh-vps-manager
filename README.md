@@ -54,13 +54,15 @@ Everything goes over SSH key login and shares one execution mechanism:
 
 ## Install
 
-**DSH Desktop**: click the DSH icon in the menu bar (the system tray on Windows) → "Open DSH Terminal", and run in that terminal:
+**Plugin market**: search for `dsh-vps-manager` in DSH's plugin market (dshmarket) and click install. Works in both DSH Desktop and `dsh web`.
+
+**Command line**: in DSH Desktop, click the DSH icon in the menu bar (the system tray on Windows) → "Open DSH Terminal"; with command-line DSH (`dsh web`), use an ordinary terminal. Run:
 
 ```bash
-dsh plugin add github:AIcivilization/dsh-vps-manager
+dsh plugin add dsh-vps-manager
 ```
 
-**Command-line DSH (`dsh web`)**: run the same command in an ordinary terminal.
+For the latest code on GitHub (possibly newer than the release on npm), use `github:AIcivilization/dsh-vps-manager` as the package name instead.
 
 **Restart DSH** afterwards. Plugins are loaded when DSH starts.
 

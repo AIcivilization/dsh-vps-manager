@@ -54,13 +54,15 @@
 
 ## 安装
 
-**DSH Desktop**：点菜单栏（Windows 上是任务栏托盘）的 DSH 图标 →「打开 DSH 终端」，在弹出的终端里执行：
+**插件市场**：在 DSH 的插件市场（dshmarket）里搜索 `dsh-vps-manager`，点安装。DSH Desktop 和 `dsh web` 都可以。
+
+**命令行**：DSH Desktop 点菜单栏（Windows 上是任务栏托盘）的 DSH 图标 →「打开 DSH 终端」；命令行版 DSH（`dsh web`）用普通终端。执行：
 
 ```bash
-dsh plugin add github:AIcivilization/dsh-vps-manager
+dsh plugin add dsh-vps-manager
 ```
 
-**命令行版 DSH（`dsh web`）**：在普通终端里执行同一条命令。
+想装 GitHub 上的最新代码（可能比 npm 上发布的版本新），把包名换成 `github:AIcivilization/dsh-vps-manager`。
 
 装好后**重启 DSH**，插件在 DSH 启动时加载。
 
