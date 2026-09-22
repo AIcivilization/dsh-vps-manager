@@ -29,6 +29,12 @@
 
 ## Overview
 
+**Install**: search for `dsh-vps-manager` in the DSH plugin market and click install, or run the line below in the DSH terminal; then restart DSH and add a machine under **Settings → VPS Manager**.
+
+```bash
+dsh plugin add dsh-vps-manager
+```
+
 Manage your VPS from DeepSeek Harness (DSH): check server status with commands that skip the model and cost no tokens, tell the AI what to do and let it work on the server, open a real terminal in the conversation when you want to do it yourself, and handle common installs and maintenance with recipes.
 
 Everything goes over SSH key login and shares one execution mechanism: operations that change things run as remote tasks and keep going if the connection drops; changes on the same machine run one at a time; config files are backed up before they are edited; an automatic restore is set up on the server before firewall or SSH changes; and every run is written to an audit log.
