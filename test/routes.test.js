@@ -299,3 +299,15 @@ test('对话状态：要求检测时现测连接，带回原因；不要求就�
   const unbound = await call('session/status', { sessionId: 'nobody', check: true })
   assert.deepEqual(unbound.body, { ok: true, alias: '' })
 })
+
+test('所有对话的绑定：给界面对齐用，机器被删掉的不算', async () => {
+  const { env, call } = await sandbox()
+  await writeHosts({ current: 'hk', hosts: { hk: { note: '' }, jp: { note: '' } } }, env)
+  await call('session/bind', { sessionId: 's1', alias: 'hk' })
+  await call('session/bind', { sessionId: 's2', alias: 'jp' })
+  assert.deepEqual((await call('session/bindings', {})).body.bindings, { s1: 'hk', s2: 'jp' })
+
+  await writeHosts({ current: 'hk', hosts: { hk: { note: '' } } }, env) // jp 被删掉
+  await call('session/bind', { sessionId: 's1', alias: null }) // s1 关掉开关
+  assert.deepEqual((await call('session/bindings', {})).body.bindings, {})
+})
