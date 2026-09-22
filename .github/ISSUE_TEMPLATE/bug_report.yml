@@ -1,0 +1,62 @@
+name: 报错 / Bug report
+description: 用着出了问题 · Something doesn't work
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        谢谢反馈！在 DSH 里发 `/vps-doctor`，或点 **设置 → VPS 管理 → 反馈问题**，会自动打开这个页面并预填版本和诊断信息。
+        Thanks! Sending `/vps-doctor` in DSH, or clicking **Settings → VPS Manager → 反馈问题**, opens this page with versions and diagnostics filled in.
+
+        ⚠️ 请不要贴密码、API Key、私钥或服务器地址。Please don't paste passwords, API keys, private keys or server addresses.
+  - type: textarea
+    id: what
+    attributes:
+      label: 出了什么问题 / What went wrong
+      description: 看到了什么，最好附截图 · What you saw; a screenshot helps
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 怎么复现 / Steps to reproduce
+      placeholder: |
+        1. 打开对话头部的 VPS 开关
+        2. 点 >_
+        3. ……
+  - type: textarea
+    id: expected
+    attributes:
+      label: 本来应该怎样 / What you expected
+  - type: dropdown
+    id: form
+    attributes:
+      label: 在哪用的 / Where
+      options:
+        - DSH Desktop
+        - dsh web（本机 / local）
+        - dsh web（服务器上 / on a server）
+        - 其他 / Other
+    validations:
+      required: true
+  - type: input
+    id: dsh-version
+    attributes:
+      label: DSH 版本 / DSH version
+      placeholder: 0.1.5-rc.2
+  - type: input
+    id: plugin-version
+    attributes:
+      label: 插件版本 / Plugin version
+      placeholder: 0.2.2
+  - type: input
+    id: os
+    attributes:
+      label: 系统 / OS
+      placeholder: macOS 15 / Ubuntu 24.04
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: 诊断信息 / Diagnostics
+      description: 从 /vps-doctor 或反馈按钮自动带过来的（已打码，不含机器地址），可以删改 · Filled in automatically (masked, no addresses); edit as you like
+      render: text

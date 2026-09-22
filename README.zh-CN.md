@@ -13,7 +13,7 @@
   <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-blue" alt="平台：macOS / Linux">
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2022.13-339933?logo=node.js&logoColor=white" alt="Node.js ≥ 22.13">
   <img src="https://img.shields.io/badge/native%20modules-0-brightgreen" alt="无需编译原生模块">
-  <img src="https://img.shields.io/badge/tests-194%20passing-brightgreen" alt="194 个测试通过">
+  <a href="https://github.com/AIcivilization/dsh-vps-manager/actions/workflows/dsh-compat.yml"><img src="https://github.com/AIcivilization/dsh-vps-manager/actions/workflows/dsh-compat.yml/badge.svg" alt="DSH 兼容性检查"></a>
   <img src="https://img.shields.io/github/stars/AIcivilization/dsh-vps-manager?style=social" alt="star">
 </p>
 <p>
@@ -86,7 +86,7 @@ dsh plugin add dsh-vps-manager
 - [三种用法](#三种用法) · [运行要求](#运行要求) · [安装](#安装) · [添加机器](#添加机器)
 - [在对话里选机器](#在对话里选机器) · [对话里的终端](#对话里的终端) · [命令](#命令) · [跟 AI 说话](#跟-ai-说话)
 - [菜谱](#菜谱) · [设置页](#设置页) · [运行机制](#运行机制) · [它防不住什么](#它防不住什么)
-- [数据放在哪](#数据放在哪) · [仓库内容](#仓库内容) · [开发](#开发)
+- [数据放在哪](#数据放在哪) · [反馈与建议](#反馈与建议) · [仓库内容](#仓库内容) · [开发](#开发)
 
 ---
 
@@ -247,7 +247,7 @@ dsh plugin add dsh-vps-manager
 
 | 命令 | 作用 |
 |---|---|
-| `/vps-doctor` | 插件版本、当前对话绑定的机器、连通测试、最近几次执行 |
+| `/vps-doctor` | 插件与 DSH 版本（是否验证过）、各部分注册情况、当前对话绑定的机器、连通测试、最近的错误与执行；末尾附预填好的反馈链接 |
 
 ---
 
@@ -334,6 +334,7 @@ dsh plugin add dsh-vps-manager
 - **基础配置**：填写想要的状态（时区、虚拟内存大小、BBR、自动安全更新、fail2ban、常用命令行工具），保存时只执行和当前状态不一样的项，每项作为一个远端任务执行，显示进度
 - **全局设置**：默认确认档位、连通性保险时长；当 DSH 的 Web 服务对局域网开放时，是否允许在设置页执行会改动服务器的操作
 - **终端**：颜色方案（跟随系统 / 暗色 / 白色）、字号、断线后保留多久、是否允许从其他设备打开[终端](#对话里的终端)（默认不允许）
+- **反馈与诊断**：插件与 DSH 版本、各部分注册情况、最近的错误（已打码）；「反馈问题」「提建议」一键打开预填好的 GitHub 问题单
 - **数据位置**
 - **卸载**：勾选要做的事，确认后执行，每一步显示结果。在 DSH Desktop 上可以直接移除插件，完成后一键重启 DSH；其他环境会给出要在终端执行的命令
   - 移除插件本身（默认勾选）
@@ -387,6 +388,16 @@ dsh plugin add dsh-vps-manager
 
 ---
 
+## 反馈与建议
+
+- **遇到问题**：在 DSH 里发 `/vps-doctor`，或点 **设置 → VPS 管理 → 反馈问题**。会打开 GitHub 上已经预填好插件版本、DSH 版本和诊断信息的问题单，你看过、改好再提交。诊断信息已打码，不含机器地址；**插件不会自动上传任何东西**
+- **提建议**：[新建建议](https://github.com/AIcivilization/dsh-vps-manager/issues/new?template=feature_request.yml)
+- **DSH 升级后不能用**：插件每 6 小时会自动拿 DSH 的正式版、下一版、尝鲜版各测一遍（装上插件、启动网页版、逐项检查），测不过会自动开问题单，见 [兼容性问题](https://github.com/AIcivilization/dsh-vps-manager/issues?q=label%3Adsh-compat)。当前 DSH 版本没验证过时，设置页和 `/vps-doctor` 会提示
+
+插件自己出的错（注册失败、接口报错、界面组件出错）记在本机的 `$DSH_HOME/vps-manager/logs/`，打码后保存，保留 3 个月。
+
+---
+
 ## 仓库内容
 
 | 文件 | 作用 |
@@ -402,11 +413,13 @@ dsh plugin add dsh-vps-manager
 | `lib/terminal-server.js` · `lib/vendor/xterm/` | 对话里的终端（服务端）与附带的 xterm.js |
 | `lib/terminal.js` | `/vps-sh` 迷你终端：记住目录、交互命令改写、打码 |
 | `lib/reach.js` | 连接状态检测（头部方块的颜色） |
+| `lib/health.js` · `lib/verified-dsh.json` | 插件体检：各部分注册结果、DSH 版本验证状态、本地错误记录、反馈链接 |
+| `scripts/compat-smoke.mjs` · `.github/workflows/dsh-compat.yml` | 兼容性检查：装上插件、启动真实 DSH 网页版逐项检查，每 6 小时跑一遍 DSH 的三个通道 |
 | `lib/client.js` | 界面：头部开关、终端面板、输入框下方提醒、设置页 |
 | `lib/routes.js` | 设置页接口 |
 | `lib/config.js` · `lib/onboarding.js` · `lib/ssh.js` | 机器清单、SSH 配置、添加向导、ssh 参数 |
 | `lib/reboot.js` · `lib/uninstall.js` · `lib/audit.js` | 重启并等机器回来、卸载、审计日志 |
-| `test/` | 194 个测试 |
+| `test/` | 198 个测试 |
 
 ---
 
@@ -417,7 +430,7 @@ npm install
 npm test
 ```
 
-194 个测试，不需要真实服务器：用本机的 `sh -s` 代替远端 `sshd`，覆盖载荷协议、远端任务、并发锁、备份还原、风险判定、VPS 模式、卸载、命令、设置页接口、终端连接（鉴权、本机限制、输入输出、窗口大小、断线保留与接回、结束清理）与界面渲染。装了 DSH Desktop 的机器上，还会拿 DSH 自带的 `dsh-tools`、`dsh-skill`、`dsh-user-approval` 核对工具定义、返回值、skill 字段和审批结果词汇。
+198 个测试，不需要真实服务器：用本机的 `sh -s` 代替远端 `sshd`，覆盖载荷协议、远端任务、并发锁、备份还原、风险判定、VPS 模式、卸载、命令、设置页接口、终端连接（鉴权、本机限制、输入输出、窗口大小、断线保留与接回、结束清理）与界面渲染。装了 DSH Desktop 的机器上，还会拿 DSH 自带的 `dsh-tools`、`dsh-skill`、`dsh-user-approval` 核对工具定义、返回值、skill 字段和审批结果词汇。
 
 ---
 

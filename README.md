@@ -13,7 +13,7 @@
   <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-blue" alt="Platform: macOS / Linux">
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2022.13-339933?logo=node.js&logoColor=white" alt="Node.js ≥ 22.13">
   <img src="https://img.shields.io/badge/native%20modules-0-brightgreen" alt="No native modules to compile">
-  <img src="https://img.shields.io/badge/tests-194%20passing-brightgreen" alt="194 tests passing">
+  <a href="https://github.com/AIcivilization/dsh-vps-manager/actions/workflows/dsh-compat.yml"><img src="https://github.com/AIcivilization/dsh-vps-manager/actions/workflows/dsh-compat.yml/badge.svg" alt="DSH compatibility check"></a>
   <img src="https://img.shields.io/github/stars/AIcivilization/dsh-vps-manager?style=social" alt="star">
 </p>
 <p>
@@ -86,7 +86,7 @@ Everything goes over SSH key login and shares one execution mechanism: operation
 - [Three ways to use it](#three-ways-to-use-it) · [Requirements](#requirements) · [Install](#install) · [Adding a machine](#adding-a-machine)
 - [Choosing a machine in a conversation](#choosing-a-machine-in-a-conversation) · [Terminal in the conversation](#terminal-in-the-conversation) · [Commands](#commands) · [Talking to the AI](#talking-to-the-ai)
 - [Recipes](#recipes) · [Settings page](#settings-page) · [How it works](#how-it-works) · [What it does not protect against](#what-it-does-not-protect-against)
-- [Where data lives](#where-data-lives) · [Repository layout](#repository-layout) · [Development](#development)
+- [Where data lives](#where-data-lives) · [Feedback and suggestions](#feedback-and-suggestions) · [Repository layout](#repository-layout) · [Development](#development)
 
 ---
 
@@ -247,7 +247,7 @@ Commands skip the model and cost no tokens. DSH folds a command's result down to
 
 | Command | What it does |
 |---|---|
-| `/vps-doctor` | Plugin version, the machine bound to the current conversation, a connectivity test, the most recent runs |
+| `/vps-doctor` | Plugin and DSH versions (and whether this DSH version is verified), registration status of each part, the machine bound to the current conversation, a connectivity test, recent errors and runs; ends with a pre-filled feedback link |
 
 ---
 
@@ -334,6 +334,7 @@ Your own recipes are treated as untrusted: their risk level is the stricter of w
 - **Basics**: fill in the state you want (timezone, swap size, BBR, automatic security updates, fail2ban, common CLI tools). On save, only the items that differ from the current state are run, each as a remote task with progress shown
 - **Global settings**: default confirmation level, safety-net duration, and whether changes may be made from the settings page when DSH's web server is open to the local network
 - **Terminal**: colour scheme (follow system / dark / light), font size, how long to keep the terminal after a disconnect, and whether the [terminal](#terminal-in-the-conversation) may be opened from other devices (off by default)
+- **Feedback and diagnostics**: plugin and DSH versions, registration status of each part, recent errors (masked); "report a problem" and "suggest" open a pre-filled GitHub issue
 - **Data location**
 - **Uninstall**: tick what to do, confirm, and see the result of each step. On DSH Desktop the plugin can be removed directly, followed by a one-click DSH restart; elsewhere you get the terminal command to run
   - Remove the plugin itself (ticked by default)
@@ -387,6 +388,16 @@ The plugin never reads private key contents, and passwords never pass through it
 
 ---
 
+## Feedback and suggestions
+
+- **Something wrong**: send `/vps-doctor` in DSH, or click **Settings → VPS Manager → 反馈问题** (report a problem). It opens a GitHub issue pre-filled with the plugin version, DSH version and diagnostics for you to review and edit before submitting. Diagnostics are masked and contain no machine addresses; **the plugin never uploads anything by itself**
+- **Suggestions**: [open a suggestion](https://github.com/AIcivilization/dsh-vps-manager/issues/new?template=feature_request.yml)
+- **Broke after a DSH upgrade**: every 6 hours the plugin is tested against DSH's latest, next and alpha releases (install the plugin, boot the web app, check each part), and a failing run opens an issue automatically; see [compatibility issues](https://github.com/AIcivilization/dsh-vps-manager/issues?q=label%3Adsh-compat). When the DSH version you run has not been verified, the settings page and `/vps-doctor` say so
+
+Errors the plugin runs into itself (registration failures, backend errors, interface errors) are kept locally under `$DSH_HOME/vps-manager/logs/`, masked, for 3 months.
+
+---
+
 ## Repository layout
 
 | File | Purpose |
@@ -402,11 +413,13 @@ The plugin never reads private key contents, and passwords never pass through it
 | `lib/terminal-server.js` · `lib/vendor/xterm/` | The in-conversation terminal (server side) and the bundled xterm.js |
 | `lib/terminal.js` | The `/vps-sh` mini terminal: remembered directory, interactive-command rewriting, masking |
 | `lib/reach.js` | Connection checks (the colour of the header squares) |
+| `lib/health.js` · `lib/verified-dsh.json` | Self-diagnostics: registration results, DSH version verification, local error log, feedback link |
+| `scripts/compat-smoke.mjs` · `.github/workflows/dsh-compat.yml` | Compatibility check: install the plugin, boot a real DSH web app and check each part, against DSH's three release channels every 6 hours |
 | `lib/client.js` | Interface: header switch, terminal panel, notices below the input box, settings page |
 | `lib/routes.js` | Settings page backend |
 | `lib/config.js` · `lib/onboarding.js` · `lib/ssh.js` | Machine list, SSH configuration, add-machine wizard, ssh arguments |
 | `lib/reboot.js` · `lib/uninstall.js` · `lib/audit.js` | Reboot and wait for the machine, uninstall, audit log |
-| `test/` | 194 tests |
+| `test/` | 198 tests |
 
 ---
 
@@ -417,7 +430,7 @@ npm install
 npm test
 ```
 
-194 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend, the terminal connection (authentication, local-only access, input and output, window size, keeping and resuming after a disconnect, cleanup) and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`.
+198 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend, the terminal connection (authentication, local-only access, input and output, window size, keeping and resuming after a disconnect, cleanup) and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`.
 
 ---
 

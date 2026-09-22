@@ -1,0 +1,37 @@
+name: DSH 升级后不能用 / Broke after a DSH upgrade
+description: 升级 DSH 之后插件出问题 · The plugin stopped working after upgrading DSH
+labels: [dsh-compat]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        插件每 6 小时会自动拿 DSH 的正式版、下一版、尝鲜版测一遍，测不过会自动开问题单；先看看 [已有的兼容性问题](https://github.com/AIcivilization/dsh-vps-manager/issues?q=label%3Adsh-compat) 里有没有你这个版本。
+        The plugin is tested against DSH's latest, next and alpha releases every 6 hours; check [existing compatibility issues](https://github.com/AIcivilization/dsh-vps-manager/issues?q=label%3Adsh-compat) first.
+  - type: input
+    id: dsh-version-before
+    attributes:
+      label: 升级前的 DSH 版本 / DSH version before
+      placeholder: 0.1.5-rc.2
+  - type: input
+    id: dsh-version
+    attributes:
+      label: 升级后的 DSH 版本 / DSH version now
+      placeholder: 0.1.6
+    validations:
+      required: true
+  - type: input
+    id: plugin-version
+    attributes:
+      label: 插件版本 / Plugin version
+  - type: textarea
+    id: what
+    attributes:
+      label: 哪里不能用了 / What stopped working
+      description: 比如：头部按钮不见了、命令没反应、设置页没有「VPS 管理」、网页版打不开 · e.g. header buttons gone, commands do nothing, settings section missing
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: /vps-doctor 的输出或 DSH 的报错 / /vps-doctor output or DSH errors
+      render: text

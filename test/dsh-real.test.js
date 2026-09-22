@@ -3,7 +3,8 @@
 // 教训：假的 ctx 什么 schema 都收，工具在 DSH 里注册失败了整整三天没人发现
 // （宿主日志：schema.additionalProperties must be explicitly true or false）。
 // 这里照 dsh-tools 的 createSuccessResult 走一遍：无损 JSON → 按 output schema 校验 → render。
-// 本机没装 DSH Desktop 时整个文件跳过。
+// DSH 从哪来：环境变量 DSH_MODULES（装了 @deepseek-ai/dsh 的 node_modules，GitHub 每天的兼容性检查
+// 用 npm 装的 latest / next / alpha），没给就用本机 DSH Desktop 自带的。都找不到时整个文件跳过。
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { existsSync } from 'node:fs'
@@ -15,8 +16,10 @@ import { writeHosts } from '../lib/config.js'
 import { runProcess } from '../lib/spawn.js'
 import { buildToolDefinitions } from '../lib/tools.js'
 
-const DSH_TOOLS = process.env.DSH_TOOLS_LIB
-  ?? '/Applications/DSH Desktop.app/Contents/Resources/app/node_modules/@deepseek-ai/dsh-tools/lib/index.js'
+const APP = process.env.DSH_MODULES
+  ? join(process.env.DSH_MODULES, '@deepseek-ai')
+  : '/Applications/DSH Desktop.app/Contents/Resources/app/node_modules/@deepseek-ai'
+const DSH_TOOLS = process.env.DSH_TOOLS_LIB ?? `${APP}/dsh-tools/lib/index.js`
 const skip = existsSync(DSH_TOOLS) ? false : `没找到 DSH 的 dsh-tools（${DSH_TOOLS}）`
 
 async function sandbox() {
@@ -73,7 +76,6 @@ test('真实校验：参数合法、返回值是无损 JSON 且符合声明、re
   await assert.rejects(tools.vps_recipe.execute({ action: 'nope' }, exec))
 })
 
-const APP = '/Applications/DSH Desktop.app/Contents/Resources/app/node_modules/@deepseek-ai'
 
 test('真实 dsh-skill：加载时要求是字符串的字段，我们的 skill 一个不缺', { skip }, async () => {
   const { readFile } = await import('node:fs/promises')

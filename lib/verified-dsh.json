@@ -1,0 +1,5 @@
+{
+  "note": "经过 scripts/compat-smoke.mjs 全部检查、并在真实 DSH 里用过的版本。发版时按每天兼容性检查的结果更新",
+  "updated": "2026-09-22",
+  "versions": ["0.1.5-rc.2", "0.1.5-rc.3", "0.1.7-alpha.1"]
+}
