@@ -1,33 +1,86 @@
+<div align="center">
+
 # dsh-vps-manager
 
 **在 DSH 中和 SSH 一样无感地使用 VPS，除了精选的部分常用命令之外，使用时还能让对话中的大模型对 VPS 进行操作。**
 
-[English](README.md) | 中文
+**Use your VPS inside DeepSeek Harness as seamlessly as over SSH: curated zero-token commands, plus the AI in the conversation can operate the server.**
 
-在 DeepSeek Harness（DSH）里管理你的 VPS：用命令查看服务器状态（不走模型、不花 token），跟 AI 说一句话让它登上服务器干活，常见软件和系统维护按菜谱完成。
+<p>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/AIcivilization/dsh-vps-manager" alt="MIT 许可证"></a>
+  <a href="https://www.npmjs.com/package/dsh-vps-manager"><img src="https://img.shields.io/npm/v/dsh-vps-manager?color=cb3837&logo=npm" alt="npm 版本"></a>
+  <img src="https://img.shields.io/badge/DeepSeek%20Harness-%E2%89%A5%200.1.5--rc.2-4176E6" alt="DeepSeek Harness ≥ 0.1.5-rc.2">
+  <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-blue" alt="平台：macOS / Linux">
+  <img src="https://img.shields.io/badge/node-%E2%89%A5%2022.13-339933?logo=node.js&logoColor=white" alt="Node.js ≥ 22.13">
+  <img src="https://img.shields.io/badge/native%20modules-0-brightgreen" alt="无需编译原生模块">
+  <img src="https://img.shields.io/badge/tests-194%20passing-brightgreen" alt="194 个测试通过">
+  <img src="https://img.shields.io/github/stars/AIcivilization/dsh-vps-manager?style=social" alt="star">
+</p>
+<p>
+  <a href="https://awesome-dsh-plugin.com/p/AIcivilization/dsh-vps-manager/"><img src="https://img.shields.io/badge/Listed_on-awesome--dsh--plugin-1677ff?style=flat-square" alt="已收录于 awesome-dsh-plugin"></a>
+  <a href="https://dshget.com/plugins/AIcivilization/dsh-vps-manager"><img src="https://img.shields.io/badge/Listed_on-DSH_Get-1677ff?style=flat-square" alt="已收录于 DSH Get"></a>
+</p>
 
-所有操作都通过 SSH 密钥登录，并共用同一套执行机制：
-- 会改东西的操作跑成远端任务，断线后在服务器上继续
-- 同一台机器上的改动一个接一个执行，不会同时进行
-- 改配置文件前自动备份
-- 改防火墙和 SSH 前，先在服务器上设好自动恢复
-- 每次执行都记审计日志
+**简体中文** · [English](README.md)
+
+</div>
+
+---
+
+## 简介
+
+在 DeepSeek Harness（DSH）里管理你的 VPS：用命令查看服务器状态（不走模型、不花 token），跟 AI 说一句话让它登上服务器干活，要自己动手就在对话里打开真终端，常见软件和系统维护按菜谱完成。
+
+所有操作都通过 SSH 密钥登录，并共用同一套执行机制：会改东西的操作跑成远端任务，断线后在服务器上继续；同一台机器上的改动一个接一个执行；改配置文件前自动备份；改防火墙和 SSH 前，先在服务器上设好自动恢复；每次执行都记审计日志。
+
+---
+
+## 能力一览
+
+| 能力 | 说明 |
+| --- | --- |
+| 零 token 命令 | 21 条 `/vps-` 命令：看状态、装软件、重启并等机器回来，不走模型 |
+| VPS 模式 | 对话头部点一下，这个对话就在操作这台服务器；每个对话各自绑定，一个窗口操作服务器、另一个窗口照常写代码 |
+| 真实连接状态 | 头部方块 灰 没选 · 黄 连接中 · 绿 已连上 · 红 连不上；连不上直接说原因，带「重试」 |
+| 对话里的终端 | 真终端（xterm.js + `ssh -tt`），菜单脚本、`top`、`vim` 都能用；红黄绿三键结束 / 最小化 / 最大化；最小化、切对话不丢内容，断线自动接回 |
+| AI 操作服务器 | 5 个工具，按风险分级确认：只读自动、改动问你、高危再问；档位可按机器、分组、全局设置 |
+| 三道保护 | 改文件先备份、校验失败自动还原；改防火墙和 SSH 前设连通性保险；长操作跑成远端任务，断线不中断 |
+| 按系统写命令 | 体检出系统、包管理器、init、权限、在跑的服务和容器，告诉模型按这台的实际情况写命令 |
+| 菜谱库 | 29 条可重复执行的菜谱（安装 7 · 配置 6 · 查询 16），AI 做成的事可以一句话存成菜谱 |
+| 设置页 | 添加向导（生成钥匙、放公钥）、从 `~/.ssh/config` 导入、基础配置、终端设置、卸载 |
+| 两种 DSH 都能用 | DSH Desktop 与 `dsh web`；终端连接过 DSH 登录校验、同源检查和插件令牌，默认只许本机打开 |
+| 装起来轻 | 不用原生模块（不编译 node-pty），运行时依赖只有 `ws` 与 `yaml` |
+
+---
+
+## 截图
+
+<!--
+  截图放到 assets/screenshots/，文件名见下表；放好后把表格里的文字换成图片，例如：
+  ![](assets/screenshots/header.png)
+  演示动图放 assets/demo.gif，放好后在这里加：
+  <p align="center"><img src="assets/demo.gif" alt="演示：打开开关 → 命令 → 终端 → 让 AI 干活" width="1000"></p>
+  注意：插件市场会从 README 里抓图片当展示图，没有真截图之前不要放占位图片。
+-->
+
+> 截图准备中，下面是每张图的位置。
+
+| 对话头部：VPS 开关与终端按钮 | 对话里的终端（菜单脚本） |
+| :---: | :---: |
+| _截图：`assets/screenshots/header.png`_ | _截图：`assets/screenshots/terminal.png`_ |
+
+| 连不上时的原因与「重试」 | 设置 → VPS 管理 |
+| :---: | :---: |
+| _截图：`assets/screenshots/unreachable.png`_ | _截图：`assets/screenshots/settings.png`_ |
+
+---
 
 ## 目录
 
-- [三种用法](#三种用法)
-- [运行要求](#运行要求)
-- [安装](#安装)
-- [添加机器](#添加机器)
-- [在对话里选机器](#在对话里选机器)
-- [对话里的终端](#对话里的终端)
-- [命令](#命令)
-- [跟 AI 说话](#跟-ai-说话)
-- [菜谱](#菜谱)
-- [设置页](#设置页)
-- [它防不住什么](#它防不住什么)
-- [数据放在哪](#数据放在哪)
-- [开发](#开发)
+- [三种用法](#三种用法) · [运行要求](#运行要求) · [安装](#安装) · [添加机器](#添加机器)
+- [在对话里选机器](#在对话里选机器) · [对话里的终端](#对话里的终端) · [命令](#命令) · [跟 AI 说话](#跟-ai-说话)
+- [菜谱](#菜谱) · [设置页](#设置页) · [运行机制](#运行机制) · [它防不住什么](#它防不住什么)
+- [数据放在哪](#数据放在哪) · [仓库内容](#仓库内容) · [开发](#开发)
 
 ---
 
@@ -289,6 +342,20 @@ dsh plugin add dsh-vps-manager
 
 ---
 
+## 运行机制
+
+<p align="center">
+  <img src="assets/architecture.svg" alt="工作方式：DSH 界面和模型都通过插件，经 OpenSSH 密钥登录连到你的 VPS" width="760">
+</p>
+
+- **一个引擎，三个入口**：设置页、`/vps-` 命令、AI 工具都走同一套执行引擎。脚本经 SSH 的标准输入送到服务器，先落成文件再执行，远端命令行里不拼任何外部数据
+- **连接复用**：同一台机器共用一条 SSH 主连接（OpenSSH ControlMaster），命令和连接检测走复用连接时只要几十毫秒
+- **远端任务**：会改东西的操作在服务器的 `~/.cache/dsh-vps/` 下跑成任务，带锁，断线后继续；可以随时接回来看日志
+- **终端**：伪终端由 `ssh -tt` 在服务器上申请，浏览器经 WebSocket 连到插件；连接断了会话保留一段时间，接回时从断开处补发输出
+- **给模型的说明**：对话进入 VPS 模式时，插件把这台机器的系统、服务、容器和必须遵守的规则附给模型；模型在 VPS 模式下不能用本机 bash
+
+---
+
 ## 它防不住什么
 
 - **分级确认防的是 AI 失误，不防存心绕过的 AI。** 静态判定识别不了所有变形写法，模型也可以用 DSH 自带的 bash 工具直接 ssh 到服务器
@@ -311,6 +378,29 @@ dsh plugin add dsh-vps-manager
 | 服务器上的 `~/.cache/dsh-vps/` | 远端任务目录、日志、文件备份 |
 
 插件不读取私钥内容，密码也从不经过插件。
+
+---
+
+## 仓库内容
+
+| 文件 | 作用 |
+| --- | --- |
+| `lib/index.js` | 插件入口：注册工具、命令、skill、VPS 模式、设置页路由与终端 |
+| `lib/commands.js` | 21 条 `/vps-` 命令 |
+| `lib/tools.js` | 给模型的 5 个工具 |
+| `lib/risk.js` · `lib/safety.js` | 风险判定、分级确认、连通性保险 |
+| `lib/engine.js` · `lib/payload.js` · `lib/prelude.sh` | 执行引擎：载荷、远端任务、跨系统的前导脚本 |
+| `lib/actions.js` · `lib/task.js` · `lib/files.js` | 体检、执行、远端任务、改文件（备份 + 校验 + 还原） |
+| `lib/recipes.js` · `lib/recipe-store.js` · `recipes/` | 菜谱的加载、执行、保存；29 条内置菜谱 |
+| `lib/vps-mode.js` · `lib/skills/vps-operator.md` | VPS 模式与给模型的操作规则 |
+| `lib/terminal-server.js` · `lib/vendor/xterm/` | 对话里的终端（服务端）与附带的 xterm.js |
+| `lib/terminal.js` | `/vps-sh` 迷你终端：记住目录、交互命令改写、打码 |
+| `lib/reach.js` | 连接状态检测（头部方块的颜色） |
+| `lib/client.js` | 界面：头部开关、终端面板、输入框下方提醒、设置页 |
+| `lib/routes.js` | 设置页接口 |
+| `lib/config.js` · `lib/onboarding.js` · `lib/ssh.js` | 机器清单、SSH 配置、添加向导、ssh 参数 |
+| `lib/reboot.js` · `lib/uninstall.js` · `lib/audit.js` | 重启并等机器回来、卸载、审计日志 |
+| `test/` | 194 个测试 |
 
 ---
 

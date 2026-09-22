@@ -1,33 +1,86 @@
+<div align="center">
+
 # dsh-vps-manager
 
-**Use your VPS inside DSH as seamlessly as over SSH: besides a curated set of common commands, you can also have the model in your conversation operate the VPS.**
+**Use your VPS inside DeepSeek Harness as seamlessly as over SSH: curated zero-token commands, plus the AI in the conversation can operate the server.**
 
-English | [中文](README.zh-CN.md)
+**在 DSH 中和 SSH 一样无感地使用 VPS，除了精选的部分常用命令之外，使用时还能让对话中的大模型对 VPS 进行操作。**
 
-Manage your VPS from DeepSeek Harness (DSH). Check server status with commands that skip the model and cost no tokens, tell the AI what to do and let it work on the server, and handle common installs and maintenance with recipes.
+<p>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/AIcivilization/dsh-vps-manager" alt="MIT license"></a>
+  <a href="https://www.npmjs.com/package/dsh-vps-manager"><img src="https://img.shields.io/npm/v/dsh-vps-manager?color=cb3837&logo=npm" alt="npm version"></a>
+  <img src="https://img.shields.io/badge/DeepSeek%20Harness-%E2%89%A5%200.1.5--rc.2-4176E6" alt="DeepSeek Harness ≥ 0.1.5-rc.2">
+  <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-blue" alt="Platform: macOS / Linux">
+  <img src="https://img.shields.io/badge/node-%E2%89%A5%2022.13-339933?logo=node.js&logoColor=white" alt="Node.js ≥ 22.13">
+  <img src="https://img.shields.io/badge/native%20modules-0-brightgreen" alt="No native modules to compile">
+  <img src="https://img.shields.io/badge/tests-194%20passing-brightgreen" alt="194 tests passing">
+  <img src="https://img.shields.io/github/stars/AIcivilization/dsh-vps-manager?style=social" alt="star">
+</p>
+<p>
+  <a href="https://awesome-dsh-plugin.com/p/AIcivilization/dsh-vps-manager/"><img src="https://img.shields.io/badge/Listed_on-awesome--dsh--plugin-1677ff?style=flat-square" alt="Listed on awesome-dsh-plugin"></a>
+  <a href="https://dshget.com/plugins/AIcivilization/dsh-vps-manager"><img src="https://img.shields.io/badge/Listed_on-DSH_Get-1677ff?style=flat-square" alt="Listed on DSH Get"></a>
+</p>
 
-Everything goes over SSH key login and shares one execution mechanism:
-- Operations that change things run as remote tasks and keep going on the server if the connection drops
-- Changes on the same machine run one at a time, never in parallel
-- Config files are backed up before they are edited
-- Before firewall or SSH changes, an automatic restore is set up on the server first
-- Every run is written to an audit log
+**English** · [简体中文](README.zh-CN.md)
+
+</div>
+
+---
+
+## Overview
+
+Manage your VPS from DeepSeek Harness (DSH): check server status with commands that skip the model and cost no tokens, tell the AI what to do and let it work on the server, open a real terminal in the conversation when you want to do it yourself, and handle common installs and maintenance with recipes.
+
+Everything goes over SSH key login and shares one execution mechanism: operations that change things run as remote tasks and keep going if the connection drops; changes on the same machine run one at a time; config files are backed up before they are edited; an automatic restore is set up on the server before firewall or SSH changes; and every run is written to an audit log.
+
+---
+
+## At a glance
+
+| Capability | What it does |
+| --- | --- |
+| Zero-token commands | 21 `/vps-` commands: check status, install software, reboot and wait for the machine to come back, without touching the model |
+| VPS mode | One click in the conversation header and that conversation operates the server; each conversation has its own binding, so one window can work on the server while another keeps working on local code |
+| Real connection state | Header squares: grey not selected · yellow connecting · green connected · red unreachable, with the reason and a retry button |
+| Terminal in the conversation | A real terminal (xterm.js over `ssh -tt`) where menu scripts, `top` and `vim` work; red / yellow / green buttons to end, minimize and maximize; nothing lost when you minimize or switch conversations, and it reconnects after a drop |
+| AI on the server | 5 tools with risk-tiered confirmation: read-only runs automatically, changes ask you, dangerous commands ask again; levels can be set per machine, group or globally |
+| Three safeguards | Files are backed up before editing and restored if validation fails; a connectivity safety net before firewall and SSH changes; long operations run as remote tasks that survive disconnects |
+| Commands that fit the system | A health check finds the OS, package manager, init system, privilege, running services and containers, and the model is told to write commands for that machine |
+| Recipe library | 29 repeatable recipes (7 install · 6 configure · 16 query); anything the AI gets working can be saved as a recipe in one sentence |
+| Settings page | Add-machine wizard (key generation, public key placement), import from `~/.ssh/config`, baseline configuration, terminal settings, uninstall |
+| Both kinds of DSH | DSH Desktop and `dsh web`; terminal connections pass DSH's sign-in check, a same-origin check and the plugin token, and open only on the local computer by default |
+| Light install | No native modules (no node-pty to compile); the only runtime dependencies are `ws` and `yaml` |
+
+---
+
+## Screenshots
+
+<!--
+  Put screenshots in assets/screenshots/ with the file names below, then replace the text in the tables with the images, e.g.
+  ![](assets/screenshots/header.png)
+  Put a demo animation at assets/demo.gif and add here:
+  <p align="center"><img src="assets/demo.gif" alt="Demo: turn on the switch → commands → terminal → let the AI work" width="1000"></p>
+  Note: the plugin market picks images from the README as showcase pictures, so do not add placeholder images before real screenshots exist.
+-->
+
+> Screenshots are on the way; each slot below is where one goes.
+
+| Conversation header: VPS switch and terminal button | Terminal in the conversation (menu script) |
+| :---: | :---: |
+| _Screenshot: `assets/screenshots/header.png`_ | _Screenshot: `assets/screenshots/terminal.png`_ |
+
+| Unreachable machine: reason and retry | Settings → VPS Manager |
+| :---: | :---: |
+| _Screenshot: `assets/screenshots/unreachable.png`_ | _Screenshot: `assets/screenshots/settings.png`_ |
+
+---
 
 ## Contents
 
-- [Three ways to use it](#three-ways-to-use-it)
-- [Requirements](#requirements)
-- [Install](#install)
-- [Adding a machine](#adding-a-machine)
-- [Choosing a machine in a conversation](#choosing-a-machine-in-a-conversation)
-- [Terminal in the conversation](#terminal-in-the-conversation)
-- [Commands](#commands)
-- [Talking to the AI](#talking-to-the-ai)
-- [Recipes](#recipes)
-- [Settings page](#settings-page)
-- [What it does not protect against](#what-it-does-not-protect-against)
-- [Where data lives](#where-data-lives)
-- [Development](#development)
+- [Three ways to use it](#three-ways-to-use-it) · [Requirements](#requirements) · [Install](#install) · [Adding a machine](#adding-a-machine)
+- [Choosing a machine in a conversation](#choosing-a-machine-in-a-conversation) · [Terminal in the conversation](#terminal-in-the-conversation) · [Commands](#commands) · [Talking to the AI](#talking-to-the-ai)
+- [Recipes](#recipes) · [Settings page](#settings-page) · [How it works](#how-it-works) · [What it does not protect against](#what-it-does-not-protect-against)
+- [Where data lives](#where-data-lives) · [Repository layout](#repository-layout) · [Development](#development)
 
 ---
 
@@ -289,6 +342,20 @@ The settings page's backend only accepts same-origin JSON requests carrying a to
 
 ---
 
+## How it works
+
+<p align="center">
+  <img src="assets/architecture.en.svg" alt="How it works: the DSH interface and the model both go through the plugin, which reaches your VPS over OpenSSH key login" width="760">
+</p>
+
+- **One engine, three entry points**: the settings page, `/vps-` commands and the AI tools share one execution engine. Scripts reach the server on SSH's standard input and are written to a file before they run, so no outside data is ever spliced into the remote command line
+- **Shared connections**: each machine uses one SSH master connection (OpenSSH ControlMaster), so commands and connection checks over it take tens of milliseconds
+- **Remote tasks**: operations that change things run as tasks under `~/.cache/dsh-vps/` on the server, with a lock, and keep going after a disconnect; you can reattach and read the log at any time
+- **Terminal**: the pseudo-terminal is requested on the server with `ssh -tt`, and the browser reaches the plugin over a WebSocket; if the connection drops, the session is kept for a while and the missed output is replayed on reconnect
+- **What the model is told**: when a conversation enters VPS mode, the plugin gives the model that machine's system, services, containers and the rules it must follow; in VPS mode the model cannot use local bash
+
+---
+
 ## What it does not protect against
 
 - **Risk-level confirmation guards against AI mistakes, not against an AI set on getting around it.** Static analysis cannot recognise every disguised form, and the model can also use DSH's own bash tool to ssh into the server directly
@@ -311,6 +378,29 @@ The settings page's backend only accepts same-origin JSON requests carrying a to
 | `~/.cache/dsh-vps/` on the server | Remote task directories, logs, file backups |
 
 The plugin never reads private key contents, and passwords never pass through it.
+
+---
+
+## Repository layout
+
+| File | Purpose |
+| --- | --- |
+| `lib/index.js` | Plugin entry: registers tools, commands, the skill, VPS mode, settings routes and the terminal |
+| `lib/commands.js` | The 21 `/vps-` commands |
+| `lib/tools.js` | The 5 tools for the model |
+| `lib/risk.js` · `lib/safety.js` | Risk classification, tiered confirmation, connectivity safety net |
+| `lib/engine.js` · `lib/payload.js` · `lib/prelude.sh` | Execution engine: payloads, remote tasks, the cross-distro prelude |
+| `lib/actions.js` · `lib/task.js` · `lib/files.js` | Health checks, runs, remote tasks, file edits (backup + validation + restore) |
+| `lib/recipes.js` · `lib/recipe-store.js` · `recipes/` | Loading, running and saving recipes; the 29 built-in recipes |
+| `lib/vps-mode.js` · `lib/skills/vps-operator.md` | VPS mode and the operating rules for the model |
+| `lib/terminal-server.js` · `lib/vendor/xterm/` | The in-conversation terminal (server side) and the bundled xterm.js |
+| `lib/terminal.js` | The `/vps-sh` mini terminal: remembered directory, interactive-command rewriting, masking |
+| `lib/reach.js` | Connection checks (the colour of the header squares) |
+| `lib/client.js` | Interface: header switch, terminal panel, notices below the input box, settings page |
+| `lib/routes.js` | Settings page backend |
+| `lib/config.js` · `lib/onboarding.js` · `lib/ssh.js` | Machine list, SSH configuration, add-machine wizard, ssh arguments |
+| `lib/reboot.js` · `lib/uninstall.js` · `lib/audit.js` | Reboot and wait for the machine, uninstall, audit log |
+| `test/` | 194 tests |
 
 ---
 
