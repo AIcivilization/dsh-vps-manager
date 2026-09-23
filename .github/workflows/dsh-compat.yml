@@ -21,13 +21,44 @@ jobs:
   unit:
     name: 单元测试
     runs-on: ubuntu-latest
+    # 贴提交评论要写权限；GitHub 的运行日志只有登录的人能看，失败时把要点贴出来
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
       - run: npm ci
-      - run: npm test
+      - name: 跑全部单元测试
+        run: set -o pipefail; npm test 2>&1 | tee "$RUNNER_TEMP/unit.log"
+
+      - name: 失败时把没过的用例贴到提交评论
+        if: failure() && github.event_name == 'push'
+        uses: actions/github-script@v7
+        env:
+          LOG: ${{ runner.temp }}/unit.log
+        with:
+          script: |
+            const fs = require('fs')
+            let log = ''
+            try { log = fs.readFileSync(process.env.LOG, 'utf8') } catch {}
+            const failed = log.split('\n').filter((l) => /^not ok /.test(l)).map((l) => `- ${l.replace(/^not ok \d+ - /, '')}`)
+            const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+            const body = [
+              `单元测试在 Linux（ubuntu-latest, Node 22）上没过：${run}`,
+              '',
+              failed.length ? `### 没过的用例（${failed.length}）` : '### 没有 TAP 失败行，可能是启动就出错',
+              ...failed.slice(0, 30),
+              '',
+              '<details><summary>输出末尾</summary>',
+              '',
+              '```text',
+              log.slice(-5000),
+              '```',
+              '</details>',
+            ].join('\n')
+            await github.rest.repos.createCommitComment({ owner: context.repo.owner, repo: context.repo.repo, commit_sha: context.sha, body })
 
   compat:
     name: DSH ${{ matrix.channel }}
@@ -53,19 +84,21 @@ jobs:
           echo "version=$v" >> "$GITHUB_OUTPUT"
           echo "DSH ${{ matrix.channel }} = $v" >> "$GITHUB_STEP_SUMMARY"
 
+      # 下面几步都把输出留到 steps.log：失败时贴进问题单，免得非要登录才能看日志
       - name: 安装 DSH ${{ steps.ver.outputs.version }}
         run: |
+          set -o pipefail
           mkdir -p "$RUNNER_TEMP/dsh" && cd "$RUNNER_TEMP/dsh"
           echo '{"private":true}' > package.json
-          npm install --no-audit --no-fund "@deepseek-ai/dsh@${{ steps.ver.outputs.version }}"
+          npm install --no-audit --no-fund "@deepseek-ai/dsh@${{ steps.ver.outputs.version }}" 2>&1 | tee -a "$RUNNER_TEMP/steps.log"
 
       - name: 打包插件
-        run: npm pack --pack-destination "$RUNNER_TEMP"
+        run: set -o pipefail; npm pack --pack-destination "$RUNNER_TEMP" 2>&1 | tee -a "$RUNNER_TEMP/steps.log"
 
       - name: 对照真实 DSH 代码的测试
         env:
           DSH_MODULES: ${{ runner.temp }}/dsh/node_modules
-        run: node --test test/dsh-real.test.js
+        run: set -o pipefail; node --test test/dsh-real.test.js 2>&1 | tee -a "$RUNNER_TEMP/steps.log"
 
       - name: 装上插件、启动网页版逐项检查
         env:
@@ -79,11 +112,12 @@ jobs:
           CHANNEL: ${{ matrix.channel }}
           VERSION: ${{ steps.ver.outputs.version }}
           REPORT: ${{ runner.temp }}/report.json
+          STEPS_LOG: ${{ runner.temp }}/steps.log
           JOB_OK: ${{ job.status == 'success' }}
         with:
           script: |
             const fs = require('fs')
-            const { CHANNEL, VERSION, REPORT, JOB_OK } = process.env
+            const { CHANNEL, VERSION, REPORT, STEPS_LOG, JOB_OK } = process.env
             const label = 'dsh-compat'
             const prefix = `DSH ${CHANNEL} 通道兼容性检查失败`
             const title = `${prefix}：${VERSION}`
@@ -115,6 +149,11 @@ jobs:
               ...(failed.length ? failed.map((c) => `- ${c.name}${c.detail ? `：${c.detail}` : ''}`) : ['- 检查脚本之前的步骤就失败了（安装 DSH、打包或对照测试），详见运行记录']),
             ]
             if (report?.logTail) lines.push('', '<details><summary>DSH 日志末尾</summary>', '', '```text', report.logTail.slice(-2500), '```', '</details>')
+            if (!report) {
+              let steps = ''
+              try { steps = fs.readFileSync(STEPS_LOG, 'utf8') } catch {}
+              if (steps) lines.push('', '<details><summary>步骤输出末尾</summary>', '', '```text', steps.slice(-3000), '```', '</details>')
+            }
             const body = lines.join('\n')
             const same = mine.find((i) => i.title === title)
             if (same) {
