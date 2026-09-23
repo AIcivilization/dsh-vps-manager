@@ -110,6 +110,43 @@ test('请求失败时把 host 的错误原样带出来', async () => {
   await assert.rejects(broken.__test.api('overview'), /服务返回异常（HTTP 500）/)
 })
 
+test('DSH 重启过：令牌对不上要说人话，还要说清怎么办', async () => {
+  const { exported } = await loadClient({
+    fetchImpl: async () => ({ status: 403, json: async () => ({ ok: false, error: 'token 不对' }) }),
+  })
+  await assert.rejects(exported.__test.api('overview'), /令牌对不上了.*刷新页面再试/)
+})
+
+test('运行中装了新版：老服务端没有这个接口（405），提示要重启 DSH', async () => {
+  const { exported } = await loadClient({
+    fetchImpl: async () => ({ status: 405, json: async () => { throw new Error('not json') } }),
+  })
+  await assert.rejects(exported.__test.api('diag/status'), /重启 DSH/)
+})
+
+test('接口不回应：到点报错，按钮不会一直转', async () => {
+  const { exported } = await loadClient({
+    // AbortSignal.timeout 的定时器不拖住事件循环，测试里自己点一根蜡烛
+    fetchImpl: async (_url, init) => new Promise((_resolve, reject) => {
+      const keepAlive = setTimeout(() => {}, 5_000)
+      init.signal?.addEventListener('abort', () => {
+        clearTimeout(keepAlive)
+        const e = new Error('timeout')
+        e.name = 'TimeoutError'
+        reject(e)
+      })
+    }),
+  })
+  await assert.rejects(exported.__test.api('overview', {}, { timeoutMs: 60 }), /没有回应.*再试一次/)
+})
+
+test('连不上 DSH（服务已经关了）：提示去看 DSH 还开着吗', async () => {
+  const { exported } = await loadClient({
+    fetchImpl: async () => { throw new TypeError('Failed to fetch') },
+  })
+  await assert.rejects(exported.__test.api('overview'), /连不上 DSH/)
+})
+
 test('没打开开关的对话：状态条一个像素都不渲染，头部开关也不发请求', async () => {
   const calls = []
   const { exported } = await loadClient({
