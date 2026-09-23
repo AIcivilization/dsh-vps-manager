@@ -43,7 +43,10 @@ jobs:
             const fs = require('fs')
             let log = ''
             try { log = fs.readFileSync(process.env.LOG, 'utf8') } catch {}
-            const failed = log.split('\n').filter((l) => /^not ok /.test(l)).map((l) => `- ${l.replace(/^not ok \d+ - /, '')}`)
+            const rows = log.split('\n')
+            const failed = rows.filter((l) => /^not ok /.test(l)).map((l) => `- ${l.replace(/^not ok \d+ - /, '')}`)
+            // 每个没过的用例，连它后面的 TAP 细节（断言、期望值）一起贴出来
+            const details = rows.flatMap((l, i) => (/^not ok /.test(l) ? [rows.slice(i, i + 45).join('\n')] : [])).join('\n\n')
             const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
             const body = [
               `单元测试在 Linux（ubuntu-latest, Node 22）上没过：${run}`,
@@ -51,10 +54,10 @@ jobs:
               failed.length ? `### 没过的用例（${failed.length}）` : '### 没有 TAP 失败行，可能是启动就出错',
               ...failed.slice(0, 30),
               '',
-              '<details><summary>输出末尾</summary>',
+              '<details><summary>细节</summary>',
               '',
               '```text',
-              log.slice(-5000),
+              (details || log).slice(0, 8000),
               '```',
               '</details>',
             ].join('\n')
