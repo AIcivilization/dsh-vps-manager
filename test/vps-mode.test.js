@@ -107,8 +107,9 @@ test('pre-step：开关打开发一次，重复的步骤不再发，关掉发一
   assert.match(first[0], /^\[VPS 模式\] 已绑定 vps-dsh/)
   const msg = session.events.at(-1).data
   assert.equal(msg.role, 'user')
-  assert.equal(msg.source.kind, 'plugin')
-  assert.equal(msg.source.plugin, PLUGIN)
+  // v4（DSH 0.1.7-alpha 起）只收「归属到生产者」的 kind；写成 'plugin' 会让整轮对话失败
+  assert.equal(msg.source.kind, `plugin:${PLUGIN}`)
+  assert.equal(msg.source.plugin, undefined, '新形状不带 plugin 字段')
 
   assert.deepEqual(await agents.step(session), [], '同一绑定不重复发')
   assert.deepEqual(await agents.step(session), [])
@@ -131,6 +132,27 @@ test('DSH 重启后：从会话历史找回上次说明，不重复发', async (
   const after = fakeAgents() // 新进程：内存里什么都没有
   registerVpsMode(after.ctx, { env })
   assert.deepEqual(await after.step(session), [], '历史里已经说过了')
+})
+
+test('升级上来的老会话：v3 形状的旧说明照样认得，不会重发一遍', async () => {
+  const { env } = await sandbox()
+  const session = fakeSession('sess-mode-old')
+  await bindSession('sess-mode-old', 'vps-dsh', env)
+  // 0.2.2 及以前写进会话的形状
+  const text = '[VPS 模式] 已绑定 vps-dsh\n旧会话里的说明'
+  session.events.push({
+    type: 'user/message',
+    data: {
+      role: 'user',
+      content: [{ type: 'text', text }],
+      source: { kind: 'plugin', plugin: PLUGIN, form: 'snapshot', sections: [{ name: 'vps-mode', text }] },
+    },
+  })
+  assert.equal(lastAnnouncement(session), 'vps-dsh')
+
+  const agents = fakeAgents()
+  registerVpsMode(agents.ctx, { env })
+  assert.deepEqual(await agents.step(session), [], '老形状也算说过了')
 })
 
 test('两个窗口互不影响：只有绑定的对话收到说明、被拦 bash', async () => {

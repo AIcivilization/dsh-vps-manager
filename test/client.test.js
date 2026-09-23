@@ -147,6 +147,15 @@ test('连不上 DSH（服务已经关了）：提示去看 DSH 还开着吗', as
   await assert.rejects(exported.__test.api('overview'), /连不上 DSH/)
 })
 
+test('等待中的按钮会显示已等几秒（看得出没卡死）', async () => {
+  const { exported } = await loadClient()
+  const { waitingLabel } = exported.__test
+  assert.equal(waitingLabel('处理中…', 0), '处理中…', '刚点下去不显示秒数')
+  assert.equal(waitingLabel('处理中…', 1), '处理中…')
+  assert.equal(waitingLabel('处理中…', 5), '处理中…（5 秒）')
+  assert.equal(waitingLabel('连接中…', 12), '连接中…（12 秒）')
+})
+
 test('没打开开关的对话：状态条一个像素都不渲染，头部开关也不发请求', async () => {
   const calls = []
   const { exported } = await loadClient({

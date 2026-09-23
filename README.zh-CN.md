@@ -419,7 +419,7 @@ dsh plugin add dsh-vps-manager
 | `lib/routes.js` | 设置页接口 |
 | `lib/config.js` · `lib/onboarding.js` · `lib/ssh.js` | 机器清单、SSH 配置、添加向导、ssh 参数 |
 | `lib/reboot.js` · `lib/uninstall.js` · `lib/audit.js` | 重启并等机器回来、卸载、审计日志 |
-| `test/` | 198 个测试 |
+| `test/` | 200 个测试 |
 
 ---
 
@@ -430,7 +430,7 @@ npm install
 npm test
 ```
 
-198 个测试，不需要真实服务器：用本机的 `sh -s` 代替远端 `sshd`，覆盖载荷协议、远端任务、并发锁、备份还原、风险判定、VPS 模式、卸载、命令、设置页接口、终端连接（鉴权、本机限制、输入输出、窗口大小、断线保留与接回、结束清理）与界面渲染。装了 DSH Desktop 的机器上，还会拿 DSH 自带的 `dsh-tools`、`dsh-skill`、`dsh-user-approval` 核对工具定义、返回值、skill 字段和审批结果词汇。
+200 个测试，不需要真实服务器：用本机的 `sh -s` 代替远端 `sshd`，覆盖载荷协议、远端任务、并发锁、备份还原、风险判定、VPS 模式、卸载、命令、设置页接口、终端连接（鉴权、本机限制、输入输出、窗口大小、断线保留与接回、结束清理）与界面渲染。装了 DSH Desktop 的机器上，还会拿 DSH 自带的 `dsh-tools`、`dsh-skill`、`dsh-user-approval` 核对工具定义、返回值、skill 字段、审批结果词汇，以及插件插入对话的那条说明能不能被宿主的会话格式收下。
 
 ---
 

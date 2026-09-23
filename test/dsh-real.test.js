@@ -114,3 +114,38 @@ test('真实 dsh-user-approval：结果词汇与请求字段对得上', { skip }
     assert.equal(res.decision === 'allow', outcome === 'allowed-once', `${outcome} → ${res.decision}`)
   }
 })
+
+test('真实会话格式：我们插入的说明能被宿主收下（用错形状会让整轮对话失败）', { skip }, async () => {
+  // 2026-09-23 实测：DSH 0.1.7-alpha 起会话格式升到 v4，不再收 kind:'plugin'，
+  // 我们那条 VPS 模式说明会让整轮报 “format v4 message requires a producer-owned source kind”。
+  // 这里拿宿主自己的编码器校验一遍：以后哪一版再改规矩，CI 当天就能发现。
+  const catalogPath = `${APP}/dsh-session-format-catalog/lib/index.js`
+  if (!existsSync(catalogPath)) return // 老版本没有这个包
+  const { sessionFormatCatalog } = await import(pathToFileURL(catalogPath).href)
+  const { SOURCE_KIND, UNBOUND_TEXT } = await import('../lib/vps-mode.js')
+
+  const event = {
+    seq: 1,
+    time: Date.now(),
+    surfaceOp: 'append',
+    type: 'user/message',
+    data: {
+      id: '11111111-1111-4111-8111-111111111111',
+      role: 'user',
+      content: [{ type: 'text', text: UNBOUND_TEXT }],
+      source: { kind: SOURCE_KIND, form: 'snapshot', sections: [{ name: 'vps-mode', text: UNBOUND_TEXT }] },
+    },
+  }
+  sessionFormatCatalog.encodeCurrentEvent(event, 1) // 不抛就算过
+
+  // 老形状在 v4 上必须是被拒的：证明这个测试真的在管用
+  if (Number(sessionFormatCatalog.currentVersion) >= 4) {
+    assert.throws(
+      () => sessionFormatCatalog.encodeCurrentEvent({
+        ...event,
+        data: { ...event.data, source: { kind: 'plugin', plugin: 'vps-manager', form: 'snapshot', sections: [{ name: 'vps-mode', text: UNBOUND_TEXT }] } },
+      }, 1),
+      /producer-owned source kind/,
+    )
+  }
+})
