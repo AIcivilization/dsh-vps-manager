@@ -284,7 +284,7 @@ Whether a confirmation dialog appears depends on the machine's confirmation leve
 
 ### Three safeguards
 
-- **Files are backed up before edits.** `vps_write_file` copies the original to `~/.cache/dsh-vps/backups/` on the server, writes atomically, runs the validation command you give it (such as `nginx -t`), and restores the original if validation fails
+- **Files are backed up before edits.** `vps_write_file` copies the original to `~/.cache/dsh-vps/backups/` on the server, writes atomically (an existing file keeps its mode and owner), runs the validation command you give it (such as `nginx -t`), and restores the original if validation fails
 - **Connectivity safety net.** Before firewall, SSH or network changes, a timed restore is set up on the server (120 seconds by default). After the change, a brand-new connection is used to test access. If it cannot connect, the restore runs when the time is up, so you are not locked out
 - **Long operations survive disconnects.** Operations that change things run as remote tasks that continue on the server if the connection drops, and you can check on them again later. Cancelling only stops waiting and does not kill the task; terminating a task is always an explicit action
 
