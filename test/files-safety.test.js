@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { access, mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises'
+import { access, chmod, mkdir, mkdtemp, readFile, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { STATUS } from '../lib/engine.js'
@@ -57,7 +57,8 @@ test('覆盖已有文件会先备份，备份不落在原目录', async () => {
   const dir = join(home, 'etc', 'nginx', 'sites-enabled')
   await mkdir(dir, { recursive: true })
   const target = join(dir, 'a.com')
-  await writeFile(target, '原始内容\n')
+  await writeFile(target, '原始内容\n', { mode: 0o640 })
+  await chmod(target, 0o640) // 创建时会被 umask 削掉，这里定死
 
   const res = await writeRemoteFile({
     alias: 'hk',
@@ -73,6 +74,8 @@ test('覆盖已有文件会先备份，备份不落在原目录', async () => {
   assert.match(res.backupPath, /\.cache\/dsh-vps\/backups\//, '备份必须放在专用目录，不能落在原目录')
   assert.equal(await readFile(res.backupPath, 'utf8'), '原始内容\n')
   assert.ok(res.restoreCommand.includes(res.backupPath))
+
+  assert.equal((await stat(target)).mode & 0o777, 0o640, '覆盖之后权限要和原文件一样')
 
   const { readdir } = await import('node:fs/promises')
   assert.deepEqual(await readdir(dir), ['a.com'], '原目录里不能多出备份或临时文件')
