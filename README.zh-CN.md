@@ -61,27 +61,11 @@ dsh plugin add dsh-vps-manager
 
 ## 截图
 
-<!--
-  截图放到 assets/screenshots/，文件名见下表；放好后把表格里的文字换成图片，例如：
-  ![](assets/screenshots/header.png)
-  演示动图放 assets/demo.gif，放好后在这里加：
-  <p align="center"><img src="assets/demo.gif" alt="演示：打开开关 → 命令 → 终端 → 让 AI 干活" width="1000"></p>
-  注意：插件市场会从 README 里抓图片当展示图，没有真截图之前不要放占位图片。
--->
+<!-- 插件市场会从 README 里抓图片当展示图：只放真图，不放占位图。静态截图放 assets/screenshots/。 -->
 
 <p align="center"><img src="assets/demo.gif" alt="演示：装插件 → 添加机器（生成钥匙、把公钥放到服务器）→ 连上 → 设置页" width="1000"></p>
 
 <p align="center"><sub>从装插件到接上第一台机器的完整过程（演示里的地址、用户名已涂去）</sub></p>
-
-> 下面几张静态截图准备中。
-
-| 对话头部：VPS 开关与终端按钮 | 对话里的终端（菜单脚本） |
-| :---: | :---: |
-| _截图：`assets/screenshots/header.png`_ | _截图：`assets/screenshots/terminal.png`_ |
-
-| 连不上时的原因与「重试」 | 设置 → VPS 管理 |
-| :---: | :---: |
-| _截图：`assets/screenshots/unreachable.png`_ | _截图：`assets/screenshots/settings.png`_ |
 
 ---
 

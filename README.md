@@ -61,27 +61,11 @@ Everything goes over SSH key login and shares one execution mechanism: operation
 
 ## Screenshots
 
-<!--
-  Put screenshots in assets/screenshots/ with the file names below, then replace the text in the tables with the images, e.g.
-  ![](assets/screenshots/header.png)
-  Put a demo animation at assets/demo.gif and add here:
-  <p align="center"><img src="assets/demo.gif" alt="Demo: turn on the switch → commands → terminal → let the AI work" width="1000"></p>
-  Note: the plugin market picks images from the README as showcase pictures, so do not add placeholder images before real screenshots exist.
--->
+<!-- The plugin market picks images from the README as showcase pictures: real images only, no placeholders. Still screenshots go in assets/screenshots/. -->
 
 <p align="center"><img src="assets/demo.gif" alt="Demo: install the plugin, add a machine (generate a key, put the public key on the server), connect, settings page" width="1000"></p>
 
 <p align="center"><sub>From installing the plugin to reaching the first machine (the address and user name in the recording are blacked out)</sub></p>
-
-> The still screenshots below are on the way.
-
-| Conversation header: VPS switch and terminal button | Terminal in the conversation (menu script) |
-| :---: | :---: |
-| _Screenshot: `assets/screenshots/header.png`_ | _Screenshot: `assets/screenshots/terminal.png`_ |
-
-| Unreachable machine: reason and retry | Settings → VPS Manager |
-| :---: | :---: |
-| _Screenshot: `assets/screenshots/unreachable.png`_ | _Screenshot: `assets/screenshots/settings.png`_ |
 
 ---
 
