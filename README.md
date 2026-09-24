@@ -69,7 +69,11 @@ Everything goes over SSH key login and shares one execution mechanism: operation
   Note: the plugin market picks images from the README as showcase pictures, so do not add placeholder images before real screenshots exist.
 -->
 
-> Screenshots are on the way; each slot below is where one goes.
+<p align="center"><img src="assets/demo.gif" alt="Demo: install the plugin, add a machine (generate a key, put the public key on the server), connect, settings page" width="1000"></p>
+
+<p align="center"><sub>From installing the plugin to reaching the first machine (the address and user name in the recording are blacked out)</sub></p>
+
+> The still screenshots below are on the way.
 
 | Conversation header: VPS switch and terminal button | Terminal in the conversation (menu script) |
 | :---: | :---: |
