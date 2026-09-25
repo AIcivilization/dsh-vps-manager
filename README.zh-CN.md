@@ -39,6 +39,8 @@ dsh plugin add dsh-vps-manager
 
 所有操作都通过 SSH 密钥登录，并共用同一套执行机制：会改东西的操作跑成远端任务，断线后在服务器上继续；同一台机器上的改动一个接一个执行；改配置文件前自动备份；改防火墙和 SSH 前，先在服务器上设好自动恢复；每次执行都记审计日志。
 
+> **想把 DSH 本身装到 VPS 上？** 看姊妹项目 [deepseek-harness-vps](https://github.com/AIcivilization/deepseek-harness-vps)：在 VPS 上执行一条命令，装好带登录页、自动 HTTPS 的原版 DSH，从任何地方用浏览器访问，设置、API Key、插件市场都能正常用，DSH 出新版本时在页面上一键升级。两者可以配合：在 VPS 上的 DSH 里装上本插件，就能在对话里直接管理这台服务器。
+
 ---
 
 ## 能力一览

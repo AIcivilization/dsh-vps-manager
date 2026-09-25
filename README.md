@@ -39,6 +39,8 @@ Manage your VPS from DeepSeek Harness (DSH): check server status with commands t
 
 Everything goes over SSH key login and shares one execution mechanism: operations that change things run as remote tasks and keep going if the connection drops; changes on the same machine run one at a time; config files are backed up before they are edited; an automatic restore is set up on the server before firewall or SSH changes; and every run is written to an audit log.
 
+> **Want DSH itself running on your VPS?** See the sister project [deepseek-harness-vps](https://github.com/AIcivilization/deepseek-harness-vps): one command on the VPS installs stock DSH behind a login page with automatic HTTPS, reachable from any browser, with settings, API keys and the plugin market all working, and new DSH releases upgraded with one click in the page. The two work together: install this plugin in the DSH on your VPS and manage that server right from the conversation.
+
 ---
 
 ## At a glance
