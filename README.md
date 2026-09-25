@@ -49,6 +49,7 @@ Everything goes over SSH key login and shares one execution mechanism: operation
 | VPS mode | One click in the conversation header and that conversation operates the server; each conversation has its own binding, so one window can work on the server while another keeps working on local code |
 | Real connection state | Header squares: grey not selected · yellow connecting · green connected · red unreachable, with the reason and a retry button |
 | Terminal in the conversation | A real terminal (xterm.js over `ssh -tt`) where menu scripts, `top` and `vim` work; red / yellow / green buttons to end, minimize and maximize; nothing lost when you minimize or switch conversations, and it reconnects after a drop |
+| Files in the conversation | A file browser for the server: drag in to upload, right-click to download, double-click to edit, deletes go to a trash you can restore from; backups before overwriting or editing; right-click "let the AI look at this file" |
 | AI on the server | 5 tools with risk-tiered confirmation: read-only runs automatically, changes ask you, dangerous commands ask again; levels can be set per machine, group or globally |
 | Three safeguards | Files are backed up before editing and restored if validation fails; a connectivity safety net before firewall and SSH changes; long operations run as remote tasks that survive disconnects |
 | Commands that fit the system | A health check finds the OS, package manager, init system, privilege, running services and containers, and the model is told to write commands for that machine |
@@ -72,7 +73,7 @@ Everything goes over SSH key login and shares one execution mechanism: operation
 ## Contents
 
 - [Three ways to use it](#three-ways-to-use-it) · [Requirements](#requirements) · [Install](#install) · [Adding a machine](#adding-a-machine)
-- [Choosing a machine in a conversation](#choosing-a-machine-in-a-conversation) · [Terminal in the conversation](#terminal-in-the-conversation) · [Commands](#commands) · [Talking to the AI](#talking-to-the-ai)
+- [Choosing a machine in a conversation](#choosing-a-machine-in-a-conversation) · [Terminal in the conversation](#terminal-in-the-conversation) · [Files in the conversation](#files-in-the-conversation) · [Commands](#commands) · [Talking to the AI](#talking-to-the-ai)
 - [Recipes](#recipes) · [Settings page](#settings-page) · [How it works](#how-it-works) · [What it does not protect against](#what-it-does-not-protect-against)
 - [Where data lives](#where-data-lives) · [Feedback and suggestions](#feedback-and-suggestions) · [Repository layout](#repository-layout) · [Development](#development)
 
@@ -177,6 +178,20 @@ The **`>_`** button right after `VPS` in the conversation header is the terminal
 **It works in both DSH Desktop and `dsh web`**: the connection follows the page address (an `https` page automatically uses an encrypted connection). Every connection must pass three checks: DSH's own sign-in check, an origin that is the DSH page itself, and the plugin token embedded in that page. On top of that, **by default the terminal only opens on the computer running DSH**: when you reach `dsh web` through a LAN address or a reverse proxy, first tick "允许从其他设备打开 VPS 终端" (allow opening the VPS terminal from other devices) under DSH Settings → VPS Manager → Terminal. The terminal is full control of the server, so only turn this on for access paths you trust.
 
 No native module has to be compiled on your machine: the pseudo-terminal on the server is requested with `ssh -tt`, and window-size changes are applied over a second SSH connection. The terminal display is [xterm.js](https://xtermjs.org) (MIT licensed, bundled with the plugin and loaded the first time you open a terminal).
+
+## Files in the conversation
+
+The terminal panel's title bar has a **Terminal | Files** switch. Files is a file browser for the server this conversation is bound to:
+
+- **Browse**: common places on the left (home, the website directory, `/etc`, `/var/log`, root, trash) and a clickable path on top; click the empty part of the path to type one (`~` means home). Columns sort, and files starting with `.` are hidden until you turn on "show hidden files"
+- **Upload**: drag files in from your computer, or click Upload; there is a progress bar and you can cancel. Before overwriting, it asks, backs the original up to `~/.cache/dsh-vps/backups/` on the server, and **keeps its mode and owner**. New files get 644 and new folders 755, so web servers can read them. An upload that breaks off halfway leaves the original untouched
+- **Download**: right-click, Download; a folder is packed into a `.tar.gz` as it downloads
+- **Edit**: double-click a text file (up to 1 MB) to edit it, save with ⌘S / Ctrl+S, and the original is backed up first. If the AI or anyone else changed the file after you opened it, you are asked whether to reload or overwrite. Files that can lock you out when wrong (`sshd_config`, firewall rules) are flagged at the top
+- **Delete**: moves to a trash on the server (`~/.cache/dsh-vps/trash`) you can restore from; deleting permanently or emptying the trash asks again. Top-level system directories (`/etc`, `/usr` and the like) cannot be deleted
+- **Let the AI look at this file**: right-click it and the content, with secrets masked, is handed to the AI; just ask your question in the input box ("what's wrong with this config"). Large files such as logs send only the last 48 KB
+- Also: new folder, rename, copy path, and "open this folder in the terminal" (switches back and `cd`s there)
+- Every upload, download, edit, delete and restore is written to the audit log. Like the terminal, it opens only on the computer running DSH by default
+- It works as the SSH login user without escalating, so places that user cannot change say "permission denied"
 
 ---
 
@@ -407,7 +422,7 @@ Errors the plugin runs into itself (registration failures, backend errors, inter
 | `lib/routes.js` | Settings page backend |
 | `lib/config.js` · `lib/onboarding.js` · `lib/ssh.js` | Machine list, SSH configuration, add-machine wizard, ssh arguments |
 | `lib/reboot.js` · `lib/uninstall.js` · `lib/audit.js` | Reboot and wait for the machine, uninstall, audit log |
-| `test/` | 200 tests |
+| `test/` | 227 tests |
 
 ---
 
@@ -418,7 +433,7 @@ npm install
 npm test
 ```
 
-200 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend, the terminal connection (authentication, local-only access, input and output, window size, keeping and resuming after a disconnect, cleanup) and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`, along with whether the notice the plugin adds to a conversation is accepted by the host's session format.
+227 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend, the terminal connection (authentication, local-only access, input and output, window size, keeping and resuming after a disconnect, cleanup) and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`, along with whether the notice the plugin adds to a conversation is accepted by the host's session format.
 
 ---
 

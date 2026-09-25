@@ -119,6 +119,12 @@ async function main() {
     check('插件读到的 DSH 版本正确', diag.dsh?.version === dshVersion, `读到 ${diag.dsh?.version || '（空）'}，实际 ${dshVersion}`)
     check('插件认出这是网页版', diag.form === 'web', diag.form)
 
+    // 文件管理器：接口挂上了（没绑定机器的对话应该得到明确提示）；下载的 GET 路由也在
+    const filesPlaces = await api('files/places', { sessionId: 'compat-check' })
+    check('文件管理接口能用（未绑定机器时给出提示）', filesPlaces.ok === false && /还没打开 VPS 开关/.test(filesPlaces.error ?? ''), filesPlaces.error ?? JSON.stringify(filesPlaces).slice(0, 120))
+    const fetchBad = await fetch(`${base}/api-vps/files/fetch?t=nope`, { headers: { cookie } })
+    check('文件下载路由已注册（无效票据被拒）', fetchBad.status === 403, `HTTP ${fetchBad.status}`)
+
     // 6. xterm.js 静态文件
     const xterm = await fetch(`${base}/api-vps/assets/xterm.mjs?v=6.0.0`, { headers: { cookie } })
     check('终端组件文件能取到', xterm.status === 200 && /javascript/.test(xterm.headers.get('content-type') ?? ''), `HTTP ${xterm.status}`)
