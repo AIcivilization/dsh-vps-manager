@@ -20,6 +20,7 @@ async function loadClient({ fetchImpl, storage = {} } = {}) {
     __DSH_VPS_TOKEN__: 'test-token-123',
     confirm: () => true,
     innerHeight: 800,
+    location: { origin: 'http://127.0.0.1:3000' },
     addEventListener: () => {},
     removeEventListener: () => {},
     localStorage: {
@@ -115,6 +116,23 @@ test('DSH 重启过：令牌对不上要说人话，还要说清怎么办', asyn
     fetchImpl: async () => ({ status: 403, json: async () => ({ ok: false, error: 'token 不对' }) }),
   })
   await assert.rejects(exported.__test.api('overview'), /令牌对不上了.*刷新页面再试/)
+})
+
+test('令牌过期（DSH 重启过、插件重新加载过）：自己去首页换新令牌再试一次，用户不用刷新', async () => {
+  const calls = []
+  const fresh = 'abcdef0123456789abcdef0123456789'
+  const { exported } = await loadClient({
+    fetchImpl: async (url, init) => {
+      calls.push(url)
+      if (url === 'http://127.0.0.1:3000/') return { status: 200, text: async () => `<head><script>window.__DSH_VPS_TOKEN__="${fresh}"</script></head>` }
+      if (init?.headers?.['x-dsh-vps-token'] === fresh) return { status: 200, json: async () => ({ ok: true, hosts: ['hk'] }) }
+      return { status: 403, json: async () => ({ ok: false, error: 'token 不对' }) }
+    },
+  })
+  const data = await exported.__test.api('overview')
+  assert.deepEqual(data.hosts, ['hk'])
+  assert.deepEqual(calls, ['/api-vps/overview', 'http://127.0.0.1:3000/', '/api-vps/overview'])
+  assert.equal(globalThis.window.__DSH_VPS_TOKEN__, fresh)
 })
 
 test('运行中装了新版：老服务端没有这个接口（405），提示要重启 DSH', async () => {

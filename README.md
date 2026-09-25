@@ -120,15 +120,21 @@ To uninstall, open **DSH Settings → VPS Manager**, scroll to the bottom and cl
 
 ## Adding a machine
 
-Open **DSH Settings → VPS Manager → "+ Add machine"**. The wizard has four steps:
+Open **DSH Settings → VPS Manager → "+ Add machine"**. It is one form:
 
-1. **Details**: address, port, user, alias, note, group
-2. **Key**: generates a dedicated key `~/.ssh/dsh_vps_ed25519` and leaves your existing keys alone
-3. **Place the public key on the server**, in any of three ways. The plugin never touches your password:
-   - Copy the public key and paste it into your provider's "SSH keys" page
-   - Copy a one-line command and run it on a server you can already log in to
-   - Open a terminal with `ssh-copy-id` already filled in, and type the password yourself
-4. **Save and test the connection**: the connection settings go into `~/.ssh/config.d/dsh-vps.conf`, one `Include` line is added at the very top of `~/.ssh/config` (backed up first to `~/.ssh/config.dsh-bak`), and the machine gets a health check
+- **Server**: IP or domain, SSH port, user, **password**
+- **What to call it** (optional): alias (derived from the address if left empty), group, note
+
+Click **Save and connect**:
+
+1. The plugin generates a dedicated key `~/.ssh/dsh_vps_ed25519` (your existing keys are left alone)
+2. It **logs in once with the password you entered** and adds that key's public half to `~/.ssh/authorized_keys` on the server (skipped if it is already there)
+3. The connection settings go into `~/.ssh/config.d/dsh-vps.conf`, one `Include` line is added at the very top of `~/.ssh/config` (backed up first to `~/.ssh/config.dsh-bak`), and the machine is reached with the key and gets a health check
+4. You see the result and the **host fingerprint** (recorded on first contact; if it ever changes the connection is refused, so nobody can pose as your server)
+
+**The password is used once and never stored**: it goes only into the environment of that single `ssh` process and reaches `ssh` through `SSH_ASKPASS`. It is not written to any file, log or audit record, and every later connection uses the key. Adding with a password only works on the computer running DSH, so the password never crosses the network.
+
+A wrong password, a server that refuses password logins, or a changed fingerprint is explained right in the form. For a **key-only server**, expand "No password?" under the form: paste the public key into your provider's "SSH keys" page, or run a one-line command on a server you can already log in to, then click "The public key is in place, connect".
 
 Machines already defined in `~/.ssh/config` can be taken over with "Import from ~/.ssh/config". The plugin never rewrites what you wrote in `~/.ssh/config`.
 
@@ -422,7 +428,7 @@ Errors the plugin runs into itself (registration failures, backend errors, inter
 | `lib/routes.js` | Settings page backend |
 | `lib/config.js` · `lib/onboarding.js` · `lib/ssh.js` | Machine list, SSH configuration, add-machine wizard, ssh arguments |
 | `lib/reboot.js` · `lib/uninstall.js` · `lib/audit.js` | Reboot and wait for the machine, uninstall, audit log |
-| `test/` | 227 tests |
+| `test/` | 238 tests |
 
 ---
 
@@ -433,7 +439,7 @@ npm install
 npm test
 ```
 
-227 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend, the terminal connection (authentication, local-only access, input and output, window size, keeping and resuming after a disconnect, cleanup) and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`, along with whether the notice the plugin adds to a conversation is accepted by the host's session format.
+238 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend, the terminal connection (authentication, local-only access, input and output, window size, keeping and resuming after a disconnect, cleanup) and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`, along with whether the notice the plugin adds to a conversation is accepted by the host's session format.
 
 ---
 
