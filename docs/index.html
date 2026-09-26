@@ -1,0 +1,653 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>dsh-vps-manager · 在 DSH 里像 SSH 一样用你的 VPS</title>
+<meta name="description" content="DeepSeek Harness 插件：21 条零 token 命令、对话里的真终端与文件管理、按风险分级确认的 AI 工具、29 条可复用的运维菜谱，全部经 SSH 密钥登录完成。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="dsh-vps-manager · 在 DSH 里像 SSH 一样用你的 VPS">
+<meta property="og:description" content="不给模型乱来的机会：命令不走模型不花 token，AI 的每次改动按风险分级确认，改文件先备份、改防火墙先设连通性保险。">
+<meta property="og:image" content="https://raw.githubusercontent.com/AIcivilization/dsh-vps-manager/main/assets/demo.gif">
+<meta name="theme-color" content="#4176E6">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%234176E6'/%3E%3Cpath d='M8 12h16M8 16h16M8 20h16' stroke='white' stroke-width='1.8' stroke-linecap='round'/%3E%3Ccircle cx='11' cy='12' r='1.6' fill='white'/%3E%3Ccircle cx='11' cy='16' r='1.6' fill='white'/%3E%3Ccircle cx='11' cy='20' r='1.6' fill='white'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#ffffff; --bg-soft:#FAF9F6; --bg-code:#F7F6F2;
+    --ink:#1F1F1D; --ink-2:#5F5E5A; --ink-3:#8A887F;
+    --line:#E6E4DD; --line-2:#D6D3C9;
+    --accent:#4176E6; --accent-soft:#EEF3FE; --accent-ink:#2A4F9E;
+    --green:#3B6D11; --green-bg:#EAF3DE;
+    --amber-bg:#FAEEDA; --amber-ink:#633806;
+    --radius:14px;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",Helvetica,Arial,sans-serif;
+    line-height:1.7;-webkit-font-smoothing:antialiased}
+  a{color:var(--accent-ink);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+  code{font-family:var(--mono);font-size:.92em}
+
+  .nav{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.88);backdrop-filter:saturate(180%) blur(12px);border-bottom:1px solid var(--line)}
+  .nav-in{display:flex;align-items:center;gap:20px;height:60px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;color:var(--ink)}
+  .brand:hover{text-decoration:none}
+  .mark{width:28px;height:28px;border-radius:7px;background:var(--accent);display:grid;place-items:center;flex:none}
+  .nav-links{display:flex;gap:20px;margin-left:auto;font-size:14px}
+  .nav-links a{color:var(--ink-2)}
+  .nav-links a:hover{color:var(--ink);text-decoration:none}
+  .btn-gh{margin-left:18px;display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;border:1px solid var(--line-2);border-radius:999px;padding:6px 14px;color:var(--ink)!important;background:#fff}
+  .btn-gh:hover{border-color:var(--ink-3);text-decoration:none}
+  @media(max-width:860px){.nav-links{display:none}.btn-gh{margin-left:auto}}
+
+  .hero{padding:70px 0 8px;text-align:center}
+  .kicker{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2);background:var(--bg-soft);border:1px solid var(--line);border-radius:999px;padding:5px 14px;margin-bottom:22px}
+  h1{font-size:clamp(29px,4.6vw,48px);line-height:1.2;margin:0 0 16px;letter-spacing:-.02em;font-weight:750}
+  .lede{font-size:clamp(15px,2vw,18px);color:var(--ink-2);max-width:730px;margin:0 auto 26px}
+  .badges{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:28px}
+  .badge{font-size:12px;color:var(--ink-2);background:var(--bg-soft);border:1px solid var(--line);border-radius:6px;padding:3px 9px;font-family:var(--mono)}
+  .notice{max-width:780px;margin:0 auto 28px;text-align:left;background:var(--amber-bg);border:1px solid #E8D9AE;border-radius:12px;padding:14px 18px;font-size:14.5px;color:var(--amber-ink)}
+  .notice b{font-weight:700}
+
+  .cmd{position:relative;max-width:780px;margin:0 auto;background:var(--bg-code);border:1px solid var(--line);border-radius:var(--radius);padding:16px 58px 16px 18px;text-align:left;overflow-x:auto}
+  .cmd .p{color:var(--ink-3);user-select:none}
+  .cmd code{white-space:pre;font-size:13.5px;color:#22221F}
+  .copy{position:absolute;top:10px;right:10px;border:1px solid var(--line-2);background:#fff;color:var(--ink-2);border-radius:8px;font-size:12px;padding:5px 10px;cursor:pointer;font-family:inherit;transition:.15s}
+  .copy:hover{color:var(--ink);border-color:var(--ink-3)}
+  .copy.done{color:var(--green);border-color:#B5D18A;background:var(--green-bg)}
+  .hint{font-size:13px;color:var(--ink-3);text-align:center;margin:12px 0 0}
+  .cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:26px 0 0}
+  .btn{display:inline-flex;align-items:center;gap:8px;border-radius:10px;padding:11px 20px;font-size:15px;font-weight:600;border:1px solid transparent}
+  .btn-p{background:var(--accent);color:#fff}
+  .btn-p:hover{background:#3364D0;text-decoration:none}
+  .btn-s{background:#fff;color:var(--ink);border-color:var(--line-2)}
+  .btn-s:hover{border-color:var(--ink-3);text-decoration:none}
+
+  section{padding:74px 0 8px}
+  .sec-head{margin-bottom:28px}
+  .eyebrow{font-size:12.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:8px}
+  h2{font-size:clamp(22px,3vw,31px);line-height:1.3;margin:0 0 10px;letter-spacing:-.015em}
+  h3.mini{font-size:20px;margin:44px 0 12px;letter-spacing:-.01em}
+  .sub{color:var(--ink-2);margin:0;max-width:780px}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(252px,1fr));gap:14px}
+  .card{border:1px solid var(--line);border-radius:var(--radius);padding:18px;background:var(--bg);transition:.18s}
+  .card:hover{border-color:var(--line-2);box-shadow:0 2px 14px rgba(31,31,29,.05)}
+  .card h4{margin:0 0 6px;font-size:15.5px;font-weight:700}
+  .card p{margin:0;font-size:14px;color:var(--ink-2)}
+  .tag{display:inline-block;font-size:11.5px;font-family:var(--mono);color:var(--accent-ink);background:var(--accent-soft);border-radius:5px;padding:2px 7px;margin-bottom:10px}
+
+  .scroll{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius)}
+  table{width:100%;border-collapse:collapse;font-size:14.5px}
+  th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-size:13px;color:var(--ink-3);font-weight:600;background:var(--bg-soft)}
+  tbody tr:last-child td{border-bottom:none}
+  td.c{font-family:var(--mono);font-size:13px;white-space:nowrap;color:var(--ink)}
+  .yes{color:var(--green);font-weight:600}
+  .no{color:var(--ink-3)}
+
+  .shot{border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:var(--bg-soft)}
+  .shot img{display:block;width:100%;height:auto}
+  .cap{font-size:13px;color:var(--ink-3);padding:10px 14px;border-top:1px solid var(--line);background:#fff;text-align:center}
+
+  .tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+  .tab{border:1px solid var(--line-2);background:#fff;border-radius:999px;padding:7px 15px;font-size:13.5px;color:var(--ink-2);cursor:pointer;font-family:inherit;transition:.15s}
+  .tab:hover{border-color:var(--ink-3)}
+  .tab[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+  .panel{display:none}
+  .panel.on{display:block}
+  .panel p{color:var(--ink-2);font-size:14.5px;margin:14px 0 0}
+  .panel .cmd{max-width:none}
+
+  ol.steps{margin:0;padding-left:22px;max-width:820px}
+  ol.steps li{margin-bottom:10px;font-size:14.5px;color:var(--ink-2)}
+  ol.steps b{color:var(--ink)}
+  .req{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin:0;padding:0;list-style:none}
+  .req li{border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;background:var(--bg-soft)}
+  .req strong{display:block;margin-bottom:4px;font-size:15px}
+  .req span{font-size:14px;color:var(--ink-2)}
+
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 20px}
+  .chip{font-size:13px;background:var(--bg-soft);border:1px solid var(--line);border-radius:999px;padding:5px 12px;color:var(--ink-2)}
+  .chip b{color:var(--ink)}
+  .chip-h{font-size:14px;font-weight:700;margin:16px 0 6px}
+
+  .arch{border:1px solid var(--line);border-radius:var(--radius);padding:20px;background:var(--bg-soft);overflow-x:auto}
+  .arch svg{display:block;min-width:700px;max-width:100%;height:auto;margin:0 auto}
+  .bullets{margin:22px 0 0;padding:0;list-style:none;display:grid;gap:10px}
+  .bullets li{position:relative;padding-left:20px;font-size:14.5px;color:var(--ink-2)}
+  .bullets li::before{content:"";position:absolute;left:4px;top:.72em;width:6px;height:6px;border-radius:50%;background:var(--accent)}
+  .warn{border:1px solid #E8D9AE;background:var(--amber-bg);border-radius:var(--radius);padding:16px 20px;margin-top:22px}
+  .warn h3{margin:0 0 8px;font-size:16px;color:var(--amber-ink)}
+  .warn ul{margin:0;padding-left:20px;font-size:14.5px;color:var(--amber-ink)}
+  .warn li{margin-bottom:6px}
+
+  details{border:1px solid var(--line);border-radius:12px;margin-bottom:10px;background:var(--bg)}
+  details[open]{background:var(--bg-soft)}
+  summary{cursor:pointer;padding:15px 18px;font-weight:600;font-size:15px;list-style:none}
+  summary::-webkit-details-marker{display:none}
+  summary::after{content:"+";float:right;color:var(--ink-3);font-weight:400}
+  details[open] summary::after{content:"–"}
+  .answer{padding:0 18px 16px;font-size:14.5px;color:var(--ink-2);margin:0}
+  .answer code{background:var(--bg-code);border:1px solid var(--line);border-radius:5px;padding:1px 5px}
+
+  footer{margin-top:78px;border-top:1px solid var(--line);background:var(--bg-soft);padding:34px 0}
+  .foot{display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between;font-size:13.5px;color:var(--ink-2)}
+  .foot-links{display:flex;gap:18px;flex-wrap:wrap}
+  footer a{color:var(--ink-2)}
+  footer a:hover{color:var(--ink)}
+  @media(max-width:640px){
+    section{padding:54px 0 4px}.hero{padding:46px 0 4px}
+    .cmd{padding:14px}.copy{position:static;margin-top:10px;display:block;width:100%}
+  }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="wrap nav-in">
+    <a class="brand" href="#top"><span class="mark"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 5h8M4 8h8M4 11h8" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/><circle cx="5.6" cy="5" r="1" fill="#fff"/><circle cx="5.6" cy="8" r="1" fill="#fff"/><circle cx="5.6" cy="11" r="1" fill="#fff"/></svg></span>dsh-vps-manager</a>
+    <div class="nav-links">
+      <a href="#features">能力</a>
+      <a href="#ways">三种用法</a>
+      <a href="#install">安装</a>
+      <a href="#commands">命令</a>
+      <a href="#ai">AI 与防护</a>
+      <a href="#how">运行机制</a>
+      <a href="#faq">FAQ</a>
+    </div>
+    <a class="btn-gh" href="https://github.com/AIcivilization/dsh-vps-manager">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-2.91-.88-2.91-2.9 0-.86.31-1.57.82-2.12-.06-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.14 1.92.08 2.12.51.55.82 1.25.82 2.12 0 2.03-1.14 2.7-2.92 2.9.3.26.56.76.56 1.54 0 1.11-.01 2-.01 2.27 0 .21.15.46.55.38A7.99 7.99 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+      GitHub
+    </a>
+  </div>
+</nav>
+
+<main id="top">
+
+  <div class="wrap hero">
+    <span class="kicker">DeepSeek Harness 插件 · 已收录于 awesome-dsh-plugin</span>
+    <h1>在 DSH 里，像 SSH 一样用你的 VPS</h1>
+    <p class="lede">21 条零 token 命令看状态，对话里开一个真终端自己动手，或者直接跟 AI 说一句话让它上服务器干活 —— 全部经 SSH 密钥登录，改动按风险分级确认，改文件先备份、改防火墙先设连通性保险。</p>
+
+    <div class="badges">
+      <span class="badge">MIT</span>
+      <span class="badge">npm: dsh-vps-manager</span>
+      <span class="badge">DSH ≥ 0.1.5-rc.2</span>
+      <span class="badge">macOS / Linux</span>
+      <span class="badge">Node ≥ 22.13</span>
+      <span class="badge">238 tests</span>
+    </div>
+
+    <div class="notice">
+      <b>这是装进 DSH 里的插件，不是把 DSH 装到 VPS 上。</b>想在 VPS 上跑一个公网可达的 DSH，看姊妹项目
+      <a href="https://aicivilization.github.io/deepseek-harness-vps/"><b>deepseek-harness-vps</b></a>；两者可以配合用 —— 在那台 VPS 上的 DSH 里装上本插件，就能在对话里直接管理这台服务器。
+    </div>
+
+    <div class="cmd">
+      <button class="copy" type="button">复制</button>
+      <code><span class="p">$ </span>dsh plugin add dsh-vps-manager</code>
+    </div>
+    <p class="hint">装完重启 DSH，到 <b>设置 → VPS 管理</b> 添加机器。仅支持 SSH 密钥登录。</p>
+
+    <div class="cta">
+      <a class="btn btn-p" href="https://github.com/AIcivilization/dsh-vps-manager">查看源码与文档</a>
+      <a class="btn btn-s" href="https://www.npmjs.com/package/dsh-vps-manager">npm: dsh-vps-manager</a>
+    </div>
+  </div>
+
+  <section id="ways">
+    <div class="wrap">
+      <div class="sec-head">
+        <div class="eyebrow">三种用法</div>
+        <h2>看信息、跟 AI 说话、按菜谱安装 —— 各走各的路</h2>
+      </div>
+      <div class="scroll">
+        <table>
+          <thead><tr><th></th><th>看信息</th><th>跟 AI 说话</th><th>按菜谱安装与维护</th></tr></thead>
+          <tbody>
+            <tr><td class="c">怎么用</td><td><code>/vps-sysinfo</code> 这类命令</td><td>「给这台装个 nginx，把 a.com 反代到 3000 端口」</td><td><code>/vps-install &lt;菜谱id&gt;</code> 看计划，<code>/vps-yes</code> 执行</td></tr>
+            <tr><td class="c">走不走模型</td><td><span class="no">不走</span></td><td><span class="yes">走</span></td><td><span class="no">不走</span></td></tr>
+            <tr><td class="c">花费</td><td>零 token</td><td>正常消耗 token</td><td>零 token</td></tr>
+            <tr><td class="c">能做什么</td><td>固定的只读查询</td><td>SSH 能做的都能做，按风险分级确认</td><td>29 条可重复执行的菜谱</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="features">
+    <div class="wrap">
+      <div class="sec-head">
+        <div class="eyebrow">能力一览</div>
+        <h2>一个引擎，三个入口：命令、终端、AI 工具</h2>
+        <p class="sub">设置页、<code>/vps-</code> 命令和 AI 工具共用同一套执行机制：会改东西的操作跑成远端任务，断线后在服务器上继续；同一台机器上的改动一个接一个执行；每次执行都记审计日志。</p>
+      </div>
+      <div class="grid">
+        <div class="card"><span class="tag">zero-token</span><h4>21 条零 token 命令</h4><p>看状态、装软件、重启并等机器回来，全程不走模型、不花 token。</p></div>
+        <div class="card"><span class="tag">vps-mode</span><h4>VPS 模式</h4><p>对话头部点一下，这个对话就绑定这台服务器；一个窗口操作服务器，另一个窗口照常写本机代码。</p></div>
+        <div class="card"><span class="tag">status</span><h4>真实的连接状态</h4><p>头部方块 灰 没选 · 黄 连接中 · 绿 已连上 · 红 连不上；连不上直接说原因，带「重试」。</p></div>
+        <div class="card"><span class="tag">terminal</span><h4>对话里的终端</h4><p>真终端（xterm.js + <code>ssh -tt</code>），<code>top</code>、<code>vim</code>、<code>docker exec -it</code> 都能用；最小化、切对话不丢内容，断线自动接回。</p></div>
+        <div class="card"><span class="tag">files</span><h4>对话里的文件管理</h4><p>服务器上的「访达」：拖进来上传、右键下载、双击编辑、删除进回收站可还原；覆盖前自动备份。</p></div>
+        <div class="card"><span class="tag">ai-tools</span><h4>让 AI 操作服务器</h4><p>5 个工具，按风险分级确认：只读自动、改动问你、高危再问。档位可按机器、分组、全局设置。</p></div>
+        <div class="card"><span class="tag">safety</span><h4>三道保护</h4><p>改文件先备份、校验失败自动还原；改防火墙和 SSH 前设连通性保险；长操作跑成远端任务，断线不中断。</p></div>
+        <div class="card"><span class="tag">probe</span><h4>按这台机器的实际写命令</h4><p>体检出系统、包管理器、init、权限、在跑的服务和容器，告诉模型按实际情况写命令，不许猜。</p></div>
+        <div class="card"><span class="tag">recipes</span><h4>29 条菜谱</h4><p>安装 7 · 配置 6 · 查询 16，都能重复执行；AI 做成的事可以一句话存成菜谱。</p></div>
+        <div class="card"><span class="tag">settings</span><h4>设置页</h4><p>添加向导（生成钥匙、放公钥）、从 <code>~/.ssh/config</code> 导入、基础配置、终端设置、卸载。</p></div>
+        <div class="card"><span class="tag">compat</span><h4>两种 DSH 都能用</h4><p>DSH Desktop 与 <code>dsh web</code>；终端连接过 DSH 登录校验、同源检查和插件令牌，默认只许本机打开。</p></div>
+        <div class="card"><span class="tag">light</span><h4>装起来轻</h4><p>不用原生模块（不编译 node-pty），运行时依赖只有 <code>ws</code> 与 <code>yaml</code>。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="demo">
+    <div class="wrap">
+      <div class="sec-head">
+        <div class="eyebrow">实际效果</div>
+        <h2>从装插件到接上第一台机器</h2>
+        <p class="sub">演示里的地址、用户名已涂去。</p>
+      </div>
+      <div class="shot">
+        <img src="assets/demo.gif" alt="演示：装插件 → 添加机器（生成钥匙、把公钥放到服务器）→ 连上 → 设置页" loading="lazy">
+        <div class="cap">装插件 → 添加机器（生成钥匙、放公钥）→ 连上 → 设置页</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="install">
+    <div class="wrap">
+      <div class="sec-head">
+        <div class="eyebrow">安装</div>
+        <h2>装进 DSH，重启，加机器</h2>
+      </div>
+
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" aria-selected="true" data-tab="market">插件市场</button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="cli">命令行</button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="git">GitHub 最新</button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="uninstall">卸载</button>
+      </div>
+
+      <div class="panel on" id="p-market">
+        <div class="cmd"><button class="copy" type="button">复制</button><code># DSH 插件市场里搜索 dsh-vps-manager，点安装
+# DSH Desktop 与 dsh web 都可以，装完重启 DSH</code></div>
+        <p>插件在 DSH 启动时加载，装好记得重启。</p>
+      </div>
+
+      <div class="panel" id="p-cli">
+        <div class="cmd"><button class="copy" type="button">复制</button><code>dsh plugin add dsh-vps-manager</code></div>
+        <p>DSH Desktop：点菜单栏（Windows 上是任务栏托盘）的 DSH 图标 →「打开 DSH 终端」；命令行版 DSH（<code>dsh web</code>）用普通终端。装好后<b>重启 DSH</b>。</p>
+      </div>
+
+      <div class="panel" id="p-git">
+        <div class="cmd"><button class="copy" type="button">复制</button><code>dsh plugin add github:AIcivilization/dsh-vps-manager</code></div>
+        <p>想装 GitHub 上的最新代码（可能比 npm 上发布的版本新），把包名换成上面这行。</p>
+      </div>
+
+      <div class="panel" id="p-uninstall">
+        <div class="cmd"><button class="copy" type="button">复制</button><code>dsh plugin remove dsh-vps-manager</code></div>
+        <p>也可以在 <b>设置 → VPS 管理</b> 拉到最下面点「卸载…」，逐项勾选后再执行。命令行方式只移除插件，机器清单、钥匙、SSH 配置和审计日志都会留着。</p>
+      </div>
+
+      <h3 class="mini">运行要求</h3>
+      <ul class="req">
+        <li><strong>DSH 版本</strong><span>0.1.5-rc.2 起（在 DSH Desktop 2.0.10 上测试）</span></li>
+        <li><strong>系统</strong><span>macOS 或 Linux —— 依赖 OpenSSH 的连接复用，Windows 自带的 OpenSSH 不支持</span></li>
+        <li><strong>Node.js</strong><span>≥ 22.13</span></li>
+        <li><strong>登录方式</strong><span>只支持 SSH 密钥登录，不支持密码登录，也不支持需要输密码的 sudo</span></li>
+        <li><strong>权限</strong><span>会改系统的操作要求远端用户是 root 或有免密 sudo；只读查询不需要</span></li>
+      </ul>
+
+      <h3 class="mini">添加机器：一页表单，四步完成</h3>
+      <ol class="steps">
+        <li>插件生成一把专用钥匙 <code>~/.ssh/dsh_vps_ed25519</code>（<b>不动你原有的钥匙</b>）</li>
+        <li><b>用你填的密码登录一次</b>，把这把钥匙的公钥放进服务器的 <code>~/.ssh/authorized_keys</code>（已有就不重复加）</li>
+        <li>连接配置写入 <code>~/.ssh/config.d/dsh-vps.conf</code>，在 <code>~/.ssh/config</code> 最顶部加一行 <code>Include</code>（改之前备份为 <code>~/.ssh/config.dsh-bak</code>），然后用钥匙连一次、体检一次</li>
+        <li>显示结果和<b>主机指纹</b>（首次连接时记录，以后指纹变了会拒绝连接，防止有人冒充你的服务器）</li>
+      </ol>
+      <p class="hint" style="text-align:left;margin-top:16px"><b>密码只用这一次，不保存</b>：它只放进那一次 <code>ssh</code> 子进程的环境变量，经 <code>SSH_ASKPASS</code> 交给 <code>ssh</code>，不写进任何文件、日志或审计记录。服务器只允许密钥登录时，展开表单里的「没有密码？」按提示放公钥即可。</p>
+    </div>
+  </section>
+
+  <section id="commands">
+    <div class="wrap">
+      <div class="sec-head">
+        <div class="eyebrow">命令</div>
+        <h2>21 条命令，不走模型、不花 token</h2>
+        <p class="sub">两条使用规则：命令作用在<b>当前对话绑定的机器</b>上，没有绑定就不执行；下表里没写参数的命令，<b>只发命令名本身</b>。需要确认的操作都是先出计划，再单独发 <code>/vps-yes</code>。</p>
+      </div>
+
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" aria-selected="true" data-tab="view">看信息</button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="host">机器</button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="task">安装与任务</button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="misc">入口与排查</button>
+      </div>
+
+      <div class="panel on" id="p-view">
+        <div class="scroll">
+          <table>
+            <thead><tr><th>命令</th><th>作用</th></tr></thead>
+            <tbody>
+              <tr><td class="c">/vps-sysinfo</td><td>系统、CPU、内存、磁盘、负载、公网 IP</td></tr>
+              <tr><td class="c">/vps-disk</td><td>挂载点、inode、占用最大的目录（扫描有时间上限）</td></tr>
+              <tr><td class="c">/vps-ports</td><td>监听端口和对应进程</td></tr>
+              <tr><td class="c">/vps-services</td><td>正在运行和失败的服务</td></tr>
+              <tr><td class="c">/vps-net</td><td>网卡、累计流量、连接数</td></tr>
+              <tr><td class="c">/vps-docker</td><td>容器列表与磁盘占用</td></tr>
+              <tr><td class="c">/vps-ping</td><td>主机名、系统、负载、运行时长</td></tr>
+              <tr><td class="c">/vps-logs &lt;服务名&gt;</td><td>某个服务最近 100 行日志</td></tr>
+              <tr><td class="c">/vps-q &lt;菜谱id&gt;</td><td>运行任意一条查询菜谱，如 <code>ip-info</code>、<code>top-procs</code>、<code>cron-list</code>、<code>cert-expiry</code>、<code>firewall-status</code>、<code>updates</code>、<code>login-history</code></td></tr>
+              <tr><td class="c">/vps-sh &lt;命令&gt;</td><td>在机器上执行命令，输出直接显示在对话里；记住 <code>cd</code> 到的目录，会一直刷新的命令自动改成一次性输出，高危的先拦下；加 <code>--bg</code> 放后台，加 <code>--private</code> 表示这条输出不附给 AI</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel" id="p-host">
+        <div class="scroll">
+          <table>
+            <thead><tr><th>命令</th><th>作用</th></tr></thead>
+            <tbody>
+              <tr><td class="c">/vps-list</td><td>已登记的机器与状态，★ 标出当前对话绑定的那台</td></tr>
+              <tr><td class="c">/vps-use &lt;别名&gt;</td><td>把当前对话绑定到一台机器；<code>/vps-use off</code> 解除绑定</td></tr>
+              <tr><td class="c">/vps-probe</td><td>重新体检：系统、init、包管理器、权限、CPU、内存、磁盘</td></tr>
+              <tr><td class="c">/vps-reboot</td><td>重启前先检查为什么该重启、现在适不适合重启、会停掉哪些容器；发 <code>/vps-yes</code> 才重启，之后等机器回来并报告结果</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel" id="p-task">
+        <div class="scroll">
+          <table>
+            <thead><tr><th>命令</th><th>作用</th></tr></thead>
+            <tbody>
+              <tr><td class="c">/vps-recipes</td><td>菜谱清单，按安装 / 配置 / 查询分组</td></tr>
+              <tr><td class="c">/vps-install &lt;id&gt; [k=v …]</td><td>出计划：检测结果、参数与默认值、步骤、脚本原文。发 <code>/vps-yes</code> 执行</td></tr>
+              <tr><td class="c">/vps-tasks</td><td>这台机器上的远端任务列表</td></tr>
+              <tr><td class="c">/vps-task &lt;任务号&gt; [--stop]</td><td>一个任务的状态和日志；加 <code>--stop</code> 终止它</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel" id="p-misc">
+        <div class="scroll">
+          <table>
+            <thead><tr><th>命令</th><th>作用</th></tr></thead>
+            <tbody>
+              <tr><td class="c">/vps-help</td><td>全部命令与用法</td></tr>
+              <tr><td class="c">/vps-yes</td><td>确认刚才的计划：重启、安装，或被拦下的高危命令。只对当前对话有效，5 分钟内有效，执行一次后作废</td></tr>
+              <tr><td class="c">/vps-doctor</td><td>插件与 DSH 版本（是否验证过）、各部分注册情况、当前绑定的机器、连通测试、最近的错误与执行；末尾附预填好的反馈链接</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <p class="hint" style="text-align:left;margin-top:16px">自己敲的命令会附给 AI：插件记下你用 <code>/vps-sh</code> 执行的最近几条命令和输出（令牌、密码、私钥先打码），下次跟 AI 说话时一起附上 —— 所以可以先自己查，再直接问「看看上面为什么报错」。</p>
+    </div>
+  </section>
+
+  <section id="ai">
+    <div class="wrap">
+      <div class="sec-head">
+        <div class="eyebrow">AI 与防护</div>
+        <h2>让模型动手之前，先过三道门</h2>
+        <p class="sub">插件给模型注册 5 个工具，并附带一份操作规则（skill <code>vps-operator</code>，模型需要时自己读取）。</p>
+      </div>
+
+      <div class="scroll">
+        <table>
+          <thead><tr><th>工具</th><th>作用</th></tr></thead>
+          <tbody>
+            <tr><td class="c">vps_hosts</td><td>列出已登记的机器</td></tr>
+            <tr><td class="c">vps_exec</td><td>在机器上执行脚本</td></tr>
+            <tr><td class="c">vps_write_file</td><td>写远端文件：先备份，校验不通过自动还原</td></tr>
+            <tr><td class="c">vps_task</td><td>远端任务：列表、状态、日志、终止</td></tr>
+            <tr><td class="c">vps_recipe</td><td>菜谱：列表、查看、运行，以及把刚做成的事存成菜谱</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="mini">分级确认</h3>
+      <p class="sub" style="margin-bottom:14px">每段脚本执行前判定风险级别，<b>模型自己声明的级别只能往高调，不能往低压</b>。只读：<code>df -h</code>、<code>systemctl status</code>、<code>docker ps</code>；改动：<code>apt-get install</code>、<code>sed -i</code>、写文件；高危：<code>rm -rf</code>、改防火墙、<code>passwd</code>、<code>reboot</code>、杀进程、<code>curl … | sh</code>。</p>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>档位</th><th>只读</th><th>改动</th><th>高危</th></tr></thead>
+          <tbody>
+            <tr><td class="c">谨慎（默认）</td><td class="yes">自动</td><td>问</td><td>问</td></tr>
+            <tr><td class="c">放手</td><td class="yes">自动</td><td class="yes">自动</td><td>问</td></tr>
+            <tr><td class="c">全自动</td><td class="yes">自动</td><td class="yes">自动</td><td class="yes">自动</td></tr>
+            <tr><td class="c">没有审批界面的环境</td><td class="yes">自动</td><td class="no">拒绝</td><td class="no">拒绝</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="mini">三道保护</h3>
+      <ul class="bullets">
+        <li><b>改文件先备份。</b>先把原文件备份到服务器的 <code>~/.cache/dsh-vps/backups/</code>，再原子写入（覆盖时权限和属主保持原样），然后运行你给的校验命令（比如 <code>nginx -t</code>），不通过就自动还原。</li>
+        <li><b>连通性保险。</b>改防火墙、SSH、网络配置之前，先在服务器上设一个定时恢复（默认 120 秒），改完用全新连接测试；连不上就等它到时自动恢复，你不会被锁在门外。</li>
+        <li><b>长操作不怕断线。</b>会改东西的操作跑成远端任务，断线后在服务器上继续，可以再接回来看日志。取消只是停止等待，不会杀掉任务。</li>
+      </ul>
+
+      <div class="warn">
+        <h3>它防不住什么</h3>
+        <ul>
+          <li>分级确认防的是 AI 失误，<b>不防存心绕过的 AI</b> —— 静态判定识别不了所有变形写法</li>
+          <li>DSH 的沙箱管不到插件自己启动的 <code>ssh</code> 进程</li>
+          <li>终端里的操作不分级确认 —— 那是你自己在敲命令，跟直接用 SSH 一样</li>
+          <li>没有通用回滚。能兜底的只有文件备份、连通性保险和可重复执行的菜谱；动分区、升大版本前请先到服务商后台打快照</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="recipes">
+    <div class="wrap">
+      <div class="sec-head">
+        <div class="eyebrow">菜谱库</div>
+        <h2>29 条内置菜谱，每条都能重复执行</h2>
+        <p class="sub">每条由 detect（是否已装好）→ plan（写给人看的步骤）→ run（执行）→ verify（证明真能用，比如用 <code>docker info</code> 而不是 <code>docker --version</code>）四部分组成；已经是目标状态时会跳过安装直接验证。</p>
+      </div>
+
+      <div class="chip-h">安装 · 7 条</div>
+      <div class="chips">
+        <span class="chip">Docker</span><span class="chip">Nginx</span><span class="chip">fail2ban</span><span class="chip">常用命令行工具</span><span class="chip">Portainer</span><span class="chip">Uptime Kuma</span><span class="chip">Nginx Proxy Manager</span>
+      </div>
+
+      <div class="chip-h">配置 · 6 条</div>
+      <div class="chips">
+        <span class="chip">系统更新</span><span class="chip">系统清理</span><span class="chip">虚拟内存（swap）</span><span class="chip">时区</span><span class="chip">BBR 拥塞控制</span><span class="chip">自动安全更新</span>
+      </div>
+
+      <div class="chip-h">查询 · 16 条</div>
+      <div class="chips">
+        <span class="chip">系统信息</span><span class="chip">磁盘</span><span class="chip">端口</span><span class="chip">服务</span><span class="chip">网络</span><span class="chip">容器</span><span class="chip">服务日志</span><span class="chip">连通与负载</span><span class="chip">机器体检</span><span class="chip">出口 IP</span><span class="chip">资源占用最多的进程</span><span class="chip">定时任务</span><span class="chip">证书到期</span><span class="chip">防火墙状态</span><span class="chip">可升级的包</span><span class="chip">登录记录</span>
+      </div>
+
+      <div class="cmd" style="max-width:none;margin-top:8px">
+        <button class="copy" type="button">复制</button>
+        <code>/vps-install setup-swap size_mb=4096
+/vps-yes</code>
+      </div>
+      <p class="hint" style="text-align:left">参数用 <code>key=value</code> 传入。想存自己的菜谱：让 AI 做成一件可复用的事后说一句「存成菜谱」，或者自己写 YAML 放进 <code>$DSH_HOME/vps-manager/recipes/</code>；自定义菜谱 id 带 <code>my-</code> 前缀，按不可信内容对待。</p>
+    </div>
+  </section>
+
+  <section id="how">
+    <div class="wrap">
+      <div class="sec-head">
+        <div class="eyebrow">运行机制</div>
+        <h2>界面和模型都经插件，再走 OpenSSH 出海</h2>
+      </div>
+      <div class="arch">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 300" width="760" height="300" role="img" aria-label="dsh-vps-manager 工作方式：DSH 界面和模型都通过插件，经 OpenSSH 密钥登录连到你的 VPS">
+          <title>dsh-vps-manager 工作方式</title>
+          <desc>DSH 界面（对话头部开关、终端、设置页）经插件路由和实时连接、DSH 里的模型经工具调用，都进入 dsh-vps-manager 插件；插件做风险判定与确认，再通过 OpenSSH（密钥登录、连接复用）连到你的 VPS。</desc>
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M2 1L8 5L2 9" fill="none" stroke="#5F5E5A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </marker>
+          </defs>
+          <rect x="0" y="0" width="760" height="300" rx="14" fill="#FBFAF7"/>
+          <g font-family="-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Segoe UI', Helvetica, Arial, sans-serif">
+            <rect x="24" y="44" width="164" height="76" rx="10" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="1"/>
+            <text x="106" y="70" text-anchor="middle" font-size="14" font-weight="600" fill="#2C2C2A">DSH 界面</text>
+            <text x="106" y="89" text-anchor="middle" font-size="11" fill="#5F5E5A">头部开关 · 终端</text>
+            <text x="106" y="105" text-anchor="middle" font-size="11" fill="#5F5E5A">设置页 · /vps- 命令</text>
+            <rect x="24" y="170" width="164" height="76" rx="10" fill="#EEEDFE" stroke="#534AB7" stroke-width="1"/>
+            <text x="106" y="196" text-anchor="middle" font-size="14" font-weight="600" fill="#26215C">DSH 里的模型</text>
+            <text x="106" y="215" text-anchor="middle" font-size="11" fill="#534AB7">你说一句话</text>
+            <text x="106" y="231" text-anchor="middle" font-size="11" fill="#534AB7">它调用 5 个 VPS 工具</text>
+            <rect x="252" y="80" width="200" height="130" rx="12" fill="#E6F1FB" stroke="#185FA5" stroke-width="1.2"/>
+            <text x="352" y="108" text-anchor="middle" font-size="15" font-weight="700" fill="#0C447C">dsh-vps-manager</text>
+            <text x="352" y="132" text-anchor="middle" font-size="11" fill="#185FA5">风险判定 · 分级确认</text>
+            <text x="352" y="150" text-anchor="middle" font-size="11" fill="#185FA5">菜谱 · 审计日志</text>
+            <text x="352" y="168" text-anchor="middle" font-size="11" fill="#185FA5">连接状态检测</text>
+            <text x="352" y="186" text-anchor="middle" font-size="11" fill="#185FA5">终端会话（断线保留）</text>
+            <path d="M192 82 C222 82 226 118 248 122" fill="none" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#arrow)"/>
+            <text x="232" y="64" text-anchor="middle" font-size="10" fill="#5F5E5A">路由 · WebSocket</text>
+            <path d="M192 208 C222 208 226 172 248 168" fill="none" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#arrow)"/>
+            <text x="214" y="232" text-anchor="middle" font-size="10" fill="#5F5E5A">工具调用</text>
+            <rect x="500" y="104" width="104" height="82" rx="10" fill="#FAEEDA" stroke="#854F0B" stroke-width="1"/>
+            <text x="552" y="132" text-anchor="middle" font-size="14" font-weight="600" fill="#412402">OpenSSH</text>
+            <text x="552" y="151" text-anchor="middle" font-size="11" fill="#854F0B">密钥登录</text>
+            <text x="552" y="168" text-anchor="middle" font-size="11" fill="#854F0B">连接复用</text>
+            <path d="M456 145 L496 145" fill="none" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#arrow)"/>
+            <text x="476" y="136" text-anchor="middle" font-size="10" fill="#5F5E5A">子进程</text>
+            <rect x="648" y="70" width="92" height="150" rx="10" fill="#E1F5EE" stroke="#0F6E56" stroke-width="1"/>
+            <text x="694" y="98" text-anchor="middle" font-size="14" font-weight="600" fill="#04342C">你的 VPS</text>
+            <text x="694" y="124" text-anchor="middle" font-size="11" fill="#0F6E56">远端任务</text>
+            <text x="694" y="142" text-anchor="middle" font-size="11" fill="#0F6E56">文件备份</text>
+            <text x="694" y="160" text-anchor="middle" font-size="11" fill="#0F6E56">连通性保险</text>
+            <text x="694" y="178" text-anchor="middle" font-size="11" fill="#0F6E56">伪终端</text>
+            <text x="694" y="196" text-anchor="middle" font-size="10" fill="#0F6E56">~/.cache/dsh-vps</text>
+            <path d="M608 145 L644 145" fill="none" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#arrow)"/>
+            <text x="626" y="136" text-anchor="middle" font-size="10" fill="#5F5E5A">SSH</text>
+            <text x="380" y="282" text-anchor="middle" font-size="11" fill="#5F5E5A">命令不走模型、不花 token；模型的每次操作都先经插件判定风险，改动类按你设的档位确认</text>
+          </g>
+        </svg>
+      </div>
+      <ul class="bullets">
+        <li><b>一个引擎，三个入口</b>：设置页、<code>/vps-</code> 命令、AI 工具都走同一套执行引擎。脚本经 SSH 标准输入送到服务器，先落成文件再执行，远端命令行里不拼任何外部数据。</li>
+        <li><b>连接复用</b>：同一台机器共用一条 SSH 主连接（OpenSSH ControlMaster），命令和连接检测走复用连接时只要几十毫秒。</li>
+        <li><b>终端</b>：伪终端由 <code>ssh -tt</code> 在服务器上申请，浏览器经 WebSocket 连到插件；断线后会话保留一段时间（默认 10 分钟），接回时补发断开期间的输出。不需要编译任何原生模块。</li>
+        <li><b>给模型的说明</b>：进入 VPS 模式时，插件把这台机器的系统、服务、容器和必须遵守的规则附给模型；VPS 模式下模型不能用本机 bash。</li>
+      </ul>
+
+      <h3 class="mini">数据放在哪</h3>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>位置</th><th>内容</th></tr></thead>
+          <tbody>
+            <tr><td class="c">$DSH_HOME/vps-manager/hosts.yml</td><td>机器清单、分组、确认档位（可手工编辑）</td></tr>
+            <tr><td class="c">$DSH_HOME/vps-manager/state.json</td><td>体检结果、各对话绑定的机器</td></tr>
+            <tr><td class="c">$DSH_HOME/vps-manager/recipes/</td><td>你自己的菜谱</td></tr>
+            <tr><td class="c">$DSH_HOME/vps-manager/audit/</td><td>审计日志：每次执行一行 JSON（来源、机器、动作、档位、结果），按月分文件，保留 6 个月</td></tr>
+            <tr><td class="c">~/.ssh/config.d/dsh-vps.conf</td><td>插件维护的 SSH 连接配置</td></tr>
+            <tr><td class="c">~/.ssh/dsh_vps_ed25519</td><td>插件生成的专用钥匙</td></tr>
+            <tr><td class="c">服务器 ~/.cache/dsh-vps/</td><td>远端任务目录、日志、文件备份</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="hint" style="text-align:left">插件不读取私钥内容，密码也从不经过插件。</p>
+    </div>
+  </section>
+
+  <section id="faq">
+    <div class="wrap">
+      <div class="sec-head">
+        <div class="eyebrow">FAQ</div>
+        <h2>几个常见疑问</h2>
+      </div>
+      <details open>
+        <summary>支持 Windows 吗？</summary>
+        <p class="answer">不支持。插件依赖 OpenSSH 的连接复用（ControlMaster），Windows 自带的 OpenSSH 不支持。需要 macOS 或 Linux。</p>
+      </details>
+      <details>
+        <summary>服务器只开放密码登录怎么办？</summary>
+        <p class="answer">添加机器时填的那次密码就是用来放公钥的：插件会用它登录一次，把专用钥匙的公钥写进 <code>authorized_keys</code>，之后一律用钥匙登录。服务器<b>只允许密钥登录</b>也没问题 —— 展开表单里的「没有密码？」，复制公钥粘到服务商后台，或复制一行命令到已能登录的服务器上执行。</p>
+      </details>
+      <details>
+        <summary>会动我自己的 ~/.ssh/config 吗？</summary>
+        <p class="answer">只在最顶部加一行 <code>Include</code>，改之前备份为 <code>~/.ssh/config.dsh-bak</code>；插件自己的配置写在 <code>~/.ssh/config.d/dsh-vps.conf</code>，不会改写你写的内容。卸载时可以撤销。</p>
+      </details>
+      <details>
+        <summary>命令要花 token 吗？</summary>
+        <p class="answer">不花。<code>/vps-</code> 命令不走模型。只有你用自然语言让 AI 干活时才正常消耗 token。你自己用 <code>/vps-sh</code> 敲的命令会在下次对话时附给 AI（敏感内容先打码），加 <code>--private</code> 可以不让这条附上。</p>
+      </details>
+      <details>
+        <summary>终端能远程打开吗？</summary>
+        <p class="answer">默认只能在运行 DSH 的这台电脑上打开。用局域网地址或反向代理访问 <code>dsh web</code> 时，需要先在 <b>设置 → VPS 管理 → 终端</b> 勾选「允许从其他设备打开 VPS 终端」——终端等于这台服务器的完整操作权限，只在你信任访问途径时打开。</p>
+      </details>
+      <details>
+        <summary>DSH 升级后插件不能用了怎么办？</summary>
+        <p class="answer">插件每 6 小时自动拿 DSH 的正式版、下一版、尝鲜版各测一遍（装上插件、启动网页版、逐项检查），测不过会自动开 issue。当前 DSH 版本没验证过时，设置页和 <code>/vps-doctor</code> 会提示。你也可以发 <code>/vps-doctor</code> 生成预填好的反馈单。</p>
+      </details>
+      <details>
+        <summary>和 deepseek-harness-vps 是什么关系？</summary>
+        <p class="answer">姊妹项目，方向相反：<a href="https://aicivilization.github.io/deepseek-harness-vps/">deepseek-harness-vps</a> 是把 DSH 本身部署到 VPS 上（公网可达 + 登录页 + 自动 HTTPS），本插件是装进 DSH 里、用来管理服务器的。两者可以配合：在那台 VPS 上的 DSH 里装上本插件，就能在对话里直接管理这台服务器。</p>
+      </details>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <div>MIT 许可 · 附带 xterm.js（MIT，版权归其作者）· 社区项目，与 DeepSeek 官方无隶属关系</div>
+    <div class="foot-links">
+      <a href="https://github.com/AIcivilization/dsh-vps-manager">GitHub</a>
+      <a href="https://github.com/AIcivilization/dsh-vps-manager/issues/new?template=feature_request.yml">提建议</a>
+      <a href="https://www.npmjs.com/package/dsh-vps-manager">npm</a>
+      <a href="https://aicivilization.github.io/deepseek-harness-vps/">姊妹项目 deepseek-harness-vps</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  document.querySelectorAll('.copy').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var code = btn.parentElement.querySelector('code');
+      var text = code ? code.innerText.replace(/^\$\s?/, '') : '';
+      var done = function(){
+        btn.classList.add('done'); btn.textContent = '已复制';
+        setTimeout(function(){ btn.classList.remove('done'); btn.textContent = '复制'; }, 1600);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, function(){ fallback(text, done); });
+      } else { fallback(text, done); }
+    });
+  });
+  function fallback(text, cb){
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); cb(); } catch(e){}
+    document.body.removeChild(ta);
+  }
+
+  var groups = Array.prototype.slice.call(document.querySelectorAll('.tabs')).map(function(bar){
+    return { tabs: Array.prototype.slice.call(bar.querySelectorAll('.tab')) };
+  });
+  groups.forEach(function(g){
+    g.tabs.forEach(function(tab){
+      tab.addEventListener('click', function(){
+        g.tabs.forEach(function(t){
+          t.setAttribute('aria-selected', t === tab ? 'true' : 'false');
+          var p = document.getElementById('p-' + t.dataset.tab);
+          if (p) p.classList.toggle('on', t === tab);
+        });
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
