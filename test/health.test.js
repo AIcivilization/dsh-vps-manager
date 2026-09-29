@@ -66,3 +66,36 @@ test('诊断汇总与反馈链接：带版本和注册情况，不带机器地�
   assert.ok(url.href.length < 8000, 'GitHub 对链接长度有上限')
   assert.match(diag.suggestUrl, /template=feature_request\.yml/)
 })
+
+// DSH 0.2 起安装插件时会按 package.json 的 peerDependencies 核对版本，不在范围里就拒装
+// （实测：0.2.0-rc.1 拒装 0.2.6，因为当时写的是 <0.2.0-0）。已验证过的版本必须都在范围里
+function parseVer(v) {
+  const [core, pre = ''] = String(v).split('-')
+  return { nums: core.split('.').map(Number), pre: pre ? pre.split('.') : [] }
+}
+function cmpVer(a, b) {
+  const x = parseVer(a)
+  const y = parseVer(b)
+  for (let i = 0; i < 3; i += 1) if (x.nums[i] !== y.nums[i]) return x.nums[i] - y.nums[i]
+  if (!x.pre.length || !y.pre.length) return y.pre.length - x.pre.length // 正式版大于预发布
+  for (let i = 0; i < Math.max(x.pre.length, y.pre.length); i += 1) {
+    const [p, q] = [x.pre[i], y.pre[i]]
+    if (p === undefined) return -1
+    if (q === undefined) return 1
+    const [np, nq] = [Number(p), Number(q)]
+    const d = Number.isNaN(np) || Number.isNaN(nq) ? String(p).localeCompare(String(q)) : np - nq
+    if (d) return d
+  }
+  return 0
+}
+
+test('已验证的 DSH 版本都在 package.json 声明的兼容范围里', async () => {
+  const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'))
+  const range = pkg.peerDependencies['@deepseek-ai/dsh-tools']
+  assert.equal(pkg.engines.dsh, range, 'engines.dsh 与 peerDependencies 要写成同一个范围')
+  const m = /^>=(\S+) <(\S+)$/.exec(range)
+  assert.ok(m, `范围写法要是 ">=最低 <上限"：${range}`)
+  for (const v of verifiedVersions()) {
+    assert.ok(cmpVer(v, m[1]) >= 0 && cmpVer(v, m[2]) < 0, `已验证的 ${v} 不在声明的范围 ${range} 里：DSH 会拒装`)
+  }
+})
