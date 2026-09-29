@@ -209,7 +209,7 @@ test('连通性保险：埋下的恢复任务会按时触发，取消后就不�
 
   const marker2 = join(home, 'reverted2')
   const armed2 = await armSafetyNet({ restore: `touch ${marker2}`, seconds: 3, alias: 'hk', runner, env })
-  await disarmSafetyNet({ pid: armed2.pid, alias: 'hk', runner, env })
+  await disarmSafetyNet({ pid: armed2.pid, id: armed2.id, alias: 'hk', runner, env })
   await new Promise((r) => setTimeout(r, 4500))
   await assert.rejects(access(marker2), '取消后不该再恢复')
 })

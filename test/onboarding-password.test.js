@@ -137,7 +137,7 @@ test('接口：密码对 → 放公钥、保存机器、用钥匙体检；审计
   assert.equal(res.keyInstalled, true)
   assert.deepEqual(res.fingerprints, ['256 SHA256:abcdef 1.2.3.4 (ED25519)'])
   assert.equal(s.installs.length, 1)
-  assert.match(s.installs[0].pubkey, /^ssh-ed25519 \S+ dsh-vps-manager$/, '放的是插件专用钥匙的公钥')
+  assert.match(s.installs[0].pubkey, /^ssh-ed25519 \S+ dsh-vps-manager(@[A-Za-z0-9._-]+)?$/, '放的是插件专用钥匙的公钥（备注带上电脑名）')
 
   const doc = await readHosts(s.env)
   assert.equal(doc.hosts['1-2-3-4'].note, '洛杉矶')

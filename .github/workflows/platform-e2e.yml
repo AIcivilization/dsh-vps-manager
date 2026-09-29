@@ -1,0 +1,91 @@
+# 在真的 Windows 和 Linux 电脑上，把用户会走的路走一遍（scripts/windows-e2e.mjs）：
+#   填密码添加机器 → 测连通 → 执行命令 → 远端任务 → 文件页 → 终端 → 卸载时撤销钥匙
+# Windows 机器用系统自带的 OpenSSH 客户端，连 WSL 里起的 Linux sshd；Linux 机器连本机 sshd。
+# macOS 由作者日常在用的机器实测。
+name: 跨平台实测
+
+on:
+  push:
+    branches: [main, 'windows-*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # 测试机的密码，故意带上命令行特殊字符（Windows 的 cmd 会处理 % ^ & | "）。下面配置 sshd 的两处要和它一致
+  E2E_PASSWORD: 'E2e Pass%PATH%!"x&y|z^w'
+  E2E_PORT: '2222'
+  E2E_USER: tester
+
+jobs:
+  e2e:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, windows-2025, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+
+      # —— Windows：WSL 里装一台 Debian 当服务器 ——
+      - name: WSL 里装 Linux
+        if: runner.os == 'Windows'
+        uses: Vampire/setup-wsl@v7.0.0
+        with:
+          distribution: Debian-12
+          wsl-version: 1
+          wsl-shell-user: root
+          additional-packages: openssh-server
+
+      - name: 配置 sshd（WSL）
+        if: runner.os == 'Windows'
+        shell: wsl-bash {0}
+        run: |
+          set -e
+          id tester >/dev/null 2>&1 || useradd -m -s /bin/bash tester
+          printf '%s\n' 'tester:E2e Pass%PATH%!"x&y|z^w' | chpasswd
+          mkdir -p /run/sshd /etc/ssh/sshd_config.d
+          ssh-keygen -A
+          printf 'Port 2222\nPasswordAuthentication yes\nKbdInteractiveAuthentication no\nUsePAM no\n' > /etc/ssh/sshd_config.d/e2e.conf
+          grep -q '^Include /etc/ssh/sshd_config.d' /etc/ssh/sshd_config || sed -i '1i Include /etc/ssh/sshd_config.d/*.conf' /etc/ssh/sshd_config
+          /usr/sbin/sshd -t
+
+      - name: 启动 sshd（WSL，后台常驻到任务结束）
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Start-Process -WindowStyle Hidden -FilePath wsl.exe -ArgumentList '-u', 'root', '--', '/usr/sbin/sshd', '-D', '-e'
+          for ($i = 0; $i -lt 60; $i++) {
+            $c = New-Object Net.Sockets.TcpClient
+            try { $c.Connect('127.0.0.1', 2222); $c.Close(); Write-Host 'sshd 已就绪'; exit 0 } catch { Start-Sleep -Seconds 1 }
+          }
+          Write-Error 'sshd 没起来'
+          exit 1
+
+      # —— Linux：本机 sshd ——
+      - name: 配置并启动 sshd（Linux）
+        if: runner.os == 'Linux'
+        run: |
+          set -e
+          sudo apt-get update -q
+          sudo apt-get install -y -q openssh-server
+          id tester >/dev/null 2>&1 || sudo useradd -m -s /bin/bash tester
+          printf '%s\n' 'tester:E2e Pass%PATH%!"x&y|z^w' | sudo chpasswd
+          sudo mkdir -p /run/sshd
+          printf 'Port 2222\nPasswordAuthentication yes\nKbdInteractiveAuthentication no\n' | sudo tee /etc/ssh/sshd_config.d/e2e.conf
+          sudo /usr/sbin/sshd -t
+          sudo /usr/sbin/sshd
+
+      - name: ssh 客户端版本
+        run: ssh -V
+
+      - name: 真跑一遍
+        run: node scripts/windows-e2e.mjs
