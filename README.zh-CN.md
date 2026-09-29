@@ -14,6 +14,7 @@
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2022.13-339933?logo=node.js&logoColor=white" alt="Node.js ≥ 22.13">
   <img src="https://img.shields.io/badge/native%20modules-0-brightgreen" alt="无需编译原生模块">
   <a href="https://github.com/AIcivilization/dsh-vps-manager/actions/workflows/dsh-compat.yml"><img src="https://github.com/AIcivilization/dsh-vps-manager/actions/workflows/dsh-compat.yml/badge.svg" alt="DSH 兼容性检查"></a>
+  <a href="https://github.com/AIcivilization/dsh-vps-manager/actions/workflows/platform-e2e.yml"><img src="https://github.com/AIcivilization/dsh-vps-manager/actions/workflows/platform-e2e.yml/badge.svg" alt="跨平台实测"></a>
   <img src="https://img.shields.io/github/stars/AIcivilization/dsh-vps-manager?style=social" alt="star">
 </p>
 <p>
@@ -35,9 +36,11 @@
 dsh plugin add dsh-vps-manager
 ```
 
-在 DeepSeek Harness（DSH）里管理你的 VPS：用命令查看服务器状态（不走模型、不花 token），跟 AI 说一句话让它登上服务器干活，要自己动手就在对话里打开真终端，常见软件和系统维护按菜谱完成。
+在 DeepSeek Harness（DSH）里管理你的 VPS：用命令查看服务器状态（不走模型、不花 token），跟 AI 说一句话让它登上服务器干活，要自己动手就在对话里打开真终端、传文件，常见软件和系统维护按菜谱完成。
 
-所有操作都通过 SSH 密钥登录，并共用同一套执行机制：会改东西的操作跑成远端任务，断线后在服务器上继续；同一台机器上的改动一个接一个执行；改配置文件前自动备份；改防火墙和 SSH 前，先在服务器上设好自动恢复；每次执行都记审计日志。
+**Windows、macOS、Linux 上的 DSH 都能用**，DSH Desktop 和命令行版 `dsh web` 都支持；家里、公司的几台电脑可以同时管同一台服务器。
+
+添加机器时填一次密码，之后一律用 SSH 钥匙登录。所有操作共用同一套执行机制：会改东西的操作跑成远端任务，断线后在服务器上继续；同一台机器上的改动一个接一个执行；改配置文件前自动备份；改防火墙和 SSH 前，先在服务器上设好自动恢复；每次执行都记审计日志。
 
 > **想把 DSH 本身装到 VPS 上？** 看姊妹项目 [deepseek-harness-vps](https://github.com/AIcivilization/deepseek-harness-vps)：在 VPS 上执行一条命令，装好带登录页、自动 HTTPS 的原版 DSH，从任何地方用浏览器访问，设置、API Key、插件市场都能正常用，DSH 出新版本时在页面上一键升级。两者可以配合：在 VPS 上的 DSH 里装上本插件，就能在对话里直接管理这台服务器。
 
@@ -56,8 +59,9 @@ dsh plugin add dsh-vps-manager
 | 三道保护 | 改文件先备份、校验失败自动还原；改防火墙和 SSH 前设连通性保险；长操作跑成远端任务，断线不中断 |
 | 按系统写命令 | 体检出系统、包管理器、init、权限、在跑的服务和容器，告诉模型按这台的实际情况写命令 |
 | 菜谱库 | 29 条可重复执行的菜谱（安装 7 · 配置 6 · 查询 16），AI 做成的事可以一句话存成菜谱 |
-| 设置页 | 添加向导（生成钥匙、放公钥）、从 `~/.ssh/config` 导入、基础配置、终端设置、卸载 |
-| 两种 DSH 都能用 | DSH Desktop 与 `dsh web`；终端连接过 DSH 登录校验、同源检查和插件令牌，默认只许本机打开 |
+| 设置页 | 一页表单添加机器（填一次密码，自动放好钥匙，密码不保存）、从 `~/.ssh/config` 导入、基础配置、终端设置、卸载 |
+| 三个平台、两种 DSH | Windows、macOS、Linux；DSH Desktop 与 `dsh web`。终端连接过 DSH 登录校验、同源检查和插件令牌，默认只许本机打开 |
+| 几台电脑一起管 | 每台电脑各有钥匙；改动在服务器上排队，写明是哪台电脑在改；回收站、备份、任务记录共用；卸载只撤销自己的钥匙 |
 | 装起来轻 | 不用原生模块（不编译 node-pty），运行时依赖只有 `ws` 与 `yaml` |
 
 ---
@@ -74,7 +78,7 @@ dsh plugin add dsh-vps-manager
 
 ## 目录
 
-- [三种用法](#三种用法) · [运行要求](#运行要求) · [安装](#安装) · [添加机器](#添加机器)
+- [三种用法](#三种用法) · [运行要求](#运行要求) · [各平台](#各平台) · [安装](#安装) · [添加机器](#添加机器) · [几台电脑管同一台服务器](#几台电脑管同一台服务器)
 - [在对话里选机器](#在对话里选机器) · [对话里的终端](#对话里的终端) · [对话里的文件管理](#对话里的文件管理) · [命令](#命令) · [跟 AI 说话](#跟-ai-说话)
 - [菜谱](#菜谱) · [设置页](#设置页) · [运行机制](#运行机制) · [它防不住什么](#它防不住什么)
 - [数据放在哪](#数据放在哪) · [反馈与建议](#反馈与建议) · [仓库内容](#仓库内容) · [开发](#开发)
@@ -94,11 +98,23 @@ dsh plugin add dsh-vps-manager
 
 ## 运行要求
 
-- DeepSeek Harness 0.1.5-rc.2 及以上（到 0.2.x）
-- Windows、macOS、Linux 都可以。Windows 用系统自带的「OpenSSH 客户端」（Windows 10 / 11 一般已经装好；没有的话在「设置 → 系统 → 可选功能」里添加）。Windows 版的 OpenSSH 不支持连接复用，每条命令都要重新连一次，比 Mac / Linux 慢零点几秒
+- DeepSeek Harness 0.1.5-rc.2 及以上（到 0.2.x），DSH Desktop 和 `dsh web` 都可以
+- Windows、macOS、Linux 任一系统（见下面的[各平台](#各平台)）
 - Node.js >= 22.13
 - **日常一律用 SSH 钥匙登录。** 密码只在添加机器时用一次（把钥匙放上去）；不支持需要输密码的 `sudo`
 - 会改系统的操作要求远端用户是 `root` 或有免密 `sudo`；只读查询不需要
+
+### 各平台
+
+| | Windows | macOS | Linux |
+|---|---|---|---|
+| SSH 客户端 | 系统自带的「OpenSSH 客户端」。Windows 10 / 11 一般已经装好，没有的话到「设置 → 系统 → 可选功能」添加 | 系统自带 | 系统自带；没有就装 `openssh-client` |
+| 连接速度 | Windows 版 OpenSSH 不支持连接复用，每条命令单独连一次，多零点几秒 | 复用一条连接，几十毫秒 | 复用一条连接，几十毫秒 |
+| 终端里复制 | 选中文字后 Ctrl+C（没选中时 Ctrl+C 是中断） | ⌘C | 选中文字后 Ctrl+C |
+| 数据位置里的 `~` | 用户目录 `C:\Users\你的用户名` | 家目录 | 家目录 |
+| 怎么验证的 | 每次推送代码，在 GitHub 的 Windows 2022、2025 上连真的服务器走完整流程 | 作者日常使用 | 每次推送代码连真的服务器走完整流程；每 6 小时拿最新 DSH 做兼容性检查 |
+
+功能在三个平台上完全一样：命令、AI 操作、终端、文件管理、菜谱、设置页、卸载都一样用。
 
 ---
 
@@ -114,7 +130,7 @@ dsh plugin add dsh-vps-manager
 
 想装 GitHub 上的最新代码（可能比 npm 上发布的版本新），把包名换成 `github:AIcivilization/dsh-vps-manager`。
 
-装好后**重启 DSH**，插件在 DSH 启动时加载。
+装好后**重启 DSH**，插件在 DSH 启动时加载。每个版本改了什么，见 [Releases](https://github.com/AIcivilization/dsh-vps-manager/releases)。
 
 卸载：打开 **DSH 设置 → VPS 管理**，拉到最下面点「卸载…」（见[设置页](#设置页)）。也可以在终端执行 `dsh plugin remove dsh-vps-manager` 后重启 DSH；这样只移除插件，机器清单、钥匙、SSH 配置和审计日志都会留着。
 
@@ -164,7 +180,7 @@ Windows、Mac、Linux 上的 DSH 可以各装一份插件，同时管同一台�
   - **绿**：选了，而且刚测过连得上
   - **红**：选了，但连不上。输入框下方写明原因（比如「SSH 配置里找不到这台机器」），旁边有「重试」；鼠标停在方块上也能看到原因
 
-  打开开关、打开这个对话、切回 DSH 窗口时都会现测一次（走复用连接时几十毫秒）；命令、AI 工具、终端每次连服务器的成败也会记下来，方块跟着变
+  打开开关、打开这个对话、切回 DSH 窗口时都会现测一次（走复用连接时几十毫秒，Windows 上零点几秒）；命令、AI 工具、终端每次连服务器的成败也会记下来，方块跟着变
 - **点一个方块**：这个对话进入 **VPS 模式**。之后的 `/vps-` 命令都作用在这台机器上；插件还会告诉模型「这个对话在操作哪台、是什么系统（包管理器、init、权限）、80/443 端口被哪个程序占着、在跑哪些服务和容器」，以及几条必须遵守的规矩（名字不许猜、systemd 管的服务只用 systemctl、查不到不许改成重启重装），模型按这个系统写命令，你说「这台」「服务器」它就知道指哪台
 - **VPS 模式下模型不能用本机 bash**：一调用就会被拦下，并提示它改用 VPS 工具。这样模型不会把服务器上的问题拿到你的电脑上去查。读文件、搜索这类工具不受影响
 - **再点一次**：退出 VPS 模式，方块变灰，本机 bash 恢复。没有绑定时**没有任何默认机器**：命令不执行，AI 必须写明要操作哪台
@@ -180,7 +196,7 @@ Windows、Mac、Linux 上的 DSH 可以各装一份插件，同时管同一台�
 
 对话头部 `VPS` 后面的 **`>_`** 按钮就是终端。绑定机器后点一下，输入框下方出现一个真正的终端，跟在 SSH 里操作一样（只有一台机器时，没绑定也可以直接点，会顺手绑上）：
 
-- 菜单脚本、`top`、`htop`、`vim`、`docker exec -it`、`mysql` 这类要反复按键的程序都能用，Ctrl+C、方向键、中文正常
+- 菜单脚本、`top`、`htop`、`vim`、`docker exec -it`、`mysql` 这类要反复按键的程序都能用，Ctrl+C、方向键、中文正常。复制：Mac 用 ⌘C；Windows、Linux 选中文字后按 Ctrl+C（没选中时 Ctrl+C 照常是中断）
 - 终端右上角三个圆按钮：
   - **红色 ×**：结束这个终端，服务器上的 shell 和里面正在跑的程序一起结束
   - **黄色 −**：最小化成输入框下方的一条横栏（显示「终端在后台运行 · 已开 N 分钟」），终端在后台继续跑；点横栏恢复
@@ -362,8 +378,8 @@ Windows、Mac、Linux 上的 DSH 可以各装一份插件，同时管同一台�
 - **卸载**：勾选要做的事，确认后执行，每一步显示结果。在 DSH Desktop 上可以直接移除插件，完成后一键重启 DSH；其他环境会给出要在终端执行的命令
   - 移除插件本身（默认勾选）
   - 移除 SSH 连接配置（默认勾选）：去掉 `~/.ssh/config` 顶部插件加的 `Include` 行，`config.d/dsh-vps.conf` 改名留作备份，两者都能找回
-  - 清理服务器上的插件目录 `~/.cache/dsh-vps`（有任务在跑的机器会跳过）
-  - 撤销插件钥匙在服务器上的登录权限（从 `authorized_keys` 删掉那一行，先备份）。如果这把钥匙是你登录某台服务器的唯一方式，撤销后就登不上了
+  - 清理服务器上的插件目录 `~/.cache/dsh-vps`（有任务在跑的机器会跳过；别的电脑上的插件也在管的机器会保留，因为这个目录是共用的）
+  - 撤销这台电脑的插件钥匙在服务器上的登录权限（从 `authorized_keys` 删掉这台电脑那一行，先备份；别的电脑的钥匙不动）。如果这把钥匙是你登录某台服务器的唯一方式，撤销后就登不上了
   - 删除插件专用钥匙、删除插件数据（机器清单、审计日志、自定义菜谱），删了不能恢复
 
   服务器上的项会先做，因为本机的配置和钥匙一删就连不上服务器了。除了前两项，其他默认都不勾选
@@ -379,8 +395,9 @@ Windows、Mac、Linux 上的 DSH 可以各装一份插件，同时管同一台�
 </p>
 
 - **一个引擎，三个入口**：设置页、`/vps-` 命令、AI 工具都走同一套执行引擎。脚本经 SSH 的标准输入送到服务器，先落成文件再执行，远端命令行里不拼任何外部数据
-- **连接复用**：同一台机器共用一条 SSH 主连接（OpenSSH ControlMaster），命令和连接检测走复用连接时只要几十毫秒
+- **连接复用**：同一台机器共用一条 SSH 主连接（OpenSSH ControlMaster），命令和连接检测走复用连接时只要几十毫秒。Windows 自带的 OpenSSH 不支持复用，改为每次新连
 - **远端任务**：会改东西的操作在服务器的 `~/.cache/dsh-vps/` 下跑成任务，带锁，断线后继续；可以随时接回来看日志
+- **几台电脑**：锁、任务记录、备份、回收站都放在服务器上，几台电脑上的插件看到的是同一份，改动自动排队
 - **终端**：伪终端由 `ssh -tt` 在服务器上申请，浏览器经 WebSocket 连到插件；连接断了会话保留一段时间，接回时从断开处补发输出
 - **给模型的说明**：对话进入 VPS 模式时，插件把这台机器的系统、服务、容器和必须遵守的规则附给模型；模型在 VPS 模式下不能用本机 bash
 
@@ -405,9 +422,11 @@ Windows、Mac、Linux 上的 DSH 可以各装一份插件，同时管同一台�
 | `$DSH_HOME/vps-manager/audit/` | 审计日志：每次执行一行 JSON（来源、机器、动作、档位、结果），按月分文件，保留 6 个月 |
 | `~/.ssh/config.d/dsh-vps.conf` | 插件维护的 SSH 连接配置 |
 | `~/.ssh/dsh_vps_ed25519` | 插件生成的专用钥匙 |
-| 服务器上的 `~/.cache/dsh-vps/` | 远端任务目录、日志、文件备份 |
+| 服务器上的 `~/.cache/dsh-vps/` | 远端任务目录、日志、文件备份、回收站（几台电脑共用） |
 
-插件不读取私钥内容，密码也从不经过插件。
+`$DSH_HOME` 默认是 `~/.dsh`；Windows 上 `~` 指用户目录（`C:\Users\你的用户名`）。
+
+插件不读取私钥内容。添加机器时填的密码只用那一次，不写进任何文件，也不保存。
 
 ---
 
@@ -440,7 +459,7 @@ Windows、Mac、Linux 上的 DSH 可以各装一份插件，同时管同一台�
 | `scripts/compat-smoke.mjs` · `.github/workflows/dsh-compat.yml` | 兼容性检查：装上插件、启动真实 DSH 网页版逐项检查，每 6 小时跑一遍 DSH 的三个通道 |
 | `lib/client.js` | 界面：头部开关、终端面板、输入框下方提醒、设置页 |
 | `lib/routes.js` | 设置页接口 |
-| `lib/config.js` · `lib/onboarding.js` · `lib/ssh.js` | 机器清单、SSH 配置、添加向导、ssh 参数 |
+| `lib/config.js` · `lib/onboarding.js` · `lib/ssh.js` | 机器清单、SSH 配置、添加机器、ssh 参数 |
 | `lib/reboot.js` · `lib/uninstall.js` · `lib/audit.js` | 重启并等机器回来、卸载、审计日志 |
 | `test/` | 255 个测试 |
 | `scripts/windows-e2e.mjs` · `.github/workflows/platform-e2e.yml` | 跨平台实测：在 GitHub 的 Windows 和 Linux 电脑上连真的 sshd，把添加机器、执行命令、文件页、终端、卸载走一遍 |

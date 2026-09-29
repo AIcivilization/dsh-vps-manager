@@ -14,6 +14,7 @@
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2022.13-339933?logo=node.js&logoColor=white" alt="Node.js ≥ 22.13">
   <img src="https://img.shields.io/badge/native%20modules-0-brightgreen" alt="No native modules to compile">
   <a href="https://github.com/AIcivilization/dsh-vps-manager/actions/workflows/dsh-compat.yml"><img src="https://github.com/AIcivilization/dsh-vps-manager/actions/workflows/dsh-compat.yml/badge.svg" alt="DSH compatibility check"></a>
+  <a href="https://github.com/AIcivilization/dsh-vps-manager/actions/workflows/platform-e2e.yml"><img src="https://github.com/AIcivilization/dsh-vps-manager/actions/workflows/platform-e2e.yml/badge.svg" alt="Cross-platform run"></a>
   <img src="https://img.shields.io/github/stars/AIcivilization/dsh-vps-manager?style=social" alt="star">
 </p>
 <p>
@@ -35,9 +36,11 @@
 dsh plugin add dsh-vps-manager
 ```
 
-Manage your VPS from DeepSeek Harness (DSH): check server status with commands that skip the model and cost no tokens, tell the AI what to do and let it work on the server, open a real terminal in the conversation when you want to do it yourself, and handle common installs and maintenance with recipes.
+Manage your VPS from DeepSeek Harness (DSH): check server status with commands that skip the model and cost no tokens, tell the AI what to do and let it work on the server, open a real terminal or move files in the conversation when you want to do it yourself, and handle common installs and maintenance with recipes.
 
-Everything goes over SSH key login and shares one execution mechanism: operations that change things run as remote tasks and keep going if the connection drops; changes on the same machine run one at a time; config files are backed up before they are edited; an automatic restore is set up on the server before firewall or SSH changes; and every run is written to an audit log.
+**It works with DSH on Windows, macOS and Linux**, in both DSH Desktop and command-line `dsh web`, and several computers (home, office) can manage the same server at the same time.
+
+You enter the password once when adding a machine; from then on everything uses SSH key login and shares one execution mechanism: operations that change things run as remote tasks and keep going if the connection drops; changes on the same machine run one at a time; config files are backed up before they are edited; an automatic restore is set up on the server before firewall or SSH changes; and every run is written to an audit log.
 
 > **Want DSH itself running on your VPS?** See the sister project [deepseek-harness-vps](https://github.com/AIcivilization/deepseek-harness-vps): one command on the VPS installs stock DSH behind a login page with automatic HTTPS, reachable from any browser, with settings, API keys and the plugin market all working, and new DSH releases upgraded with one click in the page. The two work together: install this plugin in the DSH on your VPS and manage that server right from the conversation.
 
@@ -56,8 +59,9 @@ Everything goes over SSH key login and shares one execution mechanism: operation
 | Three safeguards | Files are backed up before editing and restored if validation fails; a connectivity safety net before firewall and SSH changes; long operations run as remote tasks that survive disconnects |
 | Commands that fit the system | A health check finds the OS, package manager, init system, privilege, running services and containers, and the model is told to write commands for that machine |
 | Recipe library | 29 repeatable recipes (7 install · 6 configure · 16 query); anything the AI gets working can be saved as a recipe in one sentence |
-| Settings page | Add-machine wizard (key generation, public key placement), import from `~/.ssh/config`, baseline configuration, terminal settings, uninstall |
-| Both kinds of DSH | DSH Desktop and `dsh web`; terminal connections pass DSH's sign-in check, a same-origin check and the plugin token, and open only on the local computer by default |
+| Settings page | Add a machine with one form (enter the password once, the key is put in place for you, the password is not stored), import from `~/.ssh/config`, baseline configuration, terminal settings, uninstall |
+| Three platforms, both kinds of DSH | Windows, macOS, Linux; DSH Desktop and `dsh web`. Terminal connections pass DSH's sign-in check, a same-origin check and the plugin token, and open only on the local computer by default |
+| Several computers, one server | Each computer has its own key; changes queue on the server and say which computer is making them; trash, backups and task records are shared; uninstalling revokes only that computer's key |
 | Light install | No native modules (no node-pty to compile); the only runtime dependencies are `ws` and `yaml` |
 
 ---
@@ -74,7 +78,7 @@ Everything goes over SSH key login and shares one execution mechanism: operation
 
 ## Contents
 
-- [Three ways to use it](#three-ways-to-use-it) · [Requirements](#requirements) · [Install](#install) · [Adding a machine](#adding-a-machine)
+- [Three ways to use it](#three-ways-to-use-it) · [Requirements](#requirements) · [Platforms](#platforms) · [Install](#install) · [Adding a machine](#adding-a-machine) · [Several computers, one server](#several-computers-one-server)
 - [Choosing a machine in a conversation](#choosing-a-machine-in-a-conversation) · [Terminal in the conversation](#terminal-in-the-conversation) · [Files in the conversation](#files-in-the-conversation) · [Commands](#commands) · [Talking to the AI](#talking-to-the-ai)
 - [Recipes](#recipes) · [Settings page](#settings-page) · [How it works](#how-it-works) · [What it does not protect against](#what-it-does-not-protect-against)
 - [Where data lives](#where-data-lives) · [Feedback and suggestions](#feedback-and-suggestions) · [Repository layout](#repository-layout) · [Development](#development)
@@ -94,11 +98,23 @@ Everything goes over SSH key login and shares one execution mechanism: operation
 
 ## Requirements
 
-- DeepSeek Harness 0.1.5-rc.2 or later (up to 0.2.x)
-- Windows, macOS or Linux. On Windows the built-in "OpenSSH Client" is used (usually already installed on Windows 10 / 11; otherwise add it under Settings → System → Optional features). The Windows build of OpenSSH has no connection sharing, so every command opens a new connection and is a fraction of a second slower than on a Mac or Linux
+- DeepSeek Harness 0.1.5-rc.2 or later (up to 0.2.x), DSH Desktop or `dsh web`
+- Windows, macOS or Linux (see [Platforms](#platforms) below)
 - Node.js >= 22.13
 - **Everyday logins use an SSH key.** A password is used only once, when adding a machine, to put the key in place. `sudo` that asks for a password is not supported
 - Operations that change the system need the remote user to be `root` or to have passwordless `sudo`; read-only queries do not
+
+### Platforms
+
+| | Windows | macOS | Linux |
+|---|---|---|---|
+| SSH client | The built-in "OpenSSH Client". Usually already installed on Windows 10 / 11; otherwise add it under Settings → System → Optional features | Built in | Built in; otherwise install `openssh-client` |
+| Speed | The Windows build of OpenSSH has no connection sharing, so each command opens its own connection, a fraction of a second more | One shared connection, tens of milliseconds | One shared connection, tens of milliseconds |
+| Copying in the terminal | Select text, then Ctrl+C (with nothing selected, Ctrl+C interrupts) | ⌘C | Select text, then Ctrl+C |
+| `~` in data locations | Your user folder, `C:\Users\yourname` | Home directory | Home directory |
+| How it is verified | On every push, GitHub's Windows 2022 and 2025 machines go through the full flow against a real server | The author's daily machine | On every push, the full flow against a real server; every 6 hours, a compatibility check against the latest DSH |
+
+Everything works the same on all three: commands, the AI, the terminal, the Files page, recipes, the settings page and uninstall.
 
 ---
 
@@ -114,7 +130,7 @@ dsh plugin add dsh-vps-manager
 
 For the latest code on GitHub (possibly newer than the release on npm), use `github:AIcivilization/dsh-vps-manager` as the package name instead.
 
-**Restart DSH** afterwards. Plugins are loaded when DSH starts.
+**Restart DSH** afterwards. Plugins are loaded when DSH starts. What changed in each version is listed under [Releases](https://github.com/AIcivilization/dsh-vps-manager/releases).
 
 To uninstall, open **DSH Settings → VPS Manager**, scroll to the bottom and click "Uninstall…" (see [Settings page](#settings-page)). You can also run `dsh plugin remove dsh-vps-manager` in a terminal and restart DSH; that removes only the plugin and keeps the machine list, keys, SSH configuration and audit log.
 
@@ -164,7 +180,7 @@ The conversation header has a **VPS switch**: the word `VPS`, then the terminal 
   - **Green**: selected, and just checked to be reachable
   - **Red**: selected, but unreachable. The reason is shown below the input box (for example "the SSH configuration has no entry for this machine") with a retry button; hovering the square shows it too
 
-  A live check runs when you turn the switch on, open the conversation, or come back to the DSH window (tens of milliseconds over the shared connection). Every command, AI tool call and terminal connection also records whether it reached the server, and the square follows
+  A live check runs when you turn the switch on, open the conversation, or come back to the DSH window (tens of milliseconds over the shared connection, a fraction of a second on Windows). Every command, AI tool call and terminal connection also records whether it reached the server, and the square follows
 - **Click a square**: this conversation enters **VPS mode**. From then on `/vps-` commands act on that machine, and the plugin tells the model which machine this conversation operates on, what system it runs (package manager, init system, privilege), which program holds ports 80/443, which services and containers are running, plus a few rules it must follow (never guess names, handle systemd services only through systemctl, never turn a failed lookup into a restart or reinstall). The model writes commands for that system, and knows what you mean by "this machine" or "the server"
 - **In VPS mode the model cannot use local bash**: a call is refused with a pointer to the VPS tools, so the model does not investigate server problems on your own computer. Reading files, searching and similar tools are unaffected
 - **Click it again**: VPS mode ends, the square turns grey, and local bash is available again. With nothing bound there is **no default machine at all**: commands do not run, and the AI must name the machine it operates on
@@ -180,7 +196,7 @@ Nothing is shown below the input box, except a single line in three cases: a tas
 
 The **`>_`** button right after `VPS` in the conversation header is the terminal. Once a machine is bound, click it and a real terminal opens below the input box, working just like an SSH session (with only one machine you can click it before binding, and it binds that machine for you):
 
-- Menu scripts, `top`, `htop`, `vim`, `docker exec -it`, `mysql` and other programs that need keystrokes all work, as do Ctrl+C, arrow keys and CJK text
+- Menu scripts, `top`, `htop`, `vim`, `docker exec -it`, `mysql` and other programs that need keystrokes all work, as do Ctrl+C, arrow keys and CJK text. To copy: ⌘C on a Mac; on Windows and Linux, select text and press Ctrl+C (with nothing selected, Ctrl+C interrupts as usual)
 - Three round buttons at the top right of the terminal:
   - **Red ×**: end this terminal; the shell on the server and anything running in it end too
   - **Yellow −**: minimize to a bar below the input box ("terminal running in the background · open N minutes"); the terminal keeps running, and clicking the bar brings it back
@@ -362,8 +378,8 @@ Your own recipes are treated as untrusted: their risk level is the stricter of w
 - **Uninstall**: tick what to do, confirm, and see the result of each step. On DSH Desktop the plugin can be removed directly, followed by a one-click DSH restart; elsewhere you get the terminal command to run
   - Remove the plugin itself (ticked by default)
   - Remove the SSH connection settings (ticked by default): the `Include` line the plugin added at the top of `~/.ssh/config` is removed and `config.d/dsh-vps.conf` is renamed as a backup, so both can be restored
-  - Clean up the plugin directory `~/.cache/dsh-vps` on the servers (machines with a running task are skipped)
-  - Revoke the plugin key's login access on the servers (its line is removed from `authorized_keys`, after a backup). If that key is your only way into a server, you will be locked out
+  - Clean up the plugin directory `~/.cache/dsh-vps` on the servers (machines with a running task are skipped, and so are machines another computer's plugin also manages, because that directory is shared)
+  - Revoke this computer's plugin key on the servers (this computer's line is removed from `authorized_keys`, after a backup; other computers' keys are left alone). If that key is your only way into a server, you will be locked out
   - Delete the plugin's dedicated key, and delete the plugin data (machine list, audit log, your own recipes); these cannot be restored
 
   Server-side items run first, because once the local configuration and key are gone the servers can no longer be reached. Only the first two items are ticked by default
@@ -379,8 +395,9 @@ The settings page's backend only accepts same-origin JSON requests carrying a to
 </p>
 
 - **One engine, three entry points**: the settings page, `/vps-` commands and the AI tools share one execution engine. Scripts reach the server on SSH's standard input and are written to a file before they run, so no outside data is ever spliced into the remote command line
-- **Shared connections**: each machine uses one SSH master connection (OpenSSH ControlMaster), so commands and connection checks over it take tens of milliseconds
+- **Shared connections**: each machine uses one SSH master connection (OpenSSH ControlMaster), so commands and connection checks over it take tens of milliseconds. The OpenSSH that ships with Windows cannot share connections, so there each command connects afresh
 - **Remote tasks**: operations that change things run as tasks under `~/.cache/dsh-vps/` on the server, with a lock, and keep going after a disconnect; you can reattach and read the log at any time
+- **Several computers**: the lock, task records, backups and trash live on the server, so the plugins on every computer see the same ones and changes queue automatically
 - **Terminal**: the pseudo-terminal is requested on the server with `ssh -tt`, and the browser reaches the plugin over a WebSocket; if the connection drops, the session is kept for a while and the missed output is replayed on reconnect
 - **What the model is told**: when a conversation enters VPS mode, the plugin gives the model that machine's system, services, containers and the rules it must follow; in VPS mode the model cannot use local bash
 
@@ -405,9 +422,11 @@ The settings page's backend only accepts same-origin JSON requests carrying a to
 | `$DSH_HOME/vps-manager/audit/` | Audit log: one JSON line per run (source, machine, action, level, result), one file per month, kept for 6 months |
 | `~/.ssh/config.d/dsh-vps.conf` | SSH connection settings maintained by the plugin |
 | `~/.ssh/dsh_vps_ed25519` | The dedicated key the plugin generates |
-| `~/.cache/dsh-vps/` on the server | Remote task directories, logs, file backups |
+| `~/.cache/dsh-vps/` on the server | Remote task directories, logs, file backups, trash (shared by all your computers) |
 
-The plugin never reads private key contents, and passwords never pass through it.
+`$DSH_HOME` defaults to `~/.dsh`; on Windows `~` is your user folder (`C:\Users\yourname`).
+
+The plugin never reads private key contents. The password you enter when adding a machine is used for that one login only; it is never written to a file or stored.
 
 ---
 
@@ -440,7 +459,7 @@ Errors the plugin runs into itself (registration failures, backend errors, inter
 | `scripts/compat-smoke.mjs` · `.github/workflows/dsh-compat.yml` | Compatibility check: install the plugin, boot a real DSH web app and check each part, against DSH's three release channels every 6 hours |
 | `lib/client.js` | Interface: header switch, terminal panel, notices below the input box, settings page |
 | `lib/routes.js` | Settings page backend |
-| `lib/config.js` · `lib/onboarding.js` · `lib/ssh.js` | Machine list, SSH configuration, add-machine wizard, ssh arguments |
+| `lib/config.js` · `lib/onboarding.js` · `lib/ssh.js` | Machine list, SSH configuration, adding machines, ssh arguments |
 | `lib/reboot.js` · `lib/uninstall.js` · `lib/audit.js` | Reboot and wait for the machine, uninstall, audit log |
 | `test/` | 255 tests |
 | `scripts/windows-e2e.mjs` · `.github/workflows/platform-e2e.yml` | Cross-platform run against a real sshd on GitHub's Windows and Linux machines: adding a machine, running commands, the Files page, the terminal, uninstalling |
