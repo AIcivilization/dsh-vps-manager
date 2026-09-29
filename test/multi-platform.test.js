@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { deviceName, homeDir, paths, sshConfigPath, upsertDropinHost, writeHosts } from '../lib/config.js'
 import { STATUS, runRemote } from '../lib/engine.js'
-import { keyComment, sshCopyIdCommand } from '../lib/onboarding.js'
+import { keyComment, knownFingerprints, sshCopyIdCommand } from '../lib/onboarding.js'
 import { loadRecipes } from '../lib/recipes.js'
 import { runProcess } from '../lib/spawn.js'
 import { baseOptions, canMultiplex, classifySshFailure, noSshClientHint, sshArgs, sshCloseMaster } from '../lib/ssh.js'
@@ -63,6 +63,22 @@ test('写进连接配置的钥匙路径用 ssh 认得的写法', async () => {
   await upsertDropinHost({ alias: 'hk', hostname: '1.2.3.4', port: 22, user: 'root', identityFile: 'C:\\Users\\10047\\.ssh\\dsh_vps_ed25519' }, env)
   const conf = await readFile(paths(env).sshDropin, 'utf8')
   assert.match(conf, /IdentityFile C:\/Users\/10047\/\.ssh\/dsh_vps_ed25519\n/)
+})
+
+test('指纹从 known_hosts 读（Windows 的 ssh-keyscan 取不到）：整理成界面认的写法，哈希过的也认', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'dsh-vps-kh-'))
+  const key = join(dir, 'hostkey')
+  await runProcess('ssh-keygen', ['-q', '-t', 'ed25519', '-N', '', '-f', key])
+  const pub = (await readFile(`${key}.pub`, 'utf8')).trim().split(' ').slice(0, 2).join(' ')
+  const kh = join(dir, 'known_hosts')
+  await writeFile(kh, `[1.2.3.4]:2222 ${pub}\nexample.com ${pub}\n`)
+  const custom = await knownFingerprints({ hostname: '1.2.3.4', port: 2222, knownHostsFile: kh })
+  assert.equal(custom.length, 1)
+  assert.match(custom[0], /^SHA256:\S+ \[1\.2\.3\.4\]:2222 \(ED25519\)$/)
+  assert.equal((await knownFingerprints({ hostname: 'example.com', knownHostsFile: kh })).length, 1)
+  await runProcess('ssh-keygen', ['-H', '-f', kh])
+  assert.equal((await knownFingerprints({ hostname: '1.2.3.4', port: 2222, knownHostsFile: kh })).length, 1, '哈希过的 known_hosts')
+  assert.deepEqual(await knownFingerprints({ hostname: '5.6.7.8', knownHostsFile: kh }), [])
 })
 
 test('钥匙权限太宽：单独说清楚，不当成「公钥没放上去」', () => {

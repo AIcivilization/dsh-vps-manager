@@ -41,6 +41,7 @@ const { bindSession, paths } = await import('../lib/config.js')
 const { checkReach } = await import('../lib/reach.js')
 const { STATUS, runRemote } = await import('../lib/engine.js')
 const { runUninstall } = await import('../lib/uninstall.js')
+const { scanFingerprint } = await import('../lib/onboarding.js')
 const { createMarkFilter, remoteScript, resizeScript, terminalSshArgs } = await import('../lib/terminal-server.js')
 const { shellQuote } = await import('../lib/payload.js')
 const { runProcess } = await import('../lib/spawn.js')
@@ -101,6 +102,14 @@ await step('填密码添加机器：放公钥、保存、用钥匙体检', async
   assert.equal(res.connected, true, `体检没过：${res.hint} ${JSON.stringify(res.probe)}`)
   assert.ok(res.fingerprints.length > 0, '没取到服务器指纹')
   return `钥匙 ${res.keyPath}\n指纹 ${res.fingerprints[0]}`
+})
+
+await step('机器设置页「查看指纹」：现扫不到时退回 known_hosts 里记下的', async () => {
+  const raw = await runProcess('ssh-keyscan', ['-p', String(PORT), '-T', '5', HOST], { timeoutMs: 15_000 }).catch((e) => ({ exitCode: e.code, stdout: '', stderr: e.message }))
+  const res = await scanFingerprint({ hostname: HOST, port: PORT })
+  assert.equal(res.ok, true, res.hint)
+  assert.match(res.fingerprints[0], /SHA256:\S+ .*\(\w+\)$/)
+  return `ssh-keyscan 退出码 ${raw.exitCode}，输出 ${raw.stdout.trim().split('\n').length} 行，stderr：${raw.stderr.trim().slice(0, 200) || '（无）'}\n用的是 ${res.source ?? 'ssh-keyscan'}：${res.fingerprints[0]}`
 })
 
 await step('ssh 按别名连得上（~/.ssh/config 的 Include + 插件的连接配置）', async () => {

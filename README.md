@@ -10,7 +10,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/github/license/AIcivilization/dsh-vps-manager" alt="MIT license"></a>
   <a href="https://www.npmjs.com/package/dsh-vps-manager"><img src="https://img.shields.io/npm/v/dsh-vps-manager?color=cb3837&logo=npm" alt="npm version"></a>
   <img src="https://img.shields.io/badge/DeepSeek%20Harness-%E2%89%A5%200.1.5--rc.2-4176E6" alt="DeepSeek Harness ≥ 0.1.5-rc.2">
-  <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-blue" alt="Platform: macOS / Linux">
+  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue" alt="Platform: Windows / macOS / Linux">
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2022.13-339933?logo=node.js&logoColor=white" alt="Node.js ≥ 22.13">
   <img src="https://img.shields.io/badge/native%20modules-0-brightgreen" alt="No native modules to compile">
   <a href="https://github.com/AIcivilization/dsh-vps-manager/actions/workflows/dsh-compat.yml"><img src="https://github.com/AIcivilization/dsh-vps-manager/actions/workflows/dsh-compat.yml/badge.svg" alt="DSH compatibility check"></a>
@@ -94,10 +94,10 @@ Everything goes over SSH key login and shares one execution mechanism: operation
 
 ## Requirements
 
-- DeepSeek Harness 0.1.5-rc.2 (tested on DSH Desktop 2.0.10)
-- macOS or Linux. The plugin relies on OpenSSH connection sharing, which the OpenSSH bundled with Windows does not support
+- DeepSeek Harness 0.1.5-rc.2 or later (up to 0.2.x)
+- Windows, macOS or Linux. On Windows the built-in "OpenSSH Client" is used (usually already installed on Windows 10 / 11; otherwise add it under Settings → System → Optional features). The Windows build of OpenSSH has no connection sharing, so every command opens a new connection and is a fraction of a second slower than on a Mac or Linux
 - Node.js >= 22.13
-- **SSH key login only.** Password login is not supported, and neither is `sudo` that asks for a password
+- **Everyday logins use an SSH key.** A password is used only once, when adding a machine, to put the key in place. `sudo` that asks for a password is not supported
 - Operations that change the system need the remote user to be `root` or to have passwordless `sudo`; read-only queries do not
 
 ---
@@ -139,6 +139,18 @@ Click **Save and connect**:
 A wrong password, a server that refuses password logins, or a changed fingerprint is explained right in the form. For a **key-only server**, expand "No password?" under the form: paste the public key into your provider's "SSH keys" page, or run a one-line command on a server you can already log in to, then click "The public key is in place, connect".
 
 Machines already defined in `~/.ssh/config` can be taken over with "Import from ~/.ssh/config". The plugin never rewrites what you wrote in `~/.ssh/config`.
+
+On Windows the paths are the same, with `~` meaning your user folder (for example `C:\Users\yourname`).
+
+### Several computers, one server
+
+DSH on Windows, a Mac and Linux can each have the plugin installed and manage the same server at the same time:
+
+- Each computer has its own key, so **add the machine once on each computer** (entering the password each time). The server's `authorized_keys` gets one line per computer, commented `dsh-vps-manager@computer-name`, so you can tell them apart
+- Changes **queue up on the server**: while one computer's change task is running, a change started from another computer is told "another change task is running", along with which computer started it. Queries, the terminal and browsing files are not affected
+- Task records, backups taken before editing files, and the Files page **trash are shared** on the server: something moved to the trash from the Mac can be restored from Windows
+- Two computers editing the same file: the one that saves second is told the file has changed, instead of silently overwriting it
+- Uninstalling on one computer revokes only that computer's key; while other computers still use the server, the shared folder on it is kept
 
 ---
 

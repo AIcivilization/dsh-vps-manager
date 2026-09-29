@@ -10,7 +10,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/github/license/AIcivilization/dsh-vps-manager" alt="MIT 许可证"></a>
   <a href="https://www.npmjs.com/package/dsh-vps-manager"><img src="https://img.shields.io/npm/v/dsh-vps-manager?color=cb3837&logo=npm" alt="npm 版本"></a>
   <img src="https://img.shields.io/badge/DeepSeek%20Harness-%E2%89%A5%200.1.5--rc.2-4176E6" alt="DeepSeek Harness ≥ 0.1.5-rc.2">
-  <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-blue" alt="平台：macOS / Linux">
+  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue" alt="平台：Windows / macOS / Linux">
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2022.13-339933?logo=node.js&logoColor=white" alt="Node.js ≥ 22.13">
   <img src="https://img.shields.io/badge/native%20modules-0-brightgreen" alt="无需编译原生模块">
   <a href="https://github.com/AIcivilization/dsh-vps-manager/actions/workflows/dsh-compat.yml"><img src="https://github.com/AIcivilization/dsh-vps-manager/actions/workflows/dsh-compat.yml/badge.svg" alt="DSH 兼容性检查"></a>
@@ -94,10 +94,10 @@ dsh plugin add dsh-vps-manager
 
 ## 运行要求
 
-- DeepSeek Harness 0.1.5-rc.2（在 DSH Desktop 2.0.10 上测试）
-- macOS 或 Linux。插件依赖 OpenSSH 的连接复用，Windows 自带的 OpenSSH 不支持
+- DeepSeek Harness 0.1.5-rc.2 及以上（到 0.2.x）
+- Windows、macOS、Linux 都可以。Windows 用系统自带的「OpenSSH 客户端」（Windows 10 / 11 一般已经装好；没有的话在「设置 → 系统 → 可选功能」里添加）。Windows 版的 OpenSSH 不支持连接复用，每条命令都要重新连一次，比 Mac / Linux 慢零点几秒
 - Node.js >= 22.13
-- **只支持 SSH 密钥登录。** 不支持密码登录，也不支持需要输密码的 `sudo`
+- **日常一律用 SSH 钥匙登录。** 密码只在添加机器时用一次（把钥匙放上去）；不支持需要输密码的 `sudo`
 - 会改系统的操作要求远端用户是 `root` 或有免密 `sudo`；只读查询不需要
 
 ---
@@ -139,6 +139,18 @@ dsh plugin add dsh-vps-manager
 密码不对、服务器不允许密码登录、指纹变了，都会在表单里直接说明。**服务器只允许密钥登录**的，展开表单下面的「没有密码？」：复制公钥粘到服务商后台的「SSH 密钥」里，或者复制一行命令到已经能登录的服务器上执行，放好后点「公钥已经放好了，直接连接」。
 
 `~/.ssh/config` 里已有的机器，可以用「从 ~/.ssh/config 导入」直接接管。插件不会改写你自己写的 `~/.ssh/config` 内容。
+
+Windows 上路径一样，只是 `~` 指你的用户目录（比如 `C:\Users\你的用户名`）。
+
+### 几台电脑管同一台服务器
+
+Windows、Mac、Linux 上的 DSH 可以各装一份插件，同时管同一台服务器，互不干扰：
+
+- 每台电脑有自己的钥匙，所以**每台电脑上都要添加一次**（各填一次密码）。服务器的 `authorized_keys` 里会有几行，备注是 `dsh-vps-manager@电脑名`，一眼看出是哪台电脑的
+- 会改东西的操作在服务器上**排队**：一台电脑的改动任务没做完，另一台发起的改动会提示「另一个改动任务在跑」，并写明是哪台电脑发起的。查询、终端、浏览文件不受影响
+- 服务器上的任务记录、改文件前的备份、文件页的**回收站是大家共用的**：在 Mac 上删进回收站的文件，在 Windows 上也能还原
+- 两台电脑编辑同一个文件：后保存的那台会提示「文件已经被改过」，不会悄悄覆盖
+- 在一台电脑上卸载：只撤销这台电脑的钥匙；别的电脑还在用这台服务器时，服务器上的共用目录保留
 
 ---
 
