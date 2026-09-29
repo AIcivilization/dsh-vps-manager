@@ -1,11 +1,11 @@
-import { test } from 'node:test'
+import { beforeEach, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { writeHosts } from '../lib/config.js'
 import { registerCommands } from '../lib/commands.js'
-import { apply } from '../lib/index.js'
+import { _resetInstanceGuard, apply } from '../lib/index.js'
 import { runProcess } from '../lib/spawn.js'
 import { buildToolDefinitions } from '../lib/tools.js'
 
@@ -82,6 +82,36 @@ async function sandbox() {
     })
   return { home, env, runner, sshOptions: { configFile: sshConfig } }
 }
+
+// 每个用例都是一次全新的 DSH：清掉「已经有一份在运行」的标记
+beforeEach(() => _resetInstanceGuard())
+
+test('同一个 DSH 里加载了两份（插件市场热挂载 + profile）：第二份让路，不报「已经注册过」；第一份卸载后能接班', async () => {
+  const home = await mkdtemp(join(tmpdir(), 'dsh-vps-twice-'))
+  const cfg = { env: { HOME: home, DSH_HOME: join(home, '.dsh') } }
+  const disposers = []
+  const first = fakeCtx()
+  first.effect = (fn) => { disposers.push(fn()) } // 仿 cordis：卸载时调用返回的函数
+  apply(first, cfg)
+  await new Promise((r) => setTimeout(r, 100))
+  assert.equal(first._commands.length, 21)
+
+  const second = fakeCtx()
+  apply(second, cfg)
+  await new Promise((r) => setTimeout(r, 100))
+  assert.equal(second._commands.length, 0, '第二份不注册命令')
+  assert.equal(second._tools.length, 0, '第二份不注册工具')
+  assert.equal(second._warnings.length, 1)
+  assert.match(second._warnings[0], /已经有一份本插件在运行/)
+  assert.doesNotMatch(second._warnings[0], /失败/, '让路不是失败，不进错误记录')
+
+  for (const d of disposers) d?.() // 第一份被卸载（市场里停用 / 热重载）
+  const third = fakeCtx()
+  apply(third, cfg)
+  await new Promise((r) => setTimeout(r, 100))
+  assert.equal(third._commands.length, 21, '第一份走了，新加载的那份正常接班')
+  assert.deepEqual(third._warnings, [])
+})
 
 test('apply：5 个工具、21 条命令、1 个 skill、本机 bash 守卫、VPS 模式监听，全部注册成功', async () => {
   const ctx = fakeCtx()
