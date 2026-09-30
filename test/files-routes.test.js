@@ -161,7 +161,7 @@ test('让 AI 看看：读出来、打码，下次跟 AI 说话时附上一次', 
   assert.deepEqual(takeSharedFiles('sess-1'), [], '只附一次')
 })
 
-test('下载：一次性票据，2 分钟内有效；文件原样传回', async () => {
+test('下载：票据 2 分钟内有效，期间可以重复用（下载工具会再请求一次）；文件原样传回', async () => {
   const s = await sandbox()
   await writeFile(join(s.site, '报告.txt'), '内容 123')
   const ticket = await s.call('download', { path: join(s.site, '报告.txt') })
@@ -188,7 +188,23 @@ test('下载：一次性票据，2 分钟内有效；文件原样传回', async 
 
   const again = streamRes()
   await fetch(get(ticket.url), again)
-  assert.equal(again.code, 403, '票据只能用一次')
+  await new Promise((r) => again.on('finish', r))
+  assert.equal(again.code, 200, '下载工具截走下载后会自己再请求一次，2 分钟内要能用')
+  assert.equal(again.body().toString(), '内容 123')
+
+  const wrong = streamRes()
+  await fetch(get('/api-vps/files/fetch?t=' + 'ab'.repeat(24)), wrong)
+  assert.equal(wrong.code, 403, '没发过的票据不行')
+
+  const realNow = Date.now
+  Date.now = () => realNow() + 121_000
+  try {
+    const late = streamRes()
+    await fetch(get(ticket.url), late)
+    assert.equal(late.code, 403, '过了 2 分钟就不能用了')
+  } finally {
+    Date.now = realNow
+  }
 })
 
 test('上传：请求体就是文件；要 token、要二进制类型；覆盖时先备份', async () => {
