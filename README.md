@@ -373,7 +373,7 @@ Your own recipes are treated as untrusted: their risk level is the stricter of w
 - **Basics**: fill in the state you want (timezone, swap size, BBR, automatic security updates, fail2ban, common CLI tools). On save, only the items that differ from the current state are run, each as a remote task with progress shown
 - **Global settings**: default confirmation level, safety-net duration, and whether changes may be made from the settings page when DSH's web server is open to the local network
 - **Terminal**: colour scheme (follow system / dark / light), font size, how long to keep the terminal after a disconnect, and whether the [terminal](#terminal-in-the-conversation) may be opened from other devices (off by default)
-- **Feedback and diagnostics**: plugin and DSH versions, registration status of each part, recent errors (masked); "report a problem" and "suggest" open a pre-filled GitHub issue
+- **Feedback and suggestions**: "report a problem" and "suggest" open a pre-filled GitHub issue; the diagnostics (plugin and DSH versions, registration status of each part, recent errors, masked) stay folded away until you click "diagnostics"
 - **Data location**
 - **Uninstall**: tick what to do, confirm, and see the result of each step. On DSH Desktop the plugin can be removed directly, followed by a one-click DSH restart; elsewhere you get the terminal command to run
   - Remove the plugin itself (ticked by default)
@@ -461,7 +461,7 @@ Errors the plugin runs into itself (registration failures, backend errors, inter
 | `lib/routes.js` | Settings page backend |
 | `lib/config.js` · `lib/onboarding.js` · `lib/ssh.js` | Machine list, SSH configuration, adding machines, ssh arguments |
 | `lib/reboot.js` · `lib/uninstall.js` · `lib/audit.js` | Reboot and wait for the machine, uninstall, audit log |
-| `test/` | 259 tests |
+| `test/` | 260 tests |
 | `scripts/windows-e2e.mjs` · `.github/workflows/platform-e2e.yml` | Cross-platform run against a real sshd on GitHub's Windows and Linux machines: adding a machine, running commands, the Files page, the terminal, uninstalling |
 
 ---
@@ -473,7 +473,7 @@ npm install
 npm test
 ```
 
-259 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend, the terminal connection (authentication, local-only access, input and output, window size, keeping and resuming after a disconnect, cleanup) and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`, along with whether the notice the plugin adds to a conversation is accepted by the host's session format.
+260 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend, the terminal connection (authentication, local-only access, input and output, window size, keeping and resuming after a disconnect, cleanup) and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`, along with whether the notice the plugin adds to a conversation is accepted by the host's session format.
 
 On every push, GitHub's Windows machines (2022 and 2025, with the OpenSSH that ships with Windows) and a Linux machine also each connect to a real sshd and follow the same path a user does: add a machine with a password, run commands, run a remote task, upload, download and edit on the Files page, open the terminal and resize it, and revoke the key on uninstall.
 

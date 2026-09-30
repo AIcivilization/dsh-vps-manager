@@ -82,6 +82,19 @@ test('设置页能渲染', async () => {
   assert.match(html, /卸载…/, '设置页底部要有卸载入口')
 })
 
+test('设置页的反馈卡片：平时只有按钮，诊断信息和报错记录收起来，不自动展示（用户定的）', async () => {
+  const { exported } = await loadClient()
+  const ctx = fakeSlots()
+  exported.apply(ctx)
+  const html = renderToStaticMarkup(React.createElement(ctx.registered.get('settings.section').component))
+  assert.match(html, /反馈与建议/)
+  assert.match(html, /反馈问题/)
+  assert.match(html, /提建议/)
+  assert.match(html, />诊断信息</, '诊断信息要自己点开')
+  assert.doesNotMatch(html, /反馈与诊断|最近的错误|各部分都正常|没注册成功/, '默认不展示诊断和报错')
+  assert.match(html, /issues\/new\?template=bug_report\.yml/, '诊断还没读到时，「反馈问题」照样能点')
+})
+
 test('每个请求都带 token 和 JSON 头（跨站网页读不到 token）', async () => {
   const calls = []
   const { exported } = await loadClient({
