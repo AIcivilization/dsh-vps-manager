@@ -261,3 +261,26 @@ test('界面：默认高度只放结论、需注意和「其余正常」一行�
   const open = renderToStaticMarkup(React.createElement(StatusView, { entry, c: termChrome('light'), maximized: false, visible: false }))
   assert.match(open, /插件占用/)
 })
+
+test('发到对话：同一句话已经在排队就不再排一条（AI 忙时连点，停掉后会留下删不掉的重复消息）', async () => {
+  const exported = await loadClient(null)
+  const sent = []
+  const input = {
+    snapshot: { draft: '', queue: [] },
+    setDraft(t) { this.snapshot = { ...this.snapshot, draft: t } },
+    async submit(mode) {
+      sent.push([this.snapshot.draft, mode])
+      this.snapshot = { ...this.snapshot, draft: '', queue: [...this.snapshot.queue, { content: [{ type: 'text', text: sent.at(-1)[0] }] }] }
+    },
+  }
+  const actx = { get: (n) => (n === 'conversation' ? { input: { for: () => input } } : undefined) }
+  exported.apply({
+    slots: { inject: () => {}, register: () => () => {} },
+    inject: (names, cb) => { if (names.includes('sessions')) cb({ get: (n) => (n === 'sessions' ? { scope: () => actx } : undefined), effect() {} }) },
+  })
+  const { sendToChat } = exported.__test
+  assert.equal(await sendToChat('s1', '看看这个文件'), 'sent')
+  assert.equal(await sendToChat('s1', '看看这个文件'), 'queued', '已经在排队')
+  assert.equal(await sendToChat('s1', '另一个问题'), 'sent')
+  assert.deepEqual(sent, [['看看这个文件', 'queue'], ['另一个问题', 'queue']])
+})
