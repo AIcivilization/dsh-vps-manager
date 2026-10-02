@@ -208,6 +208,23 @@ await step('文件页：删到回收站、还原', async () => {
   assert.equal((await files('restore', { ids: [item.id] })).restored.length, 1)
 })
 
+await step('状态页签：一次 SSH 采完，规则判出需注意的项；打开时先给上次的结果', async () => {
+  const res = await api('status/collect', { sessionId: SESSION })
+  assert.equal(res.ok, true, res.error)
+  assert.ok(res.status, `没采到：${JSON.stringify(res.failed)}`)
+  const d = res.status.data
+  assert.ok(d.mem?.total > 0, '内存')
+  assert.ok(d.cores > 0, '核数')
+  assert.ok(d.cpu !== null, 'CPU 使用率')
+  assert.ok(d.disks.length > 0, '磁盘')
+  assert.ok(d.uptime > 0, '运行时长')
+  assert.ok(res.status.brief.includes('e2e'), '给 AI 的摘要')
+  const again = await api('status/get', { sessionId: SESSION })
+  assert.equal(again.status.collectedAt, res.status.collectedAt, '本机缓存')
+  console.log(`STATUS_JSON ${JSON.stringify(res.status)}`) // 给界面做效果检查用的真实数据
+  return `需注意 ${res.status.judged.attention.length} 项 · 正常 ${res.status.judged.ok.length} 项 · 取不到 ${res.status.judged.na.length} 项`
+})
+
 await step('终端：伪终端、命令回显、调整窗口大小、退出', async () => {
   const child = spawn('ssh', terminalSshArgs(ALIAS, remoteScript({ cols: 100, rows: 30 })), {
     stdio: ['pipe', 'pipe', 'pipe'],

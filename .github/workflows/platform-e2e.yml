@@ -6,7 +6,7 @@ name: 跨平台实测
 
 on:
   push:
-    branches: [main, 'windows-*']
+    branches: [main, 'windows-*', 'dev-*']
   pull_request:
   workflow_dispatch:
 
