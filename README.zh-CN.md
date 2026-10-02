@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="assets/logo.png" alt="dsh-vps-manager 标志" width="120">
+
 # dsh-vps-manager
 
 **在 DSH 中和 SSH 一样无感地使用 VPS，除了精选的部分常用命令之外，使用时还能让对话中的大模型对 VPS 进行操作。**

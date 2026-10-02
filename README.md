@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="assets/logo.png" alt="dsh-vps-manager logo" width="120">
+
 # dsh-vps-manager
 
 **Use your VPS inside DeepSeek Harness as seamlessly as over SSH: curated zero-token commands, plus the AI in the conversation can operate the server.**
