@@ -10,7 +10,7 @@ import React from 'react'
 import { bindSession, readState, writeHosts, writeState } from '../lib/config.js'
 import { _resetLang, withLang } from '../lib/i18n.js'
 import { registerRoutes } from '../lib/routes.js'
-import { STATUS_SCRIPT, collectStatus, interpretStatus, judge, parseStatus, readStatusCache, statusBrief } from '../lib/status.js'
+import { STATUS_SCRIPT, certLevel, collectStatus, interpretStatus, judge, parseStatus, readStatusCache, statusBrief } from '../lib/status.js'
 
 const HAN = /[一-鿿]/
 
@@ -283,4 +283,28 @@ test('发到对话：同一句话已经在排队就不再排一条（AI 忙时�
   assert.equal(await sendToChat('s1', '看看这个文件'), 'queued', '已经在排队')
   assert.equal(await sendToChat('s1', '另一个问题'), 'sent')
   assert.deepEqual(sent, [['看看这个文件', 'queue'], ['另一个问题', 'queue']])
+})
+
+test('证书：Caddy 里过期、配置也没有它的旧文件不报；6 天的 IP 证书按自己的有效期算；签发日期、来源都解析出来', () => {
+  const now = Date.parse('2026-10-02T12:00:00Z')
+  const d = parseStatus([
+    'cert=209.146.116.150|Sep 24 17:05:26 2026 GMT|caddy|Sep 18 01:05:27 2026 GMT|0',
+    'cert=dsh.example.com|Dec 18 14:25:31 2026 GMT|caddy|Sep 19 14:25:32 2026 GMT|1',
+    'cert=api.example.com|Dec 15 02:55:05 2026 GMT|caddy|Sep 16 02:55:06 2026 GMT|1',
+    'cert=ip.example.com|Oct  4 13:00:00 2026 GMT|caddy|Sep 27 21:00:00 2026 GMT|1',
+    'cert=gone.example.com|Sep 30 00:00:00 2026 GMT|caddy|Jul  2 00:00:00 2026 GMT|1',
+    'cert=old.example.com|Oct 20 00:00:00 2026 GMT|letsencrypt|Jul 22 00:00:00 2026 GMT|',
+  ].join('\n'))
+  assert.deepEqual(d.certs.find((c) => c.name === 'api.example.com'), { name: 'api.example.com', source: 'caddy', expires: '2026-12-15T02:55:05.000Z', starts: '2026-09-16T02:55:06.000Z', used: true })
+  const j = judge(d, now)
+  const level = Object.fromEntries(j.certs.map((c) => [c.name, c.level]))
+  assert.equal(level['209.146.116.150'], 'stale', '过期、配置里没有：旧文件')
+  assert.equal(level['gone.example.com'], 'danger', '过期但配置里还有：真出问题了')
+  assert.equal(level['ip.example.com'], 'ok', '6 天的证书剩 2 天是正常的')
+  assert.equal(level['old.example.com'], 'ok')
+  assert.deepEqual(j.attention.filter((i) => i.type === 'cert').map((i) => i.name), ['gone.example.com'])
+  const short = (expires) => certLevel({ expires, starts: '2026-09-27T00:00:00Z', source: 'caddy', used: true }, now).level
+  assert.equal(short('2026-10-03T22:00:00Z'), 'warn', '6 天多的证书只剩 1 天多：该续没续')
+  assert.equal(short('2026-10-03T02:00:00Z'), 'danger', '不到 1 天')
+  assert.match(statusBrief('la', d, j), /209\.146\.116\.150 已过期但 Caddy 配置里已没有它/)
 })

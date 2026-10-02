@@ -20,6 +20,8 @@ async function sandbox() {
       timeoutMs: opts.timeoutMs,
       onStdout: opts.onStdout,
       onStderr: opts.onStderr,
+      head: opts.head,
+      tail: opts.tail,
     })
   return { home, env, runner }
 }
@@ -195,4 +197,14 @@ test('审计日志记哈希不记全文', async () => {
   assert.equal(rows[0].scriptSha256.length, 64)
   assert.match(rows[0].scriptHead, /apt-get install/)
   assert.equal(rows[0].script, undefined, '不记完整脚本')
+})
+
+test('输出刚过 4000 字：结束标记不会被「已省略」切断，跑完的就是跑完（曾被当成连接中断）', async () => {
+  const { env, runner } = await sandbox()
+  for (let n = 3930; n <= 4010; n += 2) {
+    const res = await runRemote({ alias: 'hk', body: `head -c ${n} /dev/zero | tr '\\0' x; echo`, runner, env })
+    assert.equal(res.status, STATUS.done, `输出 ${n} 字时：${res.status}`)
+    assert.equal(res.truncated, false, '没丢东西就不算截断')
+    assert.doesNotMatch(res.stdout, /中间已省略/)
+  }
 })

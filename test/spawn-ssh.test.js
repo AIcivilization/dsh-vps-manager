@@ -124,3 +124,14 @@ test('别名解析不了：提示是连接配置不见了、重启 DSH 会自动
   assert.doesNotMatch(r.hint, /地址是否填错/)
   assert.equal(classifySshFailure('ssh: Could not resolve hostname 1.2.3: x', 255).reason, 'dns', '带点的当成地址')
 })
+
+test('CappedBuffer：头尾接得上（没丢东西）时原样拼回，不插「已省略」', () => {
+  const fits = new CappedBuffer(10, 10)
+  fits.push(Buffer.from('0123456789abcde'))
+  assert.deepEqual([fits.value().text, fits.value().truncated], ['0123456789abcde', false])
+  const over = new CappedBuffer(10, 10)
+  over.push(Buffer.from('0123456789ABCDEFGHIJabcdefghij'))
+  const v = over.value()
+  assert.equal(v.truncated, true)
+  assert.match(v.text, /^0123456789\n\n.*中间已省略.*\n\nabcdefghij$/s)
+})
