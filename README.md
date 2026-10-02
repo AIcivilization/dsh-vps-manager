@@ -36,7 +36,7 @@
 dsh plugin add dsh-vps-manager
 ```
 
-Manage your VPS from DeepSeek Harness (DSH): check server status with commands that skip the model and cost no tokens, tell the AI what to do and let it work on the server, open a real terminal or move files in the conversation when you want to do it yourself, and handle common installs and maintenance with recipes.
+Manage your VPS from DeepSeek Harness (DSH): check server status with commands that skip the model and cost no tokens, tell the AI what to do and let it work on the server, see how the server is doing on one page, open a real terminal or move files in the conversation when you want to do it yourself, and handle common installs and maintenance with recipes.
 
 **It works with DSH on Windows, macOS and Linux**, in both DSH Desktop and command-line `dsh web`, and several computers (home, office) can manage the same server at the same time.
 
@@ -54,6 +54,7 @@ You enter the password once when adding a machine; from then on everything uses 
 | VPS mode | One click in the conversation header and that conversation operates the server; each conversation has its own binding, so one window can work on the server while another keeps working on local code |
 | Real connection state | Header squares: grey not selected · yellow connecting · green connected · red unreachable, with the reason and a retry button |
 | Terminal in the conversation | A real terminal (xterm.js over `ssh -tt`) where menu scripts, `top` and `vim` work; red / yellow / green buttons to end, minimize and maximize; nothing lost when you minimize or switch conversations, and it reconnects after a drop |
+| Status in the conversation | One page for how the server is doing: rule-judged "needs attention" items first (failed services, full disks, expiring certificates, pending security updates), then resources, disks, services, containers, ports, firewall and more; click **Interpret** for a few sentences from DSH's default model |
 | Files in the conversation | A file browser for the server: drag in to upload, right-click to download, double-click to edit, deletes go to a trash you can restore from; backups before overwriting or editing; right-click "let the AI look at this file" |
 | AI on the server | 5 tools with risk-tiered confirmation: read-only runs automatically, changes ask you, dangerous commands ask again; levels can be set per machine, group or globally |
 | Three safeguards | Files are backed up before editing and restored if validation fails; a connectivity safety net before firewall and SSH changes; long operations run as remote tasks that survive disconnects |
@@ -80,7 +81,7 @@ You enter the password once when adding a machine; from then on everything uses 
 ## Contents
 
 - [Three ways to use it](#three-ways-to-use-it) · [Requirements](#requirements) · [Platforms](#platforms) · [Install](#install) · [Adding a machine](#adding-a-machine) · [Several computers, one server](#several-computers-one-server)
-- [Choosing a machine in a conversation](#choosing-a-machine-in-a-conversation) · [Terminal in the conversation](#terminal-in-the-conversation) · [Files in the conversation](#files-in-the-conversation) · [Commands](#commands) · [Talking to the AI](#talking-to-the-ai)
+- [Choosing a machine in a conversation](#choosing-a-machine-in-a-conversation) · [Terminal in the conversation](#terminal-in-the-conversation) · [Files in the conversation](#files-in-the-conversation) · [Status in the conversation](#status-in-the-conversation) · [Commands](#commands) · [Talking to the AI](#talking-to-the-ai)
 - [Recipes](#recipes) · [Settings page](#settings-page) · [How it works](#how-it-works) · [What it does not protect against](#what-it-does-not-protect-against)
 - [Where data lives](#where-data-lives) · [Feedback and suggestions](#feedback-and-suggestions) · [Repository layout](#repository-layout) · [Development](#development)
 
@@ -220,7 +221,7 @@ No native module has to be compiled on your machine: the pseudo-terminal on the 
 
 ## Files in the conversation
 
-The terminal panel's title bar has a **Terminal | Files** switch. Files is a file browser for the server this conversation is bound to:
+The terminal panel's title bar has a **Terminal | Files | Status** switch. Files is a file browser for the server this conversation is bound to:
 
 - **Browse**: common places on the left (home, the website directory, `/etc`, `/var/log`, root, trash) and a clickable path on top; click the empty part of the path to type one (`~` means home). Columns sort, and files starting with `.` are hidden until you turn on "show hidden files"
 - **Upload**: drag files in from your computer, or click Upload; there is a progress bar and you can cancel. Before overwriting, it asks, backs the original up to `~/.cache/dsh-vps/backups/` on the server, and **keeps its mode and owner**. New files get 644 and new folders 755, so web servers can read them. An upload that breaks off halfway leaves the original untouched
@@ -231,6 +232,21 @@ The terminal panel's title bar has a **Terminal | Files** switch. Files is a fil
 - Also: new folder, rename, copy path, and "open this folder in the terminal" (switches back and `cd`s there)
 - Every upload, download, edit, delete and restore is written to the audit log. Like the terminal, it opens only on the computer running DSH by default
 - It works as the SSH login user without escalating, so places that user cannot change say "permission denied"
+
+---
+
+## Status in the conversation
+
+The terminal panel's third tab, **Status**, shows on one page how the server bound to this conversation is doing:
+
+- **Switching to the tab takes one look** (about 2 seconds, read-only); after that it refreshes only when you click ↻. The panel still opens on Terminal, and nothing is collected until you switch to Status
+- **At the top** is the conclusion ("3 need attention · 9 OK") with host, system, kernel, uptime and privilege
+- **Needs attention** is judged by fixed rules, with no model involved: services that failed or are enabled at boot but not running, scheduled runs that failed, available memory under 10% / 5%, swap over half used, disks or inodes at 85% / 95%, load above the core count, containers that exited and will not restart, certificates expiring within 14 / 3 days, pending security updates, a reboot required, and 100+ failed logins in 24 hours without fail2ban. Each row has **Logs** (services and containers: shows the last 50 lines in the terminal), **Open** (disks: opens that directory in Files) and **Ask AI** (hands the item to the conversation)
+- **Everything else**: tiles for CPU, memory, swap and traffic; a usage bar per disk; cards for services, containers, the busiest processes by CPU and memory, listening ports (public or local only), firewall, scheduled tasks, certificates, security, and the plugin's own trash and backups. At normal height these fold into one "everything else is fine" line; maximize the panel or click **Show all** to see them
+- **AI interpretation**: click **Interpret** and DSH's default model reads the collected data and says in a few sentences how the machine is and what matters most. The model is called only when you click, it answers in the interface language, and the reading notes which look it was based on. **Ask in chat** carries it into the conversation to follow up
+- Things a non-root user cannot read (containers, firewall, failed logins) say so instead of guessing
+- The last look and reading are kept on this computer (`$DSH_HOME/vps-manager/status/`), so reopening the tab shows them at once; each of your computers keeps its own
+- A look also refreshes what VPS mode tells the AI about the machine (running services, containers, what holds ports 80/443)
 
 ---
 
@@ -421,6 +437,7 @@ The settings page's backend only accepts same-origin JSON requests carrying a to
 |---|---|
 | `$DSH_HOME/vps-manager/hosts.yml` | Machines, groups, confirmation levels (safe to edit by hand) |
 | `$DSH_HOME/vps-manager/state.json` | Health check results and which machine each conversation is bound to |
+| `$DSH_HOME/vps-manager/status/` | The last look from the Status tab and its AI reading, one file per machine |
 | `$DSH_HOME/vps-manager/recipes/` | Your own recipes |
 | `$DSH_HOME/vps-manager/audit/` | Audit log: one JSON line per run (source, machine, action, level, result), one file per month, kept for 6 months |
 | `~/.ssh/config.d/dsh-vps.conf` | SSH connection settings maintained by the plugin |
@@ -460,12 +477,13 @@ Errors the plugin runs into itself (registration failures, backend errors, inter
 | `lib/reach.js` | Connection checks (the colour of the header squares) |
 | `lib/health.js` · `lib/verified-dsh.json` | Self-diagnostics: registration results, DSH version verification, local error log, feedback link |
 | `scripts/compat-smoke.mjs` · `.github/workflows/dsh-compat.yml` | Compatibility check: install the plugin, boot a real DSH web app and check each part, against DSH's three release channels every 6 hours |
-| `lib/client.js` | Interface: header switch, terminal panel, notices below the input box, settings page |
+| `lib/client.js` | Interface: header switch, terminal panel (terminal, files, status), notices below the input box, settings page |
+| `lib/status.js` | The Status tab: the read-only collection script, rules, local cache and AI interpretation |
 | `lib/routes.js` | Settings page backend |
 | `lib/config.js` · `lib/onboarding.js` · `lib/ssh.js` | Machine list, SSH configuration, adding machines, ssh arguments |
 | `lib/reboot.js` · `lib/uninstall.js` · `lib/audit.js` | Reboot and wait for the machine, uninstall, audit log |
-| `test/` | 271 tests |
-| `scripts/windows-e2e.mjs` · `.github/workflows/platform-e2e.yml` | Cross-platform run against a real sshd on GitHub's Windows and Linux machines: adding a machine, running commands, the Files page, the terminal, uninstalling |
+| `test/` | 282 tests |
+| `scripts/windows-e2e.mjs` · `.github/workflows/platform-e2e.yml` | Cross-platform run against a real sshd on GitHub's Windows and Linux machines: adding a machine, running commands, the Files page, the Status page, the terminal, uninstalling |
 
 ---
 
@@ -476,7 +494,7 @@ npm install
 npm test
 ```
 
-271 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend, the terminal connection (authentication, local-only access, input and output, window size, keeping and resuming after a disconnect, cleanup) and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`, along with whether the notice the plugin adds to a conversation is accepted by the host's session format.
+282 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend, the terminal connection (authentication, local-only access, input and output, window size, keeping and resuming after a disconnect, cleanup), the status collection script and rules, and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`, along with whether the notice the plugin adds to a conversation is accepted by the host's session format.
 
 On every push, GitHub's Windows machines (2022 and 2025, with the OpenSSH that ships with Windows) and a Linux machine also each connect to a real sshd and follow the same path a user does: add a machine with a password, run commands, run a remote task, upload, download and edit on the Files page, open the terminal and resize it, and revoke the key on uninstall.
 
