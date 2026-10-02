@@ -62,6 +62,7 @@ You enter the password once when adding a machine; from then on everything uses 
 | Settings page | Add a machine with one form (enter the password once, the key is put in place for you, the password is not stored), import from `~/.ssh/config`, baseline configuration, terminal settings, uninstall |
 | Three platforms, both kinds of DSH | Windows, macOS, Linux; DSH Desktop and `dsh web`. Terminal connections pass DSH's sign-in check, a same-origin check and the plugin token, and open only on the local computer by default |
 | Several computers, one server | Each computer has its own key; changes queue on the server and say which computer is making them; trash, backups and task records are shared; uninstalling revokes only that computer's key |
+| English / 中文 | The interface follows the language set in DSH and switches instantly, without a reload; server messages, `/vps-` command output and recipe names follow too |
 | Light install | No native modules (no node-pty to compile); the only runtime dependencies are `ws` and `yaml` |
 
 ---
@@ -115,6 +116,8 @@ You enter the password once when adding a machine; from then on everything uses 
 | How it is verified | On every push, GitHub's Windows 2022 and 2025 machines go through the full flow against a real server | The author's daily machine | On every push, the full flow against a real server; every 6 hours, a compatibility check against the latest DSH |
 
 Everything works the same on all three: commands, the AI, the terminal, the Files page, recipes, the settings page and uninstall.
+
+**Interface language** follows DSH: pick English or 中文 under DSH Settings → General → Language, and the plugin's settings page, conversation header, terminal and Files panel switch at once; server errors and hints, `/vps-` command output, and recipe names and plans use the same language. Those are the two languages DSH ships today; with another language pack installed, the plugin shows English or Chinese according to the pack's declared fallback.
 
 ---
 
@@ -461,7 +464,7 @@ Errors the plugin runs into itself (registration failures, backend errors, inter
 | `lib/routes.js` | Settings page backend |
 | `lib/config.js` · `lib/onboarding.js` · `lib/ssh.js` | Machine list, SSH configuration, adding machines, ssh arguments |
 | `lib/reboot.js` · `lib/uninstall.js` · `lib/audit.js` | Reboot and wait for the machine, uninstall, audit log |
-| `test/` | 260 tests |
+| `test/` | 271 tests |
 | `scripts/windows-e2e.mjs` · `.github/workflows/platform-e2e.yml` | Cross-platform run against a real sshd on GitHub's Windows and Linux machines: adding a machine, running commands, the Files page, the terminal, uninstalling |
 
 ---
@@ -473,7 +476,7 @@ npm install
 npm test
 ```
 
-260 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend, the terminal connection (authentication, local-only access, input and output, window size, keeping and resuming after a disconnect, cleanup) and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`, along with whether the notice the plugin adds to a conversation is accepted by the host's session format.
+271 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend, the terminal connection (authentication, local-only access, input and output, window size, keeping and resuming after a disconnect, cleanup) and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`, along with whether the notice the plugin adds to a conversation is accepted by the host's session format.
 
 On every push, GitHub's Windows machines (2022 and 2025, with the OpenSSH that ships with Windows) and a Linux machine also each connect to a real sshd and follow the same path a user does: add a machine with a password, run commands, run a remote task, upload, download and edit on the Files page, open the terminal and resize it, and revoke the key on uninstall.
 

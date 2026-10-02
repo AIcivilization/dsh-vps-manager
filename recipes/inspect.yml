@@ -4,6 +4,8 @@ recipes:
     kind: query
     name: 出口 IP 与归属
     desc: 公网出口 IP、运营商、地理位置、反向解析
+    name_en: "Public IP and owner"
+    desc_en: "Public egress IP, provider, location, reverse DNS"
     tags: [网络, 基础]
     timeout: 30
     run: |
@@ -31,6 +33,8 @@ recipes:
     kind: query
     name: 占资源最多的进程
     desc: CPU 和内存占用前 10 的进程
+    name_en: "Top processes"
+    desc_en: "The 10 processes using the most CPU and memory"
     tags: [基础, 排查]
     timeout: 30
     run: |
@@ -50,6 +54,8 @@ recipes:
     kind: query
     name: 定时任务
     desc: crontab、/etc/cron.d 与 systemd 定时器
+    name_en: "Scheduled tasks"
+    desc_en: "crontab, /etc/cron.d and systemd timers"
     tags: [排查]
     timeout: 30
     run: |
@@ -69,6 +75,8 @@ recipes:
     kind: query
     name: 证书到期检查
     desc: Let's Encrypt 证书剩余天数
+    name_en: "Certificate expiry"
+    desc_en: "Days left on Let's Encrypt certificates"
     tags: [web, 安全]
     timeout: 60
     run: |
@@ -111,6 +119,8 @@ recipes:
     kind: query
     name: 防火墙状态
     desc: 当前生效的防火墙与规则概览（只看不改）
+    name_en: "Firewall status"
+    desc_en: "The active firewall and an overview of its rules (read-only)"
     tags: [安全, 网络]
     timeout: 30
     run: |
@@ -136,6 +146,8 @@ recipes:
     kind: query
     name: 可升级的包
     desc: 有哪些包可以升级（只查，不动系统，也不刷新软件源）
+    name_en: "Available updates"
+    desc_en: "Which packages can be upgraded (read-only; does not refresh the package index)"
     tags: [维护]
     timeout: 60
     run: |
@@ -168,6 +180,8 @@ recipes:
     kind: query
     name: 登录记录
     desc: 最近登录成功与失败的尝试（看有没有人在爆破）
+    name_en: "Login history"
+    desc_en: "Recent successful and failed logins (to spot brute-force attempts)"
     tags: [安全]
     timeout: 30
     run: |

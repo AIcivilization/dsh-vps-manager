@@ -4,6 +4,8 @@ recipes:
     kind: query
     name: 机器体检
     desc: 系统、init、权限、常用工具、资源概况（面板与向导用，输出为 key=value）
+    name_en: "Health check"
+    desc_en: "OS, init, privilege, common tools, resources (used by the panels and the wizard; output is key=value)"
     tags: [内部]
     timeout: 30
     run: |
@@ -65,6 +67,8 @@ recipes:
     kind: query
     name: 系统信息
     desc: CPU、内存、磁盘、系统版本、公网 IP、运行时长
+    name_en: "System info"
+    desc_en: "CPU, memory, disk, OS version, public IP, uptime"
     tags: [基础]
     timeout: 30
     run: |
@@ -92,6 +96,8 @@ recipes:
     kind: query
     name: 磁盘占用
     desc: 各挂载点、inode、以及根目录下最大的几个目录
+    name_en: "Disk usage"
+    desc_en: "Mount points, inodes, and the largest directories under /"
     tags: [基础]
     timeout: 60
     run: |
@@ -111,6 +117,8 @@ recipes:
     kind: query
     name: 端口监听
     desc: 正在监听的端口和对应进程
+    name_en: "Listening ports"
+    desc_en: "Ports being listened on and their processes"
     tags: [网络]
     timeout: 30
     run: |
@@ -128,6 +136,8 @@ recipes:
     kind: query
     name: 服务状态
     desc: 失败的服务和正在运行的服务
+    name_en: "Services"
+    desc_en: "Failed services and running services"
     tags: [基础]
     timeout: 30
     run: |
@@ -156,6 +166,8 @@ recipes:
     kind: query
     name: 网络与流量
     desc: 网卡地址、累计收发流量、连接数
+    name_en: "Network and traffic"
+    desc_en: "Interface addresses, cumulative traffic, connection count"
     tags: [网络]
     timeout: 30
     run: |
@@ -188,6 +200,8 @@ recipes:
     kind: query
     name: 容器列表
     desc: Docker 容器状态与磁盘占用
+    name_en: "Containers"
+    desc_en: "Docker container state and disk usage"
     tags: [docker]
     timeout: 30
     run: |
@@ -207,11 +221,14 @@ recipes:
     kind: query
     name: 服务日志
     desc: 某个服务最近 100 行日志
+    name_en: "Service logs"
+    desc_en: "The last 100 log lines of a service"
     tags: [排查]
     timeout: 60
     params:
       - name: service
         desc: 服务名，例如 nginx
+        desc_en: "Service name, e.g. nginx"
         pattern: '[A-Za-z0-9@._-]{1,64}'
         required: true
     run: |
@@ -237,6 +254,8 @@ recipes:
     kind: query
     name: 连通与负载
     desc: 快速看一眼这台机器是否正常
+    name_en: "Reachability and load"
+    desc_en: "A quick look at whether this machine is healthy"
     tags: [基础]
     timeout: 20
     run: |

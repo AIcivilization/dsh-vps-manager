@@ -4,6 +4,13 @@ recipes:
     kind: config
     name: 系统更新
     desc: 安装可用的软件包更新（不做大版本升级，默认不删除任何包）
+    name_en: "System update"
+    desc_en: "Install available package updates (no major-version upgrade, removes no packages by default)"
+    plan_en: |
+      1. Refresh the package index
+      2. Install available updates (on Debian-based systems upgrade, not full-upgrade, so nothing is removed to upgrade)
+      3. Keep your existing version when a config file conflicts
+      4. Report how many upgrades remain and whether a reboot is needed
     tags: [维护, 常用]
     risk: change
     timeout: 1800
@@ -70,6 +77,14 @@ recipes:
     kind: config
     name: 系统清理
     desc: 清理包管理器缓存与过期日志，回收磁盘空间
+    name_en: "System cleanup"
+    desc_en: "Clear package manager caches and old logs to free disk space"
+    plan_en: |
+      1. Empty the package manager's download cache
+      2. Trim the system journal to the given number of days
+      3. Remove packages nothing depends on only when remove_unused=yes (default: keep them)
+      4. Remove unused Docker images only when docker_images=yes (default: keep them)
+      5. Report free space before and after
     tags: [维护, 常用]
     risk: change
     timeout: 900
@@ -78,14 +93,17 @@ recipes:
     params:
       - name: remove_unused
         desc: 是否同时删除不再被依赖的包（yes / no，默认 no）
+        desc_en: "Also remove packages nothing depends on (yes / no, default no)"
         pattern: 'yes|no'
         default: 'no'
       - name: journal_days
         desc: 只保留最近多少天的系统日志（默认 7）
+        desc_en: "Keep this many days of system journal (default 7)"
         pattern: '[0-9]{1,3}'
         default: '7'
       - name: docker_images
         desc: 是否清理未被使用的 Docker 镜像（yes / no，默认 no）
+        desc_en: "Remove unused Docker images (yes / no, default no)"
         pattern: 'yes|no'
         default: 'no'
     detect: 'false'
@@ -135,6 +153,12 @@ recipes:
     kind: install
     name: 常用命令行工具
     desc: 一次装齐 curl、wget、git、vim、htop、tmux、unzip、ncdu 等
+    name_en: "Common CLI tools"
+    desc_en: "Install curl, wget, git, vim, htop, tmux, unzip, ncdu and more in one go"
+    plan_en: |
+      1. Check which tools are missing
+      2. Install only the missing ones
+      3. Verify each one runs after installing
     tags: [基础, 常用]
     risk: change
     timeout: 900
@@ -143,6 +167,7 @@ recipes:
     params:
       - name: packages
         desc: 要安装的工具，空格分隔
+        desc_en: "Tools to install, separated by spaces"
         pattern: '[A-Za-z0-9 ._+-]{1,200}'
         default: 'curl wget git vim htop tmux unzip tar ncdu'
     detect: |
@@ -183,6 +208,14 @@ recipes:
     kind: config
     name: 添加虚拟内存（swap）
     desc: 建一个 swap 文件并设为开机自动挂载，小内存机器很需要
+    name_en: "Add swap"
+    desc_en: "Create a swap file and mount it at boot; small-memory machines need it"
+    plan_en: |
+      1. Check that the root partition has enough free space
+      2. Create /swapfile (fallocate if supported, otherwise dd) with mode 600
+      3. Enable it with mkswap + swapon
+      4. Add it to /etc/fstab so it mounts at boot (skipped if already there)
+      5. Set vm.swappiness
     tags: [性能, 常用]
     risk: change
     timeout: 600
@@ -191,10 +224,12 @@ recipes:
     params:
       - name: size_mb
         desc: swap 大小（MB），默认 2048
+        desc_en: "Swap size in MB, default 2048"
         pattern: '[0-9]{3,6}'
         default: '2048'
       - name: swappiness
         desc: 倾向使用 swap 的程度 0-100，默认 10
+        desc_en: "How readily swap is used, 0-100, default 10"
         pattern: '[0-9]{1,3}'
         default: '10'
     detect: |
@@ -238,6 +273,12 @@ recipes:
     kind: config
     name: 设置时区
     desc: 改系统时区，日志时间对得上你所在的地方
+    name_en: "Set timezone"
+    desc_en: "Change the system timezone so log times match where you are"
+    plan_en: |
+      1. Check that the timezone exists in the system timezone database
+      2. Set it with timedatectl, or relink /etc/localtime when there is no timedatectl
+      3. Show the local time afterwards
     tags: [基础]
     risk: change
     timeout: 120
@@ -246,6 +287,7 @@ recipes:
     params:
       - name: tz
         desc: 时区名，如 Asia/Shanghai、UTC、America/Los_Angeles
+        desc_en: "Timezone name, e.g. Asia/Shanghai, UTC, America/Los_Angeles"
         pattern: '[A-Za-z]+(/[A-Za-z0-9_+-]+){0,2}'
         default: 'Asia/Shanghai'
     detect: |
@@ -274,6 +316,13 @@ recipes:
     kind: config
     name: 自动安装安全更新
     desc: 让系统自己装安全补丁（Debian / Ubuntu）
+    name_en: "Automatic security updates"
+    desc_en: "Let the system install security patches by itself (Debian / Ubuntu)"
+    plan_en: |
+      1. Install unattended-upgrades
+      2. Turn on daily checks and automatic installation of security updates
+      3. Never reboot the server automatically (when a reboot is needed it is only noted, and you decide when)
+      4. Verify the configuration parses with a dry run
     tags: [安全, 维护]
     risk: change
     timeout: 600
@@ -307,6 +356,13 @@ recipes:
     kind: install
     name: 安装 fail2ban（挡 SSH 爆破）
     desc: 自动封禁反复登录失败的 IP，公网机器基本必备
+    name_en: "Install fail2ban (blocks SSH brute force)"
+    desc_en: "Ban IPs that fail to log in again and again; close to essential on public machines"
+    plan_en: |
+      1. Install fail2ban
+      2. Write a separate config /etc/fail2ban/jail.d/dsh-vps.local (the distribution's own config is left alone)
+      3. Enable only the sshd jail, with local and private addresses allowlisted so you do not ban yourself
+      4. Start it and enable it at boot, then check that the jail is really active
     tags: [安全, 常用]
     risk: change
     timeout: 900
@@ -315,10 +371,12 @@ recipes:
     params:
       - name: maxretry
         desc: 失败多少次后封禁（默认 5）
+        desc_en: "Failures before a ban (default 5)"
         pattern: '[0-9]{1,2}'
         default: '5'
       - name: bantime
         desc: 封禁时长（默认 1h，可写 10m / 1d）
+        desc_en: "Ban length (default 1h; 10m / 1d also work)"
         pattern: '[0-9]{1,4}[smhd]?'
         default: '1h'
     detect: |

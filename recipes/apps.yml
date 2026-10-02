@@ -4,6 +4,14 @@ recipes:
     kind: install
     name: Portainer（Docker 图形管理）
     desc: 用浏览器管容器、镜像、卷和网络
+    name_en: "Portainer (Docker web UI)"
+    desc_en: "Manage containers, images, volumes and networks in the browser"
+    plan_en: |
+      1. Check that Docker works and the port is free
+      2. Create the portainer_data volume
+      3. Start the container: --restart=always, mount the Docker socket, publish the web port
+      4. Verify the container is running and the port is really listening
+      Note: mounting the Docker socket hands full control of Docker to this container, so keep it reachable only by you
     tags: [docker, 面板, 常用]
     risk: change
     timeout: 900
@@ -12,6 +20,7 @@ recipes:
     params:
       - name: port
         desc: 网页端口（默认 9443，HTTPS）
+        desc_en: "Web port (default 9443, HTTPS)"
         pattern: '[0-9]{2,5}'
         default: '9443'
     detect: |
@@ -51,6 +60,13 @@ recipes:
     kind: install
     name: Uptime Kuma（网站/服务监控）
     desc: 监控网站和端口是否可用，掉线时告警
+    name_en: "Uptime Kuma (site / service monitoring)"
+    desc_en: "Watch whether sites and ports are up, and alert when they go down"
+    plan_en: |
+      1. Check that Docker works and the port is free
+      2. Create the data folder (default /opt/uptime-kuma, so data survives container upgrades)
+      3. Start the container: --restart=always, publish the web port
+      4. Verify the container is running, the port is listening and the page responds
     tags: [监控, 常用]
     risk: change
     timeout: 900
@@ -59,10 +75,12 @@ recipes:
     params:
       - name: port
         desc: 网页端口（默认 3001）
+        desc_en: "Web port (default 3001)"
         pattern: '[0-9]{2,5}'
         default: '3001'
       - name: data_dir
         desc: 数据目录（默认 /opt/uptime-kuma）
+        desc_en: "Data folder (default /opt/uptime-kuma)"
         pattern: '/[A-Za-z0-9._/-]{2,100}'
         default: '/opt/uptime-kuma'
     detect: |
@@ -103,6 +121,14 @@ recipes:
     kind: install
     name: Nginx Proxy Manager（反代面板）
     desc: 图形界面配反向代理和 HTTPS 证书，不用手写 nginx 配置
+    name_en: "Nginx Proxy Manager (reverse proxy UI)"
+    desc_en: "Set up reverse proxies and HTTPS certificates in a web UI instead of writing nginx config"
+    plan_en: |
+      1. Check that Docker works
+      2. **Check whether 80 / 443 are already taken by another service** (if this machine already runs nginx / caddy / a hosting panel, they would clash, so stop here)
+      3. Create the data folder and start the container on 80, 443 and the admin port
+      4. Verify the container is running and the admin page is reachable
+      Note: it needs 80 and 443 to itself; when either is taken this recipe refuses to run rather than touch your existing web service
     tags: [web, 面板]
     risk: change
     timeout: 1200
@@ -111,10 +137,12 @@ recipes:
     params:
       - name: admin_port
         desc: 管理后台端口（默认 81）
+        desc_en: "Admin page port (default 81)"
         pattern: '[0-9]{2,5}'
         default: '81'
       - name: data_dir
         desc: 数据目录（默认 /opt/npm）
+        desc_en: "Data folder (default /opt/npm)"
         pattern: '/[A-Za-z0-9._/-]{2,100}'
         default: '/opt/npm'
     detect: |

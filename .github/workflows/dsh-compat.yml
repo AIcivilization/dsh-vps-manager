@@ -101,7 +101,7 @@ jobs:
       - name: 对照真实 DSH 代码的测试
         env:
           DSH_MODULES: ${{ runner.temp }}/dsh/node_modules
-        run: set -o pipefail; node --test test/dsh-real.test.js 2>&1 | tee -a "$RUNNER_TEMP/steps.log"
+        run: set -o pipefail; node --env-file=test/test.env --test test/dsh-real.test.js 2>&1 | tee -a "$RUNNER_TEMP/steps.log"
 
       - name: 装上插件、启动网页版逐项检查
         env:

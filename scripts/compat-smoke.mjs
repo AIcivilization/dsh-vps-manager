@@ -95,10 +95,11 @@ async function main() {
     }
 
     // 5. 设置页接口
-    const api = async (path, body = {}) => {
+    // 界面每个请求都带当前语言，服务端照它回话；这里默认按中文问（下面的检查对的是中文提示）
+    const api = async (path, body = {}, lang = 'zh') => {
       const res = await fetch(`${base}/api-vps/${path}`, {
         method: 'POST',
-        headers: { cookie, 'content-type': 'application/json', 'x-dsh-vps-token': token, origin: base },
+        headers: { cookie, 'content-type': 'application/json', 'x-dsh-vps-token': token, origin: base, 'x-dsh-vps-lang': lang },
         body: JSON.stringify(body),
       })
       return res.json().catch(() => ({ ok: false, error: `HTTP ${res.status}` }))
@@ -111,7 +112,7 @@ async function main() {
 
     // 插件自己的体检：每一块都注册成功，读到的 DSH 版本就是装的这个
     const diag = await api('diag/status')
-    const expect = { tools: '5 个', commands: null, skill: null, vpsMode: null, guard: null, routes: null, terminal: null }
+    const expect = { tools: '5', commands: null, skill: null, vpsMode: null, guard: null, routes: null, terminal: null }
     for (const [part, detail] of Object.entries(expect)) {
       const got = diag.parts?.[part]
       check(`注册成功：${got?.label ?? part}`, got?.ok && (detail === null || got.detail === detail), got ? got.detail : '没有记录（这一块没挂上）')
@@ -122,6 +123,8 @@ async function main() {
     // 文件管理器：接口挂上了（没绑定机器的对话应该得到明确提示）；下载的 GET 路由也在
     const filesPlaces = await api('files/places', { sessionId: 'compat-check' })
     check('文件管理接口能用（未绑定机器时给出提示）', filesPlaces.ok === false && /还没打开 VPS 开关/.test(filesPlaces.error ?? ''), filesPlaces.error ?? JSON.stringify(filesPlaces).slice(0, 120))
+    const filesEn = await api('files/places', { sessionId: 'compat-check' }, 'en')
+    check('英文界面：服务端的提示是英文', filesEn.error === 'This conversation has not turned on the VPS switch yet', filesEn.error ?? '')
     const fetchBad = await fetch(`${base}/api-vps/files/fetch?t=nope`, { headers: { cookie } })
     check('文件下载路由已注册（无效票据被拒）', fetchBad.status === 403, `HTTP ${fetchBad.status}`)
 
@@ -130,8 +133,8 @@ async function main() {
     check('终端组件文件能取到', xterm.status === 200 && /javascript/.test(xterm.headers.get('content-type') ?? ''), `HTTP ${xterm.status}`)
 
     // 7. 终端的实时连接：没绑定机器的对话应该收到明确的提示（说明升级路由和鉴权都通）
-    const wsUrl = `${base.replace('http', 'ws')}/api-vps/ws/terminal?sessionId=compat-check&cols=80&rows=24`
-    const frames = await new Promise((resolveWs) => {
+    const wsFrames = (lang) => new Promise((resolveWs) => {
+      const wsUrl = `${base.replace('http', 'ws')}/api-vps/ws/terminal?sessionId=compat-check&cols=80&rows=24&lang=${lang}`
       const got = []
       const ws = new WebSocket(wsUrl, ['dsh-vps-terminal', token], { headers: { cookie }, origin: base })
       const done = () => resolveWs(got)
@@ -141,7 +144,10 @@ async function main() {
       ws.on('unexpected-response', (_req, res) => { got.push(`HTTP ${res.statusCode}`); done() })
       setTimeout(() => { ws.terminate(); done() }, 10_000)
     })
+    const frames = await wsFrames('zh')
     check('终端实时连接能建立（未绑定机器时给出提示）', frames.some((f) => f.includes('还没打开 VPS 开关')), frames.join(' | '))
+    const framesEn = await wsFrames('en')
+    check('英文界面：终端连接的提示是英文', framesEn.some((f) => f.includes('has not turned on the VPS switch')), framesEn.join(' | '))
 
     // 8. 日志里不能有插件自己报的注册失败
     await new Promise((r) => setTimeout(r, 500))

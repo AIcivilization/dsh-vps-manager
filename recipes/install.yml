@@ -4,6 +4,12 @@ recipes:
     kind: install
     name: 安装 Docker
     desc: 安装 Docker 引擎与 compose 插件，并设为开机自启
+    name_en: "Install Docker"
+    desc_en: "Install the Docker engine and the compose plugin, and start it at boot"
+    plan_en: |
+      1. On Alpine, install docker and the compose plugin with apk; on other distributions use Docker's official install script
+      2. Enable at boot and start it
+      3. Verify the daemon is really alive with docker info (not just the version number)
     tags: [容器, 常用]
     shell: sh
     risk: change
@@ -47,6 +53,12 @@ recipes:
     kind: install
     name: 安装 Nginx
     desc: 安装 Nginx 并设为开机自启
+    name_en: "Install Nginx"
+    desc_en: "Install Nginx and start it at boot"
+    plan_en: |
+      1. Install nginx with the distribution's package manager
+      2. Enable at boot and start it
+      3. Verify the configuration with nginx -t and that it really answers a local HTTP request
     tags: [web, 常用]
     shell: sh
     risk: change
@@ -74,6 +86,12 @@ recipes:
     kind: config
     name: 开启 BBR 拥塞控制
     desc: 打开 BBR + fq，改善高延迟线路的吞吐
+    name_en: "Turn on BBR congestion control"
+    desc_en: "Enable BBR + fq for better throughput on high-latency links"
+    plan_en: |
+      1. Check that the kernel supports bbr (4.9 and later do)
+      2. Write /etc/sysctl.d/99-dsh-vps-bbr.conf
+      3. Apply it with sysctl and check the active congestion control algorithm again
     tags: [网络, 常用]
     shell: sh
     risk: change

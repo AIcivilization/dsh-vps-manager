@@ -314,20 +314,20 @@ test('终端按钮：没绑定也一直在（位置不跳），但显示为淡�
   assert.equal((html.match(/<button/g) ?? []).length, 2)
 })
 
-test('终端连接地址跟着页面走：Desktop、dsh web 局域网、https 反向代理都能用', async () => {
+test('终端连接地址跟着页面走：Desktop、dsh web 局域网、https 反向代理都能用；带上界面语言', async () => {
   const { exported } = await loadClient()
   const { terminalUrl } = exported.__test
   assert.equal(
     terminalUrl('http://127.0.0.1:52100', 's 1', 90, 20),
-    'ws://127.0.0.1:52100/api-vps/ws/terminal?sessionId=s+1&cols=90&rows=20',
+    'ws://127.0.0.1:52100/api-vps/ws/terminal?sessionId=s+1&cols=90&rows=20&lang=zh',
   )
   assert.equal(
     terminalUrl('http://192.168.1.8:8787', 's1', 80, 24),
-    'ws://192.168.1.8:8787/api-vps/ws/terminal?sessionId=s1&cols=80&rows=24',
+    'ws://192.168.1.8:8787/api-vps/ws/terminal?sessionId=s1&cols=80&rows=24&lang=zh',
   )
   assert.equal(
     terminalUrl('https://dsh.example.com', 's1', 80, 24),
-    'wss://dsh.example.com/api-vps/ws/terminal?sessionId=s1&cols=80&rows=24',
+    'wss://dsh.example.com/api-vps/ws/terminal?sessionId=s1&cols=80&rows=24&lang=zh',
     'https 页面必须用 wss，否则浏览器拦截',
   )
 })
