@@ -254,7 +254,8 @@ test('界面：默认高度只放结论、需注意和「其余正常」一行�
   const { StatusView, termChrome } = exported.__test
   const entry = { sessionId: 's1', alias: 'la', statusState: { view: viewFor('zh'), loading: false, error: '', expanded: false, interpreting: false, interpError: '', notice: '' } }
   const html = renderToStaticMarkup(React.createElement(StatusView, { entry, c: termChrome('light'), maximized: false, visible: false }))
-  assert.match(html, /其余正常/)
+  assert.match(html, /其余 \d+ 项正常/, '正常的项只在这一行数一次')
+  assert.doesNotMatch(html, /需注意 \d+ 项<[^>]*>[^<]*其余/, '结论那行不再重复「其余 N 项正常」')
   assert.match(html, /展开全部/)
   assert.doesNotMatch(html, /插件占用/, '默认高度不展开分区')
   entry.statusState.expanded = true
@@ -307,4 +308,18 @@ test('证书：Caddy 里过期、配置也没有它的旧文件不报；6 天的
   assert.equal(short('2026-10-03T22:00:00Z'), 'warn', '6 天多的证书只剩 1 天多：该续没续')
   assert.equal(short('2026-10-03T02:00:00Z'), 'danger', '不到 1 天')
   assert.match(statusBrief('la', d, j), /209\.146\.116\.150 已过期但 Caddy 配置里已没有它/)
+})
+
+test('界面：什么问题都没有时，结论是「一切正常」，下面一行是「检查了 N 项」，不出现「其余」', async () => {
+  const exported = await loadClient(null)
+  const { StatusView, termChrome } = exported.__test
+  const data = parseStatus(['priv=root', 'host=ok', 'cores=4', 'load=0.2 0.1 0.1', 'cpu=3', 'memtotal=8000000', 'memavailable=6000000', 'swaptotal=0', 'swapfree=0',
+    'disk=/|100|30|70|30', 'svc_running=20', 'fw=ufw|1', 'updates=0', 'updates_sec=0', 'reboot=0', 'login_fail=3', 'f2b=1'].join('\n'))
+  const judged = judge(data)
+  assert.equal(judged.attention.length, 0)
+  const entry = { sessionId: 's1', alias: 'la', statusState: { view: { alias: 'la', status: { collectedAt: new Date().toISOString(), data, judged, brief: '' }, interpretation: null, canInterpret: true }, loading: false, error: '', expanded: false, interpreting: false, interpError: '', notice: '' } }
+  const html = renderToStaticMarkup(React.createElement(StatusView, { entry, c: termChrome('light'), maximized: false, visible: false }))
+  assert.match(html, /一切正常/)
+  assert.match(html, new RegExp(`检查了 ${judged.ok.length} 项`))
+  assert.doesNotMatch(html, /其余/)
 })
