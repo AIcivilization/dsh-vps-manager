@@ -435,3 +435,25 @@ test('右侧栏：每分钟刷新从「最近一次采到 / 最近一次试」�
   assert.equal(refreshWait(iso(10 * 60_000), now - 5_000, now), 55_000, '数据是旧的、但 5 秒前刚试过（没采成）：等满一分钟，不连着重试')
   assert.equal(refreshWait(null, now - 30_000, now), 30_000, '从没采成过、30 秒前试过：再等 30 秒')
 })
+
+test('界面：除了 CPU 那一排和磁盘，各分区右上角都有倒三角；收起后只剩标题行（项数、摘要还在），记在本机', async () => {
+  const exported = await loadClient(null)
+  const store = {}
+  globalThis.window.localStorage = { getItem: (k) => store[k] ?? null, setItem: (k, v) => { store[k] = v }, removeItem() {} }
+  const { StatusView, termChrome } = exported.__test
+  const render = () => renderToStaticMarkup(React.createElement(StatusView, { entry: { sessionId: 's1', alias: 'la', statusState: { view: viewFor('zh'), loading: false, error: '', expanded: true } }, c: termChrome('light'), maximized: true, visible: false }))
+  const open = render()
+  for (const t of ['AI 解读', '需注意', '服务', '容器', '进程', '端口', '防火墙', '计划任务', '证书', '安全', '插件占用']) assert.match(open, new RegExp(`aria-label="收起「${t}」"`), `「${t}」应该能收起`)
+  for (const t of ['CPU', '内存', 'Swap', '磁盘']) assert.doesNotMatch(open, new RegExp(`收起「${t}」`), `「${t}」不收起`)
+  assert.match(open, /backup-sync/)
+
+  store['dsh-vps.status.collapsed'] = JSON.stringify(['attention', 'svc', 'ai'])
+  const shut = render()
+  assert.match(shut, /aria-label="展开「需注意」"/)
+  assert.match(shut, /10 项（已收起）/, '收起后还看得到有几项')
+  assert.match(shut, /aria-label="展开「服务」"/)
+  assert.doesNotMatch(shut, /backup-sync/, '需注意和服务卡片都收起了，就不再列出来')
+  assert.doesNotMatch(shut, /让 AI 解读/, 'AI 解读收起后只剩标题')
+  assert.match(shut, /aria-label="收起「容器」"/, '别的分区不受影响')
+  assert.match(shut, /mailserver/)
+})
