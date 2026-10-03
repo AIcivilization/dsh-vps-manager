@@ -246,6 +246,7 @@ The terminal panel's third tab, **Status**, shows on one page how the server bou
 - **Needs attention** is judged by fixed rules, with no model involved: services that failed or are enabled at boot but not running, scheduled runs that failed, available memory under 10% / 5%, swap over half used, disks or inodes at 85% / 95%, load above the core count, containers that exited and will not restart, certificates running out (thresholds scale with the certificate's lifetime, so short-lived IP certificates are not flagged all the time), pending security updates, a reboot required, and 100+ failed logins in 24 hours without fail2ban. Each row has **Logs** (services and containers: shows the last 50 lines in the terminal), **Open** (disks: opens that directory in Files) and **Ask AI** (hands the item to the conversation)
 - **Everything else**: ring meters for CPU, memory and swap plus traffic since boot; a usage bar per disk; then cards that each fit their content: services, containers (state and image), the busiest processes by CPU and memory, listening ports (public and local only), firewall, scheduled tasks, certificates (days left and a validity bar), security, and the plugin's own trash and backups. At normal height these fold into one line; maximize the panel or click **Show all** to see them
 - **AI interpretation**: click **Interpret** and DSH's default model reads the collected data and says in a few sentences how the machine is and what matters most. The model is called only when you click, it answers in the interface language, and the reading notes which look it was based on. **Ask in chat** carries it into the conversation to follow up
+- **Collapse what you don't need**: every section except the CPU / memory row and Disks has a triangle at its top right. Clicking it (or the section's title) folds the section to its title row, which keeps its count, summary and status colour. The choice is kept on this computer and shared by the bottom panel and the right sidebar
 - Things a non-root user cannot read (containers, firewall, failed logins) say so instead of guessing
 - The last look and reading are kept on this computer (`$DSH_HOME/vps-manager/status/`), so reopening the tab shows them at once; each of your computers keeps its own
 - A look also refreshes what VPS mode tells the AI about the machine (running services, containers, what holds ports 80/443)
@@ -494,7 +495,7 @@ Errors the plugin runs into itself (registration failures, backend errors, inter
 | `lib/routes.js` | Settings page backend |
 | `lib/config.js` · `lib/onboarding.js` · `lib/ssh.js` | Machine list, SSH configuration, adding machines, ssh arguments |
 | `lib/reboot.js` · `lib/uninstall.js` · `lib/audit.js` | Reboot and wait for the machine, uninstall, audit log |
-| `test/` | 293 tests |
+| `test/` | 294 tests |
 | `scripts/windows-e2e.mjs` · `.github/workflows/platform-e2e.yml` | Cross-platform run against a real sshd on GitHub's Windows and Linux machines: adding a machine, running commands, the Files page, the Status page, the terminal, uninstalling |
 
 ---
@@ -506,7 +507,7 @@ npm install
 npm test
 ```
 
-293 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend, the terminal connection (authentication, local-only access, input and output, window size, keeping and resuming after a disconnect, cleanup), the status collection script and rules, and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`, along with whether the notice the plugin adds to a conversation is accepted by the host's session format.
+294 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend, the terminal connection (authentication, local-only access, input and output, window size, keeping and resuming after a disconnect, cleanup), the status collection script and rules, and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`, along with whether the notice the plugin adds to a conversation is accepted by the host's session format.
 
 On every push, GitHub's Windows machines (2022 and 2025, with the OpenSSH that ships with Windows) and a Linux machine also each connect to a real sshd and follow the same path a user does: add a machine with a password, run commands, run a remote task, upload, download and edit on the Files page, open the terminal and resize it, and revoke the key on uninstall.
 
