@@ -323,3 +323,115 @@ test('界面：什么问题都没有时，结论是「一切正常」，下面�
   assert.match(html, new RegExp(`检查了 ${judged.ok.length} 项`))
   assert.doesNotMatch(html, /其余/)
 })
+
+// —— 右侧栏 ——
+
+async function routeCaller(env, runner) {
+  const routes = new Map()
+  const ws = { config: { host: '127.0.0.1', port: 3000 }, register({ path, handler }) { routes.set(path, handler); return () => {} }, tapIndex() { return () => {} } }
+  const reg = registerRoutes({ webServer: ws }, { env, runner })
+  return async (path, body) => {
+    const req = Readable.from([Buffer.from(JSON.stringify(body))])
+    req.method = 'POST'
+    req.headers = { 'content-type': 'application/json', host: '127.0.0.1:3000', 'x-dsh-vps-token': reg.token }
+    req.socket = { remoteAddress: '127.0.0.1' }
+    const out = {}
+    await routes.get(`/api-vps/${path}`)(req, { writeHead() {}, end: (t) => { out.body = JSON.parse(t) } })
+    return out.body
+  }
+}
+
+test('接口：右侧栏可以指定看别的登记过的机器（不看对话绑定）；没登记的不行；overview 给每台上次看的结果', async () => {
+  const { env } = await sandbox()
+  await writeHosts({ current: 'la', hosts: { la: {}, hk: {} } }, env)
+  const runner = (_a, payload) => {
+    const nonce = /__DSH_BEGIN_([0-9a-f]+)__/.exec(payload)[1]
+    return Promise.resolve({ stdout: `__DSH_BEGIN_${nonce}__\n${SAMPLE}\n__DSH_RC_${nonce}__=0\n`, stderr: '', exitCode: 0, durationMs: 5 })
+  }
+  const call = await routeCaller(env, runner)
+  const hk = await call('status/collect', { sessionId: 'not-bound', alias: 'hk' })
+  assert.equal(hk.ok, true, hk.error)
+  assert.equal(hk.alias, 'hk')
+  assert.equal(hk.status.data.host, 'mail')
+  assert.match((await call('status/get', { alias: 'nope' })).error, /没有登记过这台机器/)
+  const { hosts } = await call('status/overview', {})
+  const byAlias = Object.fromEntries(hosts.map((x) => [x.alias, x]))
+  assert.equal(byAlias.la.worst, null, '还没看过')
+  assert.equal(byAlias.hk.worst, 'danger')
+  assert.ok(byAlias.hk.attention > 0)
+})
+
+test('右侧栏：DSH 有右侧栏时登记「VPS 状态」页签（开始页有入口、切走保活）；标题栏三个圆点左边有「扩展到右侧栏」', async () => {
+  const exported = await loadClient(null)
+  let def = null
+  let opened = null
+  const regs = []
+  exported.apply({
+    slots: { inject: (_name, fn) => fn(), register: (d, C) => { regs.push([d, C]); return () => {} } },
+    inject: (names, cb) => {
+      if (!names.includes('sidebarRight')) return
+      cb({ get: (n) => (n === 'sidebarRight' ? { openTab: (kind) => { opened = kind } } : n === 'sidebarRightTabs' ? { register: (d) => { def = d; return () => {} } } : undefined), effect: (fn) => fn() })
+    },
+  })
+  assert.equal(def.kind, 'vps-manager-status')
+  assert.equal(def.keepMounted, true)
+  assert.equal(def.title(), 'VPS 状态')
+  assert.equal(def.guide.length, 1)
+  const body = regs.find(([d]) => d.name === 'sidebar.right.pane.tab')
+  assert.equal(body[0].key, def.id, '正文用页签类型的 id 登记')
+  const { SidebarOpenButton, termChrome } = exported.__test
+  const html = renderToStaticMarkup(React.createElement(SidebarOpenButton, { c: termChrome('light') }))
+  assert.match(html, /aria-label="扩展到右侧栏/)
+  assert.match(html, /<rect[^>]*width="18"[^>]*height="18"/, '方框里一道竖线的图标')
+  assert.equal(opened, null, '只是画出来，没点就不打开')
+})
+
+test('右侧栏：顶上一排编号；默认看本对话那台；没绑时看上次看的那台，并说明只是查看、可以改用', async () => {
+  const exported = await loadClient(null)
+  const store = { 'dsh-vps:hosts': JSON.stringify([{ alias: 'la', note: '' }, { alias: 'hk', note: '香港' }]), 'dsh-vps:bind:s1': 'la', 'dsh-vps.sidebar-view.s2': 'hk' }
+  globalThis.window.localStorage = { getItem: (k) => store[k] ?? null, setItem: (k, v) => { store[k] = v }, removeItem() {} }
+  const { VpsStatusSidebar } = exported.__test
+  const render = (sessionId) => renderToStaticMarkup(React.createElement(VpsStatusSidebar, { sessionId, useTabInfo: () => ({ tab: { visible: false } }) }))
+  const bound = render('s1')
+  assert.match(bound, /aria-checked="true" aria-label="1 la"/, '默认看本对话那台')
+  assert.match(bound, /aria-label="2 hk"/)
+  assert.doesNotMatch(bound, /只是查看/)
+  const other = render('s2')
+  assert.match(other, /aria-checked="true" aria-label="2 hk"/)
+  assert.match(other, /只是查看 2 号 hk，这个对话还没打开 VPS 开关/)
+  assert.match(other, /让这个对话用 2 号/)
+})
+
+test('右侧栏：看的不是本对话那台时只能看——没有「问 AI」「看日志」「在对话里追问」，「让 AI 解读」照常', async () => {
+  const exported = await loadClient(null)
+  const { StatusView, termChrome } = exported.__test
+  const view = viewFor('zh')
+  const html = renderToStaticMarkup(React.createElement(StatusView, { entry: { sessionId: 's1', alias: 'hk', statusState: { view, loading: false, error: '', expanded: true } }, c: termChrome('light'), maximized: true, visible: false, mode: 'sidebar', canAct: false }))
+  assert.match(html, /需注意 10 项/)
+  assert.match(html, /让 AI 解读/)
+  for (const t of ['问 AI', '看日志', '在对话里追问']) assert.doesNotMatch(html, new RegExp(t), `不该有：${t}`)
+})
+
+test('右侧栏：编号方块上的小点来自那台上次看的结果，悬停说明是什么时候看的', async () => {
+  const exported = await loadClient(null)
+  const { MachineChip, termChrome } = exported.__test
+  const at = '2026-10-02T03:04:00Z'
+  const html = renderToStaticMarkup(React.createElement(MachineChip, { host: { alias: 'hk', note: '' }, index: 1, selected: false, bound: false, mark: { worst: 'danger', attention: 3, collectedAt: at }, c: termChrome('light'), onSelect() {} }))
+  assert.match(html, /需注意 3 项/)
+  assert.match(html, /border-radius:50%/, '有那个小点')
+  const clean = renderToStaticMarkup(React.createElement(MachineChip, { host: { alias: 'la', note: '' }, index: 0, selected: true, bound: true, mark: null, c: termChrome('light'), onSelect() {} }))
+  assert.match(clean, /这个对话操作的就是这台/)
+  assert.doesNotMatch(clean, /border-radius:50%/)
+})
+
+test('右侧栏：每分钟刷新从「最近一次采到 / 最近一次试」里较近的那个算起——连不上时也只是一分钟试一次', async () => {
+  const exported = await loadClient(null)
+  const { refreshWait } = exported.__test
+  const now = Date.parse('2026-10-02T12:00:00Z')
+  const iso = (msAgo) => new Date(now - msAgo).toISOString()
+  assert.equal(refreshWait(null, undefined, now), 0, '一次都没有：马上采')
+  assert.equal(refreshWait(iso(90_000), undefined, now), 0, '上次采到是一分半前：该采了')
+  assert.equal(refreshWait(iso(20_000), undefined, now), 40_000, '20 秒前采过：再等 40 秒')
+  assert.equal(refreshWait(iso(10 * 60_000), now - 5_000, now), 55_000, '数据是旧的、但 5 秒前刚试过（没采成）：等满一分钟，不连着重试')
+  assert.equal(refreshWait(null, now - 30_000, now), 30_000, '从没采成过、30 秒前试过：再等 30 秒')
+})
