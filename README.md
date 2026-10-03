@@ -56,7 +56,7 @@ You enter the password once when adding a machine; from then on everything uses 
 | VPS mode | One click in the conversation header and that conversation operates the server; each conversation has its own binding, so one window can work on the server while another keeps working on local code |
 | Real connection state | Header squares: grey not selected · yellow connecting · green connected · red unreachable, with the reason and a retry button |
 | Terminal in the conversation | A real terminal (xterm.js over `ssh -tt`) where menu scripts, `top` and `vim` work; red / yellow / green buttons to end, minimize and maximize; nothing lost when you minimize or switch conversations, and it reconnects after a drop |
-| Status in the conversation | One page for how the server is doing: rule-judged "needs attention" items first (failed services, full disks, expiring certificates, pending security updates), then resources, disks, services, containers, ports, firewall and more; click **Interpret** for a few sentences from DSH's default model |
+| Status in the conversation | One page for how the server is doing: rule-judged "needs attention" items first (failed services, full disks, expiring certificates, pending security updates), then ring meters, disks, services, containers, ports, firewall and more; click **Interpret** for a few sentences from DSH's default model. Expand it into DSH's right sidebar to keep it open beside the chat, refreshing every minute while visible, and pick any of your machines to look at |
 | Files in the conversation | A file browser for the server: drag in to upload, right-click to download, double-click to edit, deletes go to a trash you can restore from; backups before overwriting or editing; right-click "let the AI look at this file" |
 | AI on the server | 5 tools with risk-tiered confirmation: read-only runs automatically, changes ask you, dangerous commands ask again; levels can be set per machine, group or globally |
 | Three safeguards | Files are backed up before editing and restored if validation fails; a connectivity safety net before firewall and SSH changes; long operations run as remote tasks that survive disconnects |
@@ -242,13 +242,23 @@ The terminal panel's title bar has a **Terminal | Files | Status** switch. Files
 The terminal panel's third tab, **Status**, shows on one page how the server bound to this conversation is doing:
 
 - **Switching to the tab takes one look** (about 2 seconds, read-only); after that it refreshes only when you click ↻. The panel still opens on Terminal, and nothing is collected until you switch to Status
-- **At the top** is the conclusion ("3 need attention · 9 OK") with host, system, kernel, uptime and privilege
-- **Needs attention** is judged by fixed rules, with no model involved: services that failed or are enabled at boot but not running, scheduled runs that failed, available memory under 10% / 5%, swap over half used, disks or inodes at 85% / 95%, load above the core count, containers that exited and will not restart, certificates expiring within 14 / 3 days, pending security updates, a reboot required, and 100+ failed logins in 24 hours without fail2ban. Each row has **Logs** (services and containers: shows the last 50 lines in the terminal), **Open** (disks: opens that directory in Files) and **Ask AI** (hands the item to the conversation)
-- **Everything else**: tiles for CPU, memory, swap and traffic; a usage bar per disk; cards for services, containers, the busiest processes by CPU and memory, listening ports (public or local only), firewall, scheduled tasks, certificates, security, and the plugin's own trash and backups. At normal height these fold into one "everything else is fine" line; maximize the panel or click **Show all** to see them
+- **At the top** is the conclusion ("3 need attention" or "All good") with host, system, kernel, uptime and privilege; the green row below counts and lists what is fine
+- **Needs attention** is judged by fixed rules, with no model involved: services that failed or are enabled at boot but not running, scheduled runs that failed, available memory under 10% / 5%, swap over half used, disks or inodes at 85% / 95%, load above the core count, containers that exited and will not restart, certificates running out (thresholds scale with the certificate's lifetime, so short-lived IP certificates are not flagged all the time), pending security updates, a reboot required, and 100+ failed logins in 24 hours without fail2ban. Each row has **Logs** (services and containers: shows the last 50 lines in the terminal), **Open** (disks: opens that directory in Files) and **Ask AI** (hands the item to the conversation)
+- **Everything else**: ring meters for CPU, memory and swap plus traffic since boot; a usage bar per disk; then cards that each fit their content: services, containers (state and image), the busiest processes by CPU and memory, listening ports (public and local only), firewall, scheduled tasks, certificates (days left and a validity bar), security, and the plugin's own trash and backups. At normal height these fold into one line; maximize the panel or click **Show all** to see them
 - **AI interpretation**: click **Interpret** and DSH's default model reads the collected data and says in a few sentences how the machine is and what matters most. The model is called only when you click, it answers in the interface language, and the reading notes which look it was based on. **Ask in chat** carries it into the conversation to follow up
 - Things a non-root user cannot read (containers, firewall, failed logins) say so instead of guessing
 - The last look and reading are kept on this computer (`$DSH_HOME/vps-manager/status/`), so reopening the tab shows them at once; each of your computers keeps its own
 - A look also refreshes what VPS mode tells the AI about the machine (running services, containers, what holds ports 80/443)
+
+### In the right sidebar
+
+While the Status tab is showing, the button with a divided square, left of the panel's three dots, opens the same page in **DSH's right sidebar** (the column Files and document previews use). It sits beside the conversation, stays open while you chat, and comes back after you switch conversations or reload; it is also listed on the right sidebar's start page as **VPS status**.
+
+- **Numbered squares** at the top pick the machine to look at, numbered as in the conversation header. The colour is that machine's connection state, a line marks the machine this conversation operates, and a red or yellow dot means its last check found something to look at (hover for when)
+- **Picking another machine only views it**; the conversation keeps operating its own machine. A note says so, with **Use #N here** to switch (the same as clicking the square in the header). While viewing another machine, buttons that would act on it (Ask AI, Logs, Ask in chat) are hidden; Interpret still works
+- **While visible it checks once a minute**; collapsed, behind another tab or with the window minimised, it does not. When it comes back into view, it checks right away if the last look is over a minute old. An unreachable machine is tried once a minute, not in a loop
+- The bottom panel and the sidebar share one copy of each machine's status, so looking at the same machine in both does not check twice
+- Needs a DSH with the right sidebar (0.2 and later); on older versions the button simply does not appear
 
 ---
 
@@ -484,7 +494,7 @@ Errors the plugin runs into itself (registration failures, backend errors, inter
 | `lib/routes.js` | Settings page backend |
 | `lib/config.js` · `lib/onboarding.js` · `lib/ssh.js` | Machine list, SSH configuration, adding machines, ssh arguments |
 | `lib/reboot.js` · `lib/uninstall.js` · `lib/audit.js` | Reboot and wait for the machine, uninstall, audit log |
-| `test/` | 282 tests |
+| `test/` | 293 tests |
 | `scripts/windows-e2e.mjs` · `.github/workflows/platform-e2e.yml` | Cross-platform run against a real sshd on GitHub's Windows and Linux machines: adding a machine, running commands, the Files page, the Status page, the terminal, uninstalling |
 
 ---
@@ -496,7 +506,7 @@ npm install
 npm test
 ```
 
-282 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend, the terminal connection (authentication, local-only access, input and output, window size, keeping and resuming after a disconnect, cleanup), the status collection script and rules, and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`, along with whether the notice the plugin adds to a conversation is accepted by the host's session format.
+293 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend, the terminal connection (authentication, local-only access, input and output, window size, keeping and resuming after a disconnect, cleanup), the status collection script and rules, and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`, along with whether the notice the plugin adds to a conversation is accepted by the host's session format.
 
 On every push, GitHub's Windows machines (2022 and 2025, with the OpenSSH that ships with Windows) and a Linux machine also each connect to a real sshd and follow the same path a user does: add a machine with a password, run commands, run a remote task, upload, download and edit on the Files page, open the terminal and resize it, and revoke the key on uninstall.
 
