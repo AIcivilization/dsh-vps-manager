@@ -74,6 +74,11 @@ You enter the password once when adding a machine; from then on everything uses 
 
 <!-- The plugin market picks images from the README as showcase pictures: real images only, no placeholders. Still screenshots go in assets/screenshots/. -->
 
+<!-- A README cannot run scripts, so the three screenshots take turns in one image; the project page has the click-through version. -->
+<p align="center"><a href="https://aicivilization.github.io/dsh-vps-manager/#shots"><img src="assets/screenshots/status-tour.webp" alt="Three screenshots in turn: 1 Settings → VPS Manager with five numbered machines; 2 Files below the conversation with VPS status kept in the right sidebar; 3 the main controls circled" width="1000"></a></p>
+
+<p align="center"><sub>Three screenshots take turns here (1 → 2 → 3); click to step through them on the project page. Full size: <a href="assets/screenshots/status-1.webp">1</a> · <a href="assets/screenshots/status-2.webp">2</a> · <a href="assets/screenshots/status-3.webp">3</a><br>1 Settings → VPS Manager: the numbered machines · 2 Files below the conversation, VPS status kept in the right sidebar · 3 Where the main controls are</sub></p>
+
 <p align="center"><img src="assets/demo.gif" alt="Demo: install the plugin, add a machine (generate a key, put the public key on the server), connect, settings page" width="1000"></p>
 
 <p align="center"><sub>From installing the plugin to reaching the first machine (the address and user name in the recording are blacked out)</sub></p>

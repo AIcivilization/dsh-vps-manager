@@ -94,6 +94,26 @@
   .shot img{display:block;width:100%;height:auto}
   .cap{font-size:13px;color:var(--ink-3);padding:10px 14px;border-top:1px solid var(--line);background:#fff;text-align:center}
 
+  /* 截图轮播：点图片看下一张，两侧箭头、下面的圆点、键盘左右键、手机上左右滑都可以 */
+  .carousel:focus{outline:none}
+  .carousel:focus-visible .shot{outline:2px solid var(--accent);outline-offset:3px}
+  .slides{position:relative;aspect-ratio:2000/1211;background:#18181A;cursor:pointer;touch-action:pan-y;user-select:none;-webkit-user-select:none}
+  .slide{position:absolute;inset:0;margin:0;opacity:0;transition:opacity .35s ease;pointer-events:none}
+  .slide.on{opacity:1;pointer-events:auto}
+  .slides .slide img{width:100%;height:100%;object-fit:contain;-webkit-user-drag:none}
+  .cnav{position:absolute;top:50%;transform:translateY(-50%);width:42px;height:42px;border-radius:50%;border:none;background:rgba(20,20,22,.55);color:#fff;cursor:pointer;display:grid;place-items:center;opacity:0;transition:opacity .2s,background .2s;z-index:2}
+  .cnav:hover{background:rgba(20,20,22,.78)}
+  .cnav svg{width:18px;height:18px}
+  .slides:hover .cnav,.cnav:focus-visible{opacity:1}
+  @media(hover:none){.cnav{opacity:.85}}
+  .cprev{left:14px}.cnext{right:14px}
+  .ccap{display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;text-align:left}
+  .cdots{display:inline-flex;gap:7px;flex:0 0 auto}
+  .cdot{width:22px;height:22px;border-radius:50%;border:1px solid var(--line-2);background:#fff;color:var(--ink-3);font:600 11px/20px var(--mono);padding:0;cursor:pointer;transition:.15s}
+  .cdot:hover{border-color:var(--ink-3);color:var(--ink)}
+  .cdot[aria-current="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+  .ctext{color:var(--ink-2);min-width:0}
+
   .tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
   .tab{border:1px solid var(--line-2);background:#fff;border-radius:999px;padding:7px 15px;font-size:13.5px;color:var(--ink-2);cursor:pointer;font-family:inherit;transition:.15s}
   .tab:hover{border-color:var(--ink-3)}
@@ -154,6 +174,7 @@
     <div class="nav-links">
       <a href="#features">能力</a>
       <a href="#ways">三种用法</a>
+      <a href="#shots">界面</a>
       <a href="#install">安装</a>
       <a href="#commands">命令</a>
       <a href="#ai">AI 与防护</a>
@@ -178,9 +199,9 @@
       <span class="badge">MIT</span>
       <span class="badge">npm: dsh-vps-manager</span>
       <span class="badge">DSH ≥ 0.1.5-rc.2</span>
-      <span class="badge">macOS / Linux</span>
+      <span class="badge">Windows / macOS / Linux</span>
       <span class="badge">Node ≥ 22.13</span>
-      <span class="badge">238 tests</span>
+      <span class="badge">294 tests</span>
     </div>
 
     <div class="notice">
@@ -240,6 +261,35 @@
         <div class="card"><span class="tag">settings</span><h4>设置页</h4><p>添加向导（生成钥匙、放公钥）、从 <code>~/.ssh/config</code> 导入、基础配置、终端设置、卸载。</p></div>
         <div class="card"><span class="tag">compat</span><h4>两种 DSH 都能用</h4><p>DSH Desktop 与 <code>dsh web</code>；终端连接过 DSH 登录校验、同源检查和插件令牌，默认只许本机打开。</p></div>
         <div class="card"><span class="tag">light</span><h4>装起来轻</h4><p>不用原生模块（不编译 node-pty），运行时依赖只有 <code>ws</code> 与 <code>yaml</code>。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="shots">
+    <div class="wrap">
+      <div class="sec-head">
+        <div class="eyebrow">界面</div>
+        <h2>边聊边看：服务器状态常驻右侧栏</h2>
+        <p class="sub">三张截图，点图片翻到下一张，也可以用两侧箭头、下面的编号或键盘左右键。截图里的地址是文档专用地址。</p>
+      </div>
+      <div class="carousel" id="shotCarousel" tabindex="0" role="region" aria-roledescription="carousel" aria-label="界面截图">
+        <div class="shot">
+          <div class="slides">
+            <figure class="slide on" data-cap="设置 → VPS 管理：机器清单，编号对应对话头部 VPS 后面的方块；密码只用一次、不保存"><img src="assets/screenshots/status-1.webp" width="2000" height="1211" alt="截图 1：设置页的 VPS 管理与机器清单"></figure>
+            <figure class="slide" data-cap="对话下方是文件管理，右侧栏常驻「VPS 状态」：5 台机器的编号和对话头部一致，选别的机器只是查看"><img src="assets/screenshots/status-2.webp" width="2000" height="1211" alt="截图 2：对话下方的文件管理和右侧栏的 VPS 状态" loading="lazy"></figure>
+            <figure class="slide" data-cap="红圈标出常用入口：VPS 开关与机器方块、右侧栏选机器、让 AI 解读、可收起的分区、终端 | 文件 | 状态、面板的三个圆点、/vps- 命令"><img src="assets/screenshots/status-3.webp" width="2000" height="1211" alt="截图 3：红圈标出的常用入口" loading="lazy"></figure>
+            <button type="button" class="cnav cprev" aria-label="上一张"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+            <button type="button" class="cnav cnext" aria-label="下一张"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
+          </div>
+          <div class="cap ccap">
+            <span class="cdots" role="group" aria-label="选择截图">
+              <button type="button" class="cdot" aria-label="第 1 张" aria-current="true">1</button>
+              <button type="button" class="cdot" aria-label="第 2 张">2</button>
+              <button type="button" class="cdot" aria-label="第 3 张">3</button>
+            </span>
+            <span class="ctext" aria-live="polite"></span>
+          </div>
+        </div>
       </div>
     </div>
   </section>
@@ -631,6 +681,44 @@
     document.body.appendChild(ta); ta.select();
     try { document.execCommand('copy'); cb(); } catch(e){}
     document.body.removeChild(ta);
+  }
+
+  // 截图轮播
+  var car = document.getElementById('shotCarousel');
+  if (car) {
+    var slides = Array.prototype.slice.call(car.querySelectorAll('.slide'));
+    var dots = Array.prototype.slice.call(car.querySelectorAll('.cdot'));
+    var text = car.querySelector('.ctext');
+    var at = 0;
+    var show = function(i){
+      at = (i + slides.length) % slides.length;
+      slides.forEach(function(s, k){ s.classList.toggle('on', k === at); s.setAttribute('aria-hidden', k === at ? 'false' : 'true'); });
+      dots.forEach(function(d, k){ if (k === at) d.setAttribute('aria-current', 'true'); else d.removeAttribute('aria-current'); });
+      text.textContent = slides[at].dataset.cap;
+      var next = slides[(at + 1) % slides.length].querySelector('img');
+      if (next && next.loading === 'lazy') next.loading = 'eager'; // 先把下一张载好，点的时候不白屏
+    };
+    var box = car.querySelector('.slides');
+    var downX = null, swiped = false;
+    box.addEventListener('pointerdown', function(e){ downX = e.clientX; swiped = false; });
+    box.addEventListener('pointerup', function(e){
+      if (downX === null) return;
+      var dx = e.clientX - downX; downX = null;
+      if (Math.abs(dx) > 40) { swiped = true; show(at + (dx < 0 ? 1 : -1)); }
+    });
+    box.addEventListener('click', function(e){
+      if (swiped) { swiped = false; return; }
+      if (e.target.closest('.cnav')) return;
+      show(at + 1);
+    });
+    car.querySelector('.cprev').addEventListener('click', function(){ show(at - 1); });
+    car.querySelector('.cnext').addEventListener('click', function(){ show(at + 1); });
+    dots.forEach(function(d, k){ d.addEventListener('click', function(){ show(k); }); });
+    car.addEventListener('keydown', function(e){
+      if (e.key === 'ArrowRight') { e.preventDefault(); show(at + 1); }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); show(at - 1); }
+    });
+    show(0);
   }
 
   var groups = Array.prototype.slice.call(document.querySelectorAll('.tabs')).map(function(bar){

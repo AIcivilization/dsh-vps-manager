@@ -74,6 +74,11 @@ dsh plugin add dsh-vps-manager
 
 <!-- 插件市场会从 README 里抓图片当展示图：只放真图，不放占位图。静态截图放 assets/screenshots/。 -->
 
+<!-- README 里不能跑脚本，三张截图在同一个图片位置轮流显示；能一张张点着看的版本在项目网页上。 -->
+<p align="center"><a href="https://aicivilization.github.io/dsh-vps-manager/#shots"><img src="assets/screenshots/status-tour.webp" alt="三张截图轮流显示：1 设置 → VPS 管理，五台编号的机器；2 对话下方是文件管理，右侧栏常驻 VPS 状态；3 红圈标出常用入口" width="1000"></a></p>
+
+<p align="center"><sub>三张截图在这里轮流显示（1 → 2 → 3）；点图片到项目网页上一张张点着看。原图：<a href="assets/screenshots/status-1.webp">1</a> · <a href="assets/screenshots/status-2.webp">2</a> · <a href="assets/screenshots/status-3.webp">3</a><br>1 设置 → VPS 管理：编号的机器清单 · 2 对话下方是文件管理，右侧栏常驻「VPS 状态」 · 3 常用入口都在哪</sub></p>
+
 <p align="center"><img src="assets/demo.gif" alt="演示：装插件 → 添加机器（生成钥匙、把公钥放到服务器）→ 连上 → 设置页" width="1000"></p>
 
 <p align="center"><sub>从装插件到接上第一台机器的完整过程（演示里的地址、用户名已涂去）</sub></p>
