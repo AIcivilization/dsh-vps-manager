@@ -414,3 +414,18 @@ test('选了机器但还没测出结果的头部：方块是黄的，不是绿�
   assert.doesNotMatch(html, /data-vps-chip="ok"/)
   assert.match(html, /正在连接 hk/)
 })
+
+test('设置页「界面」「怎么用」：默认收起，只显示标题和一行摘要；记住展开过就展开', async () => {
+  const shut = await loadClient()
+  const render = (exported) => renderToStaticMarkup(React.createElement(exported.__test.FoldCard, { id: 'howto', title: '怎么用', summary: '一行摘要' }, React.createElement('div', null, '里面的内容')))
+  const closed = render(shut.exported)
+  assert.match(closed, /一行摘要/)
+  assert.doesNotMatch(closed, /里面的内容/)
+  assert.match(closed, /aria-expanded="false"/)
+  assert.match(closed, /aria-label="展开「怎么用」"/)
+  const opened = await loadClient({ storage: { 'dsh-vps.settings.open.howto': '1' } })
+  const html = render(opened.exported)
+  assert.match(html, /里面的内容/)
+  assert.match(html, /aria-expanded="true"/)
+  assert.doesNotMatch(html, /一行摘要/, '展开后不再显示摘要')
+})
