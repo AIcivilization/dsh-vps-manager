@@ -404,6 +404,7 @@ Your own recipes are treated as untrusted: their risk level is the stricter of w
 
 **DSH Settings → VPS Manager**, all point-and-click, never through the model:
 
+- **Update** (top right, next to the version number): when a new version is released on GitHub, the button turns into **Update to vX.Y.Z** with a note linking to what's new. Clicking it hands the install to DSH's own plugin manager (the same one DSH's Plugins page uses: it runs pnpm under a lock and restores your profile if anything fails). Quit DSH completely and reopen it to run the new version. If npm hasn't caught up with GitHub yet, the button waits; if the install fails, the reason and the `dsh plugin add` command to run yourself are shown. The check is cached for 6 hours; the button checks again on demand
 - **Machine list**: number (matching the squares in the conversation header), address, privilege, group, note; one-click connectivity test
 - **Add machine**, and **Import from ~/.ssh/config**
 - **Per-machine settings**: alias, address, port, user, jump host, public key placement, host fingerprint, confirmation level, removal
@@ -497,10 +498,11 @@ Errors the plugin runs into itself (registration failures, backend errors, inter
 | `scripts/compat-smoke.mjs` · `.github/workflows/dsh-compat.yml` | Compatibility check: install the plugin, boot a real DSH web app and check each part, against DSH's three release channels every 6 hours |
 | `lib/client.js` | Interface: header switch, terminal panel (terminal, files, status), notices below the input box, settings page |
 | `lib/status.js` | The Status tab: the read-only collection script, rules, local cache and AI interpretation |
+| `lib/update.js` | The settings page's Update button: latest release on GitHub and npm, install through DSH's plugin manager |
 | `lib/routes.js` | Settings page backend |
 | `lib/config.js` · `lib/onboarding.js` · `lib/ssh.js` | Machine list, SSH configuration, adding machines, ssh arguments |
 | `lib/reboot.js` · `lib/uninstall.js` · `lib/audit.js` | Reboot and wait for the machine, uninstall, audit log |
-| `test/` | 300 tests |
+| `test/` | 308 tests |
 | `scripts/windows-e2e.mjs` · `.github/workflows/platform-e2e.yml` | Cross-platform run against a real sshd on GitHub's Windows and Linux machines: adding a machine, running commands, the Files page, the Status page, the terminal, uninstalling |
 
 ---
@@ -512,7 +514,7 @@ npm install
 npm test
 ```
 
-300 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend, the terminal connection (authentication, local-only access, input and output, window size, keeping and resuming after a disconnect, cleanup), the status collection script and rules, and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`, along with whether the notice the plugin adds to a conversation is accepted by the host's session format.
+308 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend, the terminal connection (authentication, local-only access, input and output, window size, keeping and resuming after a disconnect, cleanup), the status collection script and rules, and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`, along with whether the notice the plugin adds to a conversation is accepted by the host's session format.
 
 On every push, GitHub's Windows machines (2022 and 2025, with the OpenSSH that ships with Windows) and a Linux machine also each connect to a real sshd and follow the same path a user does: add a machine with a password, run commands, run a remote task, upload, download and edit on the Files page, open the terminal and resize it, and revoke the key on uninstall.
 
