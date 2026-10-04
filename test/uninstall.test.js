@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { ensureDirs, paths, writeHosts } from '../lib/config.js'
 import { runProcess } from '../lib/spawn.js'
-import { PACKAGE_NAME, runUninstall, uninstallPreview } from '../lib/uninstall.js'
+import { PACKAGE_NAME, removePluginViaManager, runUninstall, uninstallPreview } from '../lib/uninstall.js'
 
 const KEY_BODY = 'AAAAC3NzaC1lZDI1NTE5AAAAIFakeFakeFakeFakeFakeFakeFakeFakeFakeFakeFake12'
 const OTHER_KEY = 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOtherOtherOtherOtherOtherOtherOtherOth me@laptop'
@@ -144,4 +144,35 @@ test('移除插件：DSH Desktop 走宿主服务；失败说清原因；普通 d
   assert.equal(plain.steps[0].ok, false)
   assert.match(plain.steps[0].text, /dsh plugin remove dsh-vps-manager/)
   assert.equal(plain.canRestart, false)
+})
+
+test('DSH 官方桌面版：插件本身交给 DSH 的插件管理器，放在最后单独一步（它会当场卸下插件）', async () => {
+  const { env } = await sandbox()
+  const removed = []
+  const pluginManager = { removeBundle: async (name) => { removed.push(name); return { application: 'applied', changed: true } } }
+  const pv = await uninstallPreview({ env, pluginManager })
+  assert.equal(pv.desktop.canRemove, true, '有插件管理器就能直接移除')
+  assert.equal(pv.desktop.canRestart, false, '官方桌面版没有给插件用的重启接口')
+
+  const res = await runUninstall({ env, pluginManager, choices: { sshConfig: true, plugin: true } })
+  assert.equal(res.removeVia, 'manager')
+  assert.deepEqual(res.steps.map((s) => s.id), ['sshConfig', 'plugin'], '插件本身仍在最后')
+  assert.equal(res.steps[1].pending, true)
+  assert.deepEqual(removed, [], '这一批里还不移除：先把前面的结果送回界面')
+
+  const done = await removePluginViaManager({ pluginManager })
+  assert.deepEqual(removed, [PACKAGE_NAME])
+  assert.equal(done.ok, true)
+  assert.match(done.text, /已从 DSH 移除/)
+})
+
+test('插件管理器不让移除：把原因说成人话，并给出可以自己运行的命令', async () => {
+  const refuse = (code) => ({ removeBundle: async () => ({ application: 'failed', error: { code } }) })
+  const stop = await removePluginViaManager({ pluginManager: refuse('stop-profile') })
+  assert.equal(stop.ok, false)
+  assert.match(stop.text, /完全退出 DSH 后在终端执行 dsh plugin remove dsh-vps-manager/)
+  assert.match((await removePluginViaManager({ pluginManager: refuse('bundle-in-use') })).text, /再到这里卸载一次/)
+  assert.match((await removePluginViaManager({ pluginManager: refuse('weird') })).text, /移除插件失败（weird）/)
+  assert.match((await removePluginViaManager({ pluginManager: { removeBundle: async () => { throw new Error('lock busy') } } })).text, /lock busy/)
+  assert.match((await removePluginViaManager({})).text, /在终端执行：dsh plugin remove/)
 })

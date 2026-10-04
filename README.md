@@ -220,9 +220,9 @@ The **`>_`** button right after `VPS` in the conversation header is the terminal
 - What you type and see here **does not go to the AI**; run a command with `/vps-sh` when you want the AI to see its output
 - Opening and ending are recorded in the audit log (keystrokes are not)
 
-**Settings** (DSH Settings → VPS Manager → 终端 / Terminal): colour scheme (follow system / dark / light, where follow system matches DSH's appearance), font size (11–20), how long to keep the terminal after a disconnect (5 minutes / 10 minutes / 30 minutes / 1 hour), and whether other devices may open it.
+**Settings** (DSH Settings → VPS Manager → 界面 / Interface): colour scheme (follow system / dark / light, where follow system matches DSH's appearance), font size (11–20), how long to keep the terminal after a disconnect (5 minutes / 10 minutes / 30 minutes / 1 hour), and whether other devices may open it.
 
-**It works in both DSH Desktop and `dsh web`**: the connection follows the page address (an `https` page automatically uses an encrypted connection). Every connection must pass three checks: DSH's own sign-in check, an origin that is the DSH page itself, and the plugin token embedded in that page. On top of that, **by default the terminal only opens on the computer running DSH**: when you reach `dsh web` through a LAN address or a reverse proxy, first tick "允许从其他设备打开 VPS 终端" (allow opening the VPS terminal from other devices) under DSH Settings → VPS Manager → Terminal. The terminal is full control of the server, so only turn this on for access paths you trust.
+**It works in both DSH Desktop and `dsh web`**: the connection follows the page address (an `https` page automatically uses an encrypted connection). Every connection must pass three checks: DSH's own sign-in check, an origin that is the DSH page itself, and the plugin token embedded in that page. On top of that, **by default the terminal only opens on the computer running DSH**: when you reach `dsh web` through a LAN address or a reverse proxy, first tick "允许从其他设备打开 VPS 终端" (allow opening the VPS terminal from other devices) under DSH Settings → VPS Manager → Interface. The terminal is full control of the server, so only turn this on for access paths you trust.
 
 No native module has to be compiled on your machine: the pseudo-terminal on the server is requested with `ssh -tt`, and window-size changes are applied over a second SSH connection. The terminal display is [xterm.js](https://xtermjs.org) (MIT licensed, bundled with the plugin and loaded the first time you open a terminal).
 
@@ -410,10 +410,10 @@ Your own recipes are treated as untrusted: their risk level is the stricter of w
 - **Per-machine settings**: alias, address, port, user, jump host, public key placement, host fingerprint, confirmation level, removal
 - **Basics**: fill in the state you want (timezone, swap size, BBR, automatic security updates, fail2ban, common CLI tools). On save, only the items that differ from the current state are run, each as a remote task with progress shown
 - **Global settings**: default confirmation level, safety-net duration, and whether changes may be made from the settings page when DSH's web server is open to the local network
-- **Terminal**: colour scheme (follow system / dark / light), font size, how long to keep the terminal after a disconnect, and whether the [terminal](#terminal-in-the-conversation) may be opened from other devices (off by default)
+- **Interface**: colour scheme (follow system / dark / light), font size, how long to keep the terminal after a disconnect, and whether the [terminal](#terminal-in-the-conversation) may be opened from other devices (off by default)
 - **Feedback and suggestions**: "report a problem" and "suggest" open a pre-filled GitHub issue; the diagnostics (plugin and DSH versions, registration status of each part, recent errors, masked) stay folded away until you click "diagnostics"
 - **Data location**
-- **Uninstall**: tick what to do, confirm, and see the result of each step. On DSH Desktop the plugin can be removed directly, followed by a one-click DSH restart; elsewhere you get the terminal command to run
+- **Uninstall**: tick what to do, confirm, and see the result of each step. The plugin itself is removed last: in the official DeepSeek Harness app through DSH's own plugin manager (the settings page disappears as it goes; quit and reopen DSH for a clean start), on the old DSH Desktop through its own service with a one-click restart; elsewhere you get the terminal command to run
   - Remove the plugin itself (ticked by default)
   - Remove the SSH connection settings (ticked by default): the `Include` line the plugin added at the top of `~/.ssh/config` is removed and `config.d/dsh-vps.conf` is renamed as a backup, so both can be restored
   - Clean up the plugin directory `~/.cache/dsh-vps` on the servers (machines with a running task are skipped, and so are machines another computer's plugin also manages, because that directory is shared)
@@ -502,7 +502,7 @@ Errors the plugin runs into itself (registration failures, backend errors, inter
 | `lib/routes.js` | Settings page backend |
 | `lib/config.js` · `lib/onboarding.js` · `lib/ssh.js` | Machine list, SSH configuration, adding machines, ssh arguments |
 | `lib/reboot.js` · `lib/uninstall.js` · `lib/audit.js` | Reboot and wait for the machine, uninstall, audit log |
-| `test/` | 308 tests |
+| `test/` | 311 tests |
 | `scripts/windows-e2e.mjs` · `.github/workflows/platform-e2e.yml` | Cross-platform run against a real sshd on GitHub's Windows and Linux machines: adding a machine, running commands, the Files page, the Status page, the terminal, uninstalling |
 
 ---
@@ -514,7 +514,7 @@ npm install
 npm test
 ```
 
-308 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend, the terminal connection (authentication, local-only access, input and output, window size, keeping and resuming after a disconnect, cleanup), the status collection script and rules, and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`, along with whether the notice the plugin adds to a conversation is accepted by the host's session format.
+311 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend, the terminal connection (authentication, local-only access, input and output, window size, keeping and resuming after a disconnect, cleanup), the status collection script and rules, and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`, along with whether the notice the plugin adds to a conversation is accepted by the host's session format.
 
 On every push, GitHub's Windows machines (2022 and 2025, with the OpenSSH that ships with Windows) and a Linux machine also each connect to a real sshd and follow the same path a user does: add a machine with a password, run commands, run a remote task, upload, download and edit on the Files page, open the terminal and resize it, and revoke the key on uninstall.
 

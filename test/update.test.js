@@ -182,3 +182,22 @@ test('设置页的更新按钮：有新版亮起「更新到 vX」；npm 没同�
   assert.equal(updateView({ available: true, installable: '0.6.3' }, 'updating', 12).label, '正在更新…（12 秒）')
   assert.equal(updateView({ available: false }, 'idle').action, 'check', '已是最新：点了马上重查')
 })
+
+test('接口：uninstall/remove-plugin 交给插件管理器，结果写在 removed（外层 ok 只表示请求成功）', async () => {
+  const env = await sandboxEnv()
+  const exact = new Map()
+  const ws = { config: { host: '127.0.0.1', port: 3000 }, register({ path, handler }) { exact.set(path, handler); return () => exact.delete(path) } }
+  const removed = []
+  const deps = { env, pluginManager: { removeBundle: async (name) => { removed.push(name); return { application: 'failed', error: { code: 'stop-profile' } } } } }
+  const reg = registerRoutes({ webServer: ws }, deps)
+  const req = Readable.from([Buffer.from('{}')])
+  req.method = 'POST'
+  req.headers = { 'content-type': 'application/json', host: '127.0.0.1:3000', 'x-dsh-vps-token': reg.token }
+  req.socket = { remoteAddress: '127.0.0.1' }
+  const out = {}
+  await exact.get('/api-vps/uninstall/remove-plugin')(req, { writeHead: (c) => { out.code = c }, end: (t) => { out.body = JSON.parse(t) } })
+  assert.deepEqual(removed, ['dsh-vps-manager'])
+  assert.equal(out.body.ok, true)
+  assert.equal(out.body.removed, false)
+  assert.match(out.body.text, /dsh plugin remove dsh-vps-manager/)
+})
