@@ -131,7 +131,7 @@ test('DSH 重启过：令牌对不上要说人话，还要说清怎么办', asyn
   await assert.rejects(exported.__test.api('overview'), /令牌对不上了.*刷新页面再试/)
 })
 
-test('令牌过期（DSH 重启过、插件重新加载过）：自己去首页换新令牌再试一次，用户不用刷新', async () => {
+test('令牌过期、而运行中的服务端是没有 /api-vps/token 的老版本：退回去首页换新令牌再试一次，用户不用刷新', async () => {
   const calls = []
   const fresh = 'abcdef0123456789abcdef0123456789'
   const { exported } = await loadClient({
@@ -144,7 +144,7 @@ test('令牌过期（DSH 重启过、插件重新加载过）：自己去首页�
   })
   const data = await exported.__test.api('overview')
   assert.deepEqual(data.hosts, ['hk'])
-  assert.deepEqual(calls, ['/api-vps/overview', 'http://127.0.0.1:3000/', '/api-vps/overview'])
+  assert.deepEqual(calls, ['/api-vps/overview', '/api-vps/token', 'http://127.0.0.1:3000/', '/api-vps/overview'])
   assert.equal(globalThis.window.__DSH_VPS_TOKEN__, fresh)
 })
 

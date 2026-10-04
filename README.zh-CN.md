@@ -500,7 +500,7 @@ Windows、Mac、Linux 上的 DSH 可以各装一份插件，同时管同一台�
 | `lib/routes.js` | 设置页接口 |
 | `lib/config.js` · `lib/onboarding.js` · `lib/ssh.js` | 机器清单、SSH 配置、添加机器、ssh 参数 |
 | `lib/reboot.js` · `lib/uninstall.js` · `lib/audit.js` | 重启并等机器回来、卸载、审计日志 |
-| `test/` | 294 个测试 |
+| `test/` | 300 个测试 |
 | `scripts/windows-e2e.mjs` · `.github/workflows/platform-e2e.yml` | 跨平台实测：在 GitHub 的 Windows 和 Linux 电脑上连真的 sshd，把添加机器、执行命令、文件页、状态页、终端、卸载走一遍 |
 
 ---
@@ -512,7 +512,7 @@ npm install
 npm test
 ```
 
-294 个测试，不需要真实服务器：用本机的 `sh -s` 代替远端 `sshd`，覆盖载荷协议、远端任务、并发锁、备份还原、风险判定、VPS 模式、卸载、命令、设置页接口、终端连接（鉴权、本机限制、输入输出、窗口大小、断线保留与接回、结束清理）、状态采集脚本与判断规则，以及界面渲染。装了 DSH Desktop 的机器上，还会拿 DSH 自带的 `dsh-tools`、`dsh-skill`、`dsh-user-approval` 核对工具定义、返回值、skill 字段、审批结果词汇，以及插件插入对话的那条说明能不能被宿主的会话格式收下。
+300 个测试，不需要真实服务器：用本机的 `sh -s` 代替远端 `sshd`，覆盖载荷协议、远端任务、并发锁、备份还原、风险判定、VPS 模式、卸载、命令、设置页接口、终端连接（鉴权、本机限制、输入输出、窗口大小、断线保留与接回、结束清理）、状态采集脚本与判断规则，以及界面渲染。装了 DSH Desktop 的机器上，还会拿 DSH 自带的 `dsh-tools`、`dsh-skill`、`dsh-user-approval` 核对工具定义、返回值、skill 字段、审批结果词汇，以及插件插入对话的那条说明能不能被宿主的会话格式收下。
 
 另有跨平台实测：每次推送代码，GitHub 的 Windows（2022、2025，系统自带的 OpenSSH）和 Linux 电脑各连一台真的 sshd，用密码添加机器、执行命令、跑远端任务、在文件页上传下载编辑、开终端调窗口大小、卸载时撤销钥匙，全程和用户操作的路径一样。
 
