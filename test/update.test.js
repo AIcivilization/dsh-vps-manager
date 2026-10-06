@@ -201,3 +201,25 @@ test('接口：uninstall/remove-plugin 交给插件管理器，结果写在 remo
   assert.equal(out.body.removed, false)
   assert.match(out.body.text, /dsh plugin remove dsh-vps-manager/)
 })
+
+test('接口：overview 带上 dsh-vps 装没装（看 DSH 插件管理器的清单；没有插件管理器就是 null）', async () => {
+  const env = await sandboxEnv()
+  const make = (deps) => {
+    const exact = new Map()
+    const ws = { config: { host: '127.0.0.1', port: 3000 }, register({ path, handler }) { exact.set(path, handler); return () => exact.delete(path) } }
+    const reg = registerRoutes({ webServer: ws }, { env, ...deps })
+    return async () => {
+      const req = Readable.from([Buffer.from('{}')])
+      req.method = 'POST'
+      req.headers = { 'content-type': 'application/json', host: '127.0.0.1:3000', 'x-dsh-vps-token': reg.token }
+      req.socket = { remoteAddress: '127.0.0.1' }
+      const out = {}
+      await exact.get('/api-vps/overview')(req, { writeHead() {}, end: (t) => { out.body = JSON.parse(t) } })
+      return out.body.sister
+    }
+  }
+  assert.deepEqual(await make({ pluginManager: { listBundles: () => [{ name: 'dsh-vps', enabled: true, installed: true }] } })(), { installed: true })
+  assert.deepEqual(await make({ pluginManager: { listBundles: () => [{ name: 'dsh-vps', enabled: false, installed: true }] } })(), { installed: false }, '装了但关着，算没装')
+  assert.deepEqual(await make({ pluginManager: { listBundles: () => [] } })(), { installed: false })
+  assert.deepEqual(await make({})(), { installed: null })
+})

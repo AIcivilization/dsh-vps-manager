@@ -429,3 +429,18 @@ test('设置页「界面」「怎么用」：默认收起，只显示标题和�
   assert.match(html, /aria-expanded="true"/)
   assert.doesNotMatch(html, /一行摘要/, '展开后不再显示摘要')
 })
+
+test('设置页的 dsh-vps 介绍：没装时介绍它并给 GitHub 链接和插件市场搜索；装了就指去「VPS 部署」', async () => {
+  const { exported } = await loadClient()
+  const render = (installed) => renderToStaticMarkup(React.createElement(exported.__test.SisterCard, { installed }))
+  const intro = render(false)
+  assert.match(intro, /在手机、平板上也用 DSH/)
+  assert.match(intro, /href="https:\/\/github.com\/AIcivilization\/dsh-vps"/)
+  assert.match(intro, /在插件市场搜索「dsh-vps」/)
+  assert.doesNotMatch(intro, /VPS 部署/)
+  assert.match(render(null), /在插件市场搜索/, '不知道装没装（老版本 DSH）：按没装介绍')
+  const have = render(true)
+  assert.match(have, /你已经装了 dsh-vps/)
+  assert.match(have, /「VPS 部署」/)
+  assert.doesNotMatch(have, /插件市场搜索/)
+})
