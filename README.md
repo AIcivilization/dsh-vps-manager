@@ -496,7 +496,7 @@ Errors the plugin runs into itself (registration failures, backend errors, inter
 | `lib/terminal.js` | The `/vps-sh` mini terminal: remembered directory, interactive-command rewriting, masking |
 | `lib/reach.js` | Connection checks (the colour of the header squares) |
 | `lib/health.js` · `lib/verified-dsh.json` | Self-diagnostics: registration results, DSH version verification, local error log, feedback link |
-| `scripts/compat-smoke.mjs` · `.github/workflows/dsh-compat.yml` | Compatibility check: install the plugin, boot a real DSH web app and check each part, against DSH's three release channels every 6 hours |
+| `scripts/compat-smoke.mjs` · `scripts/install-dsh.sh` · `.github/workflows/dsh-compat.yml` | Compatibility check: install the plugin, boot a real DSH web app and check each part, against DSH's three release channels every 6 hours. If a fresh DSH release is still missing packages on npm, the install is retried every 10 minutes, up to 4 times, so it doesn't raise a false alarm |
 | `lib/client.js` | Interface: header switch, terminal panel (terminal, files, status), notices below the input box, settings page |
 | `lib/status.js` | The Status tab: the read-only collection script, rules, local cache and AI interpretation |
 | `lib/update.js` | The settings page's Update button: latest release on GitHub and npm, install through DSH's plugin manager |

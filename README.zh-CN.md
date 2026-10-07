@@ -496,7 +496,7 @@ Windows、Mac、Linux 上的 DSH 可以各装一份插件，同时管同一台�
 | `lib/terminal.js` | `/vps-sh` 迷你终端：记住目录、交互命令改写、打码 |
 | `lib/reach.js` | 连接状态检测（头部方块的颜色） |
 | `lib/health.js` · `lib/verified-dsh.json` | 插件体检：各部分注册结果、DSH 版本验证状态、本地错误记录、反馈链接 |
-| `scripts/compat-smoke.mjs` · `.github/workflows/dsh-compat.yml` | 兼容性检查：装上插件、启动真实 DSH 网页版逐项检查，每 6 小时跑一遍 DSH 的三个通道 |
+| `scripts/compat-smoke.mjs` · `scripts/install-dsh.sh` · `.github/workflows/dsh-compat.yml` | 兼容性检查：装上插件、启动真实 DSH 网页版逐项检查，每 6 小时跑一遍 DSH 的三个通道。DSH 刚发版、npm 上还缺包时隔 10 分钟重装，最多 4 次，不误报 |
 | `lib/client.js` | 界面：头部开关、终端面板（终端、文件、状态）、输入框下方提醒、设置页 |
 | `lib/status.js` | 「状态」页：只读采集脚本、判断规则、本机缓存、AI 解读 |
 | `lib/update.js` | 设置页的「更新」：查 GitHub 和 npm 上的最新版本，交给 DSH 的插件管理器安装 |
