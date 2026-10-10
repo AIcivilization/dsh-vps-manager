@@ -32,10 +32,10 @@
 
 ## Overview
 
-**Install**: search for `dsh-vps-manager` in the DSH plugin market and click install, or run the line below in the DSH terminal; then restart DSH and add a machine under **Settings → VPS Manager**.
+**Install**: search for `dsh-vps-manager` in the DSH plugin market and click install; or quit DSH completely and run the line below in a terminal (for command-line `dsh web`, replace `desktop` with `web`; see [Install](#install)). Then open DSH and add a machine under **Settings → VPS Manager**.
 
 ```bash
-dsh plugin add dsh-vps-manager
+dsh plugin --profile desktop add dsh-vps-manager
 ```
 
 Manage your VPS from DeepSeek Harness (DSH): check server status with commands that skip the model and cost no tokens, tell the AI what to do and let it work on the server, see how the server is doing on one page, open a real terminal or move files in the conversation when you want to do it yourself, and handle common installs and maintenance with recipes.
@@ -133,17 +133,23 @@ Everything works the same on all three: commands, the AI, the terminal, the File
 
 **Plugin market**: search for `dsh-vps-manager` in DSH's plugin market (dshmarket) and click install. Works in both DSH Desktop and `dsh web`.
 
-**Command line**: in DSH Desktop, click the DSH icon in the menu bar (the system tray on Windows) → "Open DSH Terminal"; with command-line DSH (`dsh web`), use an ordinary terminal. Run:
+**Command line**: **quit DSH completely** first, then run the line for your DSH:
 
 ```bash
-dsh plugin add dsh-vps-manager
+# Official DeepSeek Harness desktop app
+dsh plugin --profile desktop add dsh-vps-manager
+# Command-line dsh web
+dsh plugin --profile web add dsh-vps-manager
 ```
+
+- The desktop app needs its own `dsh` command: install it from the app menu, "Manage dsh command…". A `dsh` installed from npm cannot change the desktop app's plugins.
+- `--profile` must come before `add`. Since DSH 0.2.0, leaving it out fails with `required option '--profile <name>' not specified`.
 
 For the latest code on GitHub (possibly newer than the release on npm), use `github:AIcivilization/dsh-vps-manager` as the package name instead.
 
-**Restart DSH** afterwards. Plugins are loaded when DSH starts. What changed in each version is listed under [Releases](https://github.com/AIcivilization/dsh-vps-manager/releases).
+**Open DSH** afterwards. Plugins are loaded when DSH starts. What changed in each version is listed under [Releases](https://github.com/AIcivilization/dsh-vps-manager/releases).
 
-To uninstall, open **DSH Settings → VPS Manager**, scroll to the bottom and click "Uninstall…" (see [Settings page](#settings-page)). You can also run `dsh plugin remove dsh-vps-manager` in a terminal and restart DSH; that removes only the plugin and keeps the machine list, keys, SSH configuration and audit log.
+To uninstall, open **DSH Settings → VPS Manager**, scroll to the bottom and click "Uninstall…" (see [Settings page](#settings-page)). You can also quit DSH completely, run `dsh plugin --profile desktop remove dsh-vps-manager` in a terminal (`--profile web` for `dsh web`) and reopen DSH; that removes only the plugin and keeps the machine list, keys, SSH configuration and audit log.
 
 ---
 
@@ -503,7 +509,7 @@ Errors the plugin runs into itself (registration failures, backend errors, inter
 | `lib/routes.js` | Settings page backend |
 | `lib/config.js` · `lib/onboarding.js` · `lib/ssh.js` | Machine list, SSH configuration, adding machines, ssh arguments |
 | `lib/reboot.js` · `lib/uninstall.js` · `lib/audit.js` | Reboot and wait for the machine, uninstall, audit log |
-| `test/` | 314 tests |
+| `test/` | 316 tests |
 | `scripts/windows-e2e.mjs` · `.github/workflows/platform-e2e.yml` | Cross-platform run against a real sshd on GitHub's Windows and Linux machines: adding a machine, running commands, the Files page, the Status page, the terminal, uninstalling |
 
 ---
@@ -515,7 +521,7 @@ npm install
 npm test
 ```
 
-314 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend, the terminal connection (authentication, local-only access, input and output, window size, keeping and resuming after a disconnect, cleanup), the status collection script and rules, and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`, along with whether the notice the plugin adds to a conversation is accepted by the host's session format.
+316 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend, the terminal connection (authentication, local-only access, input and output, window size, keeping and resuming after a disconnect, cleanup), the status collection script and rules, and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`, along with whether the notice the plugin adds to a conversation is accepted by the host's session format.
 
 On every push, GitHub's Windows machines (2022 and 2025, with the OpenSSH that ships with Windows) and a Linux machine also each connect to a real sshd and follow the same path a user does: add a machine with a password, run commands, run a remote task, upload, download and edit on the Files page, open the terminal and resize it, and revoke the key on uninstall.
 

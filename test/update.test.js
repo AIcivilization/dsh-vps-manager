@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Readable } from 'node:stream'
 import { createRequire } from 'node:module'
-import { writeHosts } from '../lib/config.js'
+import { dshPluginCommand, writeHosts } from '../lib/config.js'
 import { registerRoutes } from '../lib/routes.js'
 import { checkUpdate, compareVersions, runUpdate } from '../lib/update.js'
 
@@ -149,6 +149,39 @@ test('接口：update/check 带上能不能在这里装；update/run 要令牌�
   assert.equal(failed.body.updated, false)
   assert.equal(failed.body.code, 'incompatible-version')
   assert.match(failed.body.command, /dsh plugin add dsh-vps-manager@/)
+})
+
+test('给用户自己执行的命令：--profile 写在 add / remove 前面（DSH 0.2.0 起必填）；读不到名字照老写法', async () => {
+  assert.equal(dshPluginCommand('add dsh-vps-manager@1.2.3', 'desktop'), 'dsh plugin --profile desktop add dsh-vps-manager@1.2.3')
+  assert.equal(dshPluginCommand('remove dsh-vps-manager', 'web'), 'dsh plugin --profile web remove dsh-vps-manager')
+  assert.equal(dshPluginCommand('remove dsh-vps-manager'), 'dsh plugin remove dsh-vps-manager')
+  // 不像 profile 名字的不拼进去，免得给用户一条奇怪的命令
+  assert.equal(dshPluginCommand('remove dsh-vps-manager', 'a b; rm -rf ~'), 'dsh plugin remove dsh-vps-manager')
+
+  // 接口：检查更新、装不上、卸载预览、移除插件，给的命令都带上当前 profile
+  const env = await sandboxEnv()
+  const exact = new Map()
+  const ws = { config: { host: '127.0.0.1', port: 3000 }, register({ path, handler }) { exact.set(path, handler); return () => exact.delete(path) } }
+  const running = require('../package.json').version
+  const next = running.replace(/\d+$/, (n) => String(Number(n) + 1))
+  const reg = registerRoutes({ webServer: ws }, { env, profile: 'desktop', fetchImpl: fakeNet({ github: next, npm: next }).fetchImpl })
+  const call = async (path, body = {}) => {
+    const req = Readable.from([Buffer.from(JSON.stringify(body))])
+    req.method = 'POST'
+    req.headers = { 'content-type': 'application/json', host: '127.0.0.1:3000', 'x-dsh-vps-token': reg.token }
+    req.socket = { remoteAddress: '127.0.0.1' }
+    const out = {}
+    await exact.get(`/api-vps/${path}`)(req, { writeHead: (c) => { out.code = c }, end: (t) => { out.body = JSON.parse(t) } })
+    return out.body
+  }
+  assert.equal((await call('update/check', { force: true })).command, `dsh plugin --profile desktop add dsh-vps-manager@${next}`)
+  const run = await call('update/run', { version: next }) // 没有插件管理器：给命令让用户自己装
+  assert.equal(run.code, 'no-manager')
+  assert.equal(run.command, `dsh plugin --profile desktop add dsh-vps-manager@${next}`)
+  assert.equal((await call('uninstall/preview')).removeCommand, 'dsh plugin --profile desktop remove dsh-vps-manager')
+  const removed = await call('uninstall/remove-plugin')
+  assert.equal(removed.removed, false)
+  assert.match(removed.text, /完全退出 DSH，在终端执行：dsh plugin --profile desktop remove dsh-vps-manager/)
 })
 
 // —— 界面 ——

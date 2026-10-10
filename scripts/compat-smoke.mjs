@@ -55,8 +55,9 @@ async function main() {
   let web = null
   let log = ''
   try {
-    // 1. 装插件：和用户在终端里执行 dsh plugin add 完全一样
-    const add = await run(['plugin', 'add', '--profile', 'web', pluginTgz], env)
+    // 1. 装插件：和用户在终端里执行 dsh plugin --profile web add 完全一样。
+    // --profile 要写在 add 前面：后面的参数原样交给 pnpm，DSH 0.2.1-alpha.2 起写在后面就报没指定 profile
+    const add = await run(['plugin', '--profile', 'web', 'add', pluginTgz], env)
     check('dsh plugin add 能装上插件', add.code === 0, add.code === 0 ? '' : add.out.slice(-400))
     if (add.code !== 0) return finish(dshVersion, pluginVersion, log)
 
@@ -119,6 +120,9 @@ async function main() {
     }
     check('插件读到的 DSH 版本正确', diag.dsh?.version === dshVersion, `读到 ${diag.dsh?.version || '（空）'}，实际 ${dshVersion}`)
     check('插件认出这是网页版', diag.form === 'web', diag.form)
+    // 给用户自己执行的命令要带上当前 profile（dsh plugin 的 --profile 必填）：名字是插件从 DSH 读到的
+    const preview = await api('uninstall/preview')
+    check('给用户的命令带对了 profile', preview.removeCommand === 'dsh plugin --profile web remove dsh-vps-manager', preview.removeCommand ?? preview.error)
 
     // 文件管理器：接口挂上了（没绑定机器的对话应该得到明确提示）；下载的 GET 路由也在
     const filesPlaces = await api('files/places', { sessionId: 'compat-check' })

@@ -32,10 +32,10 @@
 
 ## 简介
 
-**安装**：DSH 插件市场搜索 `dsh-vps-manager` 一键安装，或在 DSH 终端执行下面这行；装完重启 DSH，到 **设置 → VPS 管理** 添加机器。
+**安装**：DSH 插件市场搜索 `dsh-vps-manager` 一键安装；也可以先完全退出 DSH，在终端执行下面这行（命令行版 `dsh web` 把 `desktop` 换成 `web`，见[安装](#安装)）。装完打开 DSH，到 **设置 → VPS 管理** 添加机器。
 
 ```bash
-dsh plugin add dsh-vps-manager
+dsh plugin --profile desktop add dsh-vps-manager
 ```
 
 在 DeepSeek Harness（DSH）里管理你的 VPS：用命令查看服务器状态（不走模型、不花 token），跟 AI 说一句话让它登上服务器干活，在对话里一页看清服务器状态，要自己动手就打开真终端、传文件，常见软件和系统维护按菜谱完成。
@@ -133,17 +133,23 @@ dsh plugin add dsh-vps-manager
 
 **插件市场**：在 DSH 的插件市场（dshmarket）里搜索 `dsh-vps-manager`，点安装。DSH Desktop 和 `dsh web` 都可以。
 
-**命令行**：DSH Desktop 点菜单栏（Windows 上是任务栏托盘）的 DSH 图标 →「打开 DSH 终端」；命令行版 DSH（`dsh web`）用普通终端。执行：
+**命令行**：先**完全退出 DSH**，再按你用的 DSH 执行：
 
 ```bash
-dsh plugin add dsh-vps-manager
+# 官方桌面版 DeepSeek Harness
+dsh plugin --profile desktop add dsh-vps-manager
+# 命令行版 dsh web
+dsh plugin --profile web add dsh-vps-manager
 ```
+
+- 官方桌面版要用它自带的 `dsh` 命令：在应用菜单「管理 dsh 命令…」里安装。npm 装的 `dsh` 改不了桌面版的插件。
+- `--profile` 必须写在 `add` 前面。DSH 0.2.0 起不带它会报 `required option '--profile <name>' not specified`。
 
 想装 GitHub 上的最新代码（可能比 npm 上发布的版本新），把包名换成 `github:AIcivilization/dsh-vps-manager`。
 
-装好后**重启 DSH**，插件在 DSH 启动时加载。每个版本改了什么，见 [Releases](https://github.com/AIcivilization/dsh-vps-manager/releases)。
+装好后**打开 DSH**，插件在 DSH 启动时加载。每个版本改了什么，见 [Releases](https://github.com/AIcivilization/dsh-vps-manager/releases)。
 
-卸载：打开 **DSH 设置 → VPS 管理**，拉到最下面点「卸载…」（见[设置页](#设置页)）。也可以在终端执行 `dsh plugin remove dsh-vps-manager` 后重启 DSH；这样只移除插件，机器清单、钥匙、SSH 配置和审计日志都会留着。
+卸载：打开 **DSH 设置 → VPS 管理**，拉到最下面点「卸载…」（见[设置页](#设置页)）。也可以完全退出 DSH，在终端执行 `dsh plugin --profile desktop remove dsh-vps-manager`（`dsh web` 换成 `--profile web`），再打开 DSH；这样只移除插件，机器清单、钥匙、SSH 配置和审计日志都会留着。
 
 ---
 
@@ -503,7 +509,7 @@ Windows、Mac、Linux 上的 DSH 可以各装一份插件，同时管同一台�
 | `lib/routes.js` | 设置页接口 |
 | `lib/config.js` · `lib/onboarding.js` · `lib/ssh.js` | 机器清单、SSH 配置、添加机器、ssh 参数 |
 | `lib/reboot.js` · `lib/uninstall.js` · `lib/audit.js` | 重启并等机器回来、卸载、审计日志 |
-| `test/` | 314 个测试 |
+| `test/` | 316 个测试 |
 | `scripts/windows-e2e.mjs` · `.github/workflows/platform-e2e.yml` | 跨平台实测：在 GitHub 的 Windows 和 Linux 电脑上连真的 sshd，把添加机器、执行命令、文件页、状态页、终端、卸载走一遍 |
 
 ---
@@ -515,7 +521,7 @@ npm install
 npm test
 ```
 
-314 个测试，不需要真实服务器：用本机的 `sh -s` 代替远端 `sshd`，覆盖载荷协议、远端任务、并发锁、备份还原、风险判定、VPS 模式、卸载、命令、设置页接口、终端连接（鉴权、本机限制、输入输出、窗口大小、断线保留与接回、结束清理）、状态采集脚本与判断规则，以及界面渲染。装了 DSH Desktop 的机器上，还会拿 DSH 自带的 `dsh-tools`、`dsh-skill`、`dsh-user-approval` 核对工具定义、返回值、skill 字段、审批结果词汇，以及插件插入对话的那条说明能不能被宿主的会话格式收下。
+316 个测试，不需要真实服务器：用本机的 `sh -s` 代替远端 `sshd`，覆盖载荷协议、远端任务、并发锁、备份还原、风险判定、VPS 模式、卸载、命令、设置页接口、终端连接（鉴权、本机限制、输入输出、窗口大小、断线保留与接回、结束清理）、状态采集脚本与判断规则，以及界面渲染。装了 DSH Desktop 的机器上，还会拿 DSH 自带的 `dsh-tools`、`dsh-skill`、`dsh-user-approval` 核对工具定义、返回值、skill 字段、审批结果词汇，以及插件插入对话的那条说明能不能被宿主的会话格式收下。
 
 另有跨平台实测：每次推送代码，GitHub 的 Windows（2022、2025，系统自带的 OpenSSH）和 Linux 电脑各连一台真的 sshd，用密码添加机器、执行命令、跑远端任务、在文件页上传下载编辑、开终端调窗口大小、卸载时撤销钥匙，全程和用户操作的路径一样。
 

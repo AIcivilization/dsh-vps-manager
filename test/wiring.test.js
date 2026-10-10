@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { Readable } from 'node:stream'
 import { writeHosts } from '../lib/config.js'
 import { registerCommands } from '../lib/commands.js'
 import { _resetInstanceGuard, apply } from '../lib/index.js'
@@ -172,6 +173,32 @@ test('webServer 挂载后：设置页路由与终端共用一个 token，插件�
   for (const e of effects) await e.dispose()
   assert.equal(upgrades.size, 0, '卸载后终端路由要撤掉，否则重载时报重复注册')
   assert.equal(exact.size, 0)
+})
+
+test('启动时从 DSH 的 profileContext 读 profile 名字：给用户的 dsh plugin 命令带上 --profile', async () => {
+  const ctx = fakeCtx()
+  ctx.get = (name) => (name === 'profileContext' ? { name: 'desktop', dir: '/x/.dsh/profiles/desktop' } : undefined)
+  const home = await mkdtemp(join(tmpdir(), 'dsh-vps-profile-'))
+  apply(ctx, { env: { HOME: home, DSH_HOME: join(home, '.dsh') } })
+  const handlers = new Map()
+  const taps = []
+  const effects = []
+  const webServer = {
+    config: { host: '127.0.0.1', port: 3000 },
+    register: ({ path, handler }) => { handlers.set(path, handler); return () => handlers.delete(path) },
+    registerUpgrade: () => () => {},
+    tapIndex: (fn) => { taps.push(fn); return () => {} },
+  }
+  await ctx._injected.get('webServer')({ webServer, get: () => undefined, effect: (fn) => { effects.push(fn()) } })
+  const token = /__DSH_VPS_TOKEN__="([a-f0-9]+)"/.exec(taps[0]('<head></head>'))[1]
+  const req = Readable.from([Buffer.from('{}')])
+  req.method = 'POST'
+  req.headers = { 'content-type': 'application/json', host: '127.0.0.1:3000', 'x-dsh-vps-token': token }
+  req.socket = { remoteAddress: '127.0.0.1' }
+  const out = {}
+  await handlers.get('/api-vps/uninstall/preview')(req, { writeHead: () => {}, end: (t) => { out.body = JSON.parse(t) } })
+  assert.equal(out.body.removeCommand, 'dsh plugin --profile desktop remove dsh-vps-manager')
+  for (const dispose of effects) await dispose()
 })
 
 test('工具层：没有审批就拒绝改动，用户允许后才执行', async () => {

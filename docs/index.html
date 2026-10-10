@@ -201,7 +201,7 @@
       <span class="badge">DSH ≥ 0.1.5-rc.2</span>
       <span class="badge">Windows / macOS / Linux</span>
       <span class="badge">Node ≥ 22.13</span>
-      <span class="badge">314 tests</span>
+      <span class="badge">316 tests</span>
     </div>
 
     <div class="notice">
@@ -211,9 +211,9 @@
 
     <div class="cmd">
       <button class="copy" type="button">复制</button>
-      <code><span class="p">$ </span>dsh plugin add dsh-vps-manager</code>
+      <code><span class="p">$ </span>dsh plugin --profile desktop add dsh-vps-manager</code>
     </div>
-    <p class="hint">装完重启 DSH，到 <b>设置 → VPS 管理</b> 添加机器。仅支持 SSH 密钥登录。</p>
+    <p class="hint">先完全退出 DSH 再执行；命令行版 <code>dsh web</code> 把 <code>desktop</code> 换成 <code>web</code>。装完打开 DSH，到 <b>设置 → VPS 管理</b> 添加机器。仅支持 SSH 密钥登录。</p>
 
     <div class="cta">
       <a class="btn btn-p" href="https://github.com/AIcivilization/dsh-vps-manager">查看源码与文档</a>
@@ -329,18 +329,18 @@
       </div>
 
       <div class="panel" id="p-cli">
-        <div class="cmd"><button class="copy" type="button">复制</button><code>dsh plugin add dsh-vps-manager</code></div>
-        <p>DSH Desktop：点菜单栏（Windows 上是任务栏托盘）的 DSH 图标 →「打开 DSH 终端」；命令行版 DSH（<code>dsh web</code>）用普通终端。装好后<b>重启 DSH</b>。</p>
+        <div class="cmd"><button class="copy" type="button">复制</button><code>dsh plugin --profile desktop add dsh-vps-manager</code></div>
+        <p>先<b>完全退出 DSH</b>再执行。官方桌面版要用它自带的 <code>dsh</code> 命令（在应用菜单「管理 dsh 命令…」里安装，npm 装的 dsh 改不了桌面版的插件）；命令行版 DSH（<code>dsh web</code>）用普通终端，把 <code>desktop</code> 换成 <code>web</code>。<code>--profile</code> 必须写在 <code>add</code> 前面。装好后打开 DSH。</p>
       </div>
 
       <div class="panel" id="p-git">
-        <div class="cmd"><button class="copy" type="button">复制</button><code>dsh plugin add github:AIcivilization/dsh-vps-manager</code></div>
-        <p>想装 GitHub 上的最新代码（可能比 npm 上发布的版本新），把包名换成上面这行。</p>
+        <div class="cmd"><button class="copy" type="button">复制</button><code>dsh plugin --profile desktop add github:AIcivilization/dsh-vps-manager</code></div>
+        <p>想装 GitHub 上的最新代码（可能比 npm 上发布的版本新），把包名换成上面这样。命令行版 <code>dsh web</code> 同样把 <code>desktop</code> 换成 <code>web</code>。</p>
       </div>
 
       <div class="panel" id="p-uninstall">
-        <div class="cmd"><button class="copy" type="button">复制</button><code>dsh plugin remove dsh-vps-manager</code></div>
-        <p>也可以在 <b>设置 → VPS 管理</b> 拉到最下面点「卸载…」，逐项勾选后再执行。命令行方式只移除插件，机器清单、钥匙、SSH 配置和审计日志都会留着。</p>
+        <div class="cmd"><button class="copy" type="button">复制</button><code>dsh plugin --profile desktop remove dsh-vps-manager</code></div>
+        <p>同样先完全退出 DSH，<code>dsh web</code> 换成 <code>--profile web</code>。也可以在 <b>设置 → VPS 管理</b> 拉到最下面点「卸载…」，逐项勾选后再执行。命令行方式只移除插件，机器清单、钥匙、SSH 配置和审计日志都会留着。</p>
       </div>
 
       <h3 class="mini">运行要求</h3>
