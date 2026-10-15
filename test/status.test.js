@@ -1,10 +1,12 @@
 // 终端面板的「状态」页签：一次采完、规则判断、本机缓存、点了才让 AI 解读
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtemp } from 'node:fs/promises'
+import { execFile } from 'node:child_process'
+import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Readable } from 'node:stream'
+import { promisify } from 'node:util'
 import { renderToStaticMarkup } from 'react-dom/server'
 import React from 'react'
 import { bindSession, readState, writeHosts, writeState } from '../lib/config.js'
@@ -239,6 +241,10 @@ test('界面：状态页（最大化）把需注意、资源、磁盘和各分�
       assert.match(html, /backup-sync/)
       assert.match(html, /让 AI 解读/)
       for (const section of ['磁盘', '服务', '容器', '进程', '端口', '防火墙', '计划任务', '证书', '安全', '插件占用']) assert.match(html, new RegExp(section), `缺分区：${section}`)
+      // 磁盘每一行能折行：手机上放不下时「剩多少」换到第二行，不被截断
+      const diskRow = /<div style="display:flex;flex-wrap:wrap[^"]*"><span[^>]*><span[^>]*><svg/.exec(html)
+      assert.ok(diskRow, '磁盘那一行要能折行')
+      assert.match(html, /white-space:nowrap;flex:0 0 auto;margin-left:auto">剩 /)
     } else {
       assert.match(html, /10 need attention/)
       assert.match(html, /Interpret/)
@@ -457,3 +463,19 @@ test('界面：除了 CPU 那一排和磁盘，各分区右上角都有倒三角
   assert.match(shut, /aria-label="收起「容器」"/, '别的分区不受影响')
   assert.match(shut, /mailserver/)
 })
+
+test('证书：Caddy 内部 CA 签的自签证书（certificates/local/）不检查——12 小时、Caddy 自己续，报了只是误报', { skip: process.platform === 'win32' && '要用 sh 跑采集脚本里的 find' }, async () => {
+  // 照 Caddy 的目录摆一张正式证书、一张内部 CA 证书，真跑采集脚本里那行 find
+  const d = join(await mkdtemp(join(tmpdir(), 'dsh-vps-caddy-')), 'certificates')
+  await mkdir(join(d, 'acme-v02.api.letsencrypt.org-directory', 'dsh.example.com'), { recursive: true })
+  await mkdir(join(d, 'local', '209.146.116.150'), { recursive: true })
+  await writeFile(join(d, 'acme-v02.api.letsencrypt.org-directory', 'dsh.example.com', 'dsh.example.com.crt'), '')
+  await writeFile(join(d, 'local', '209.146.116.150', '209.146.116.150.crt'), '')
+  const line = /^\s*\$SUDO_OPT (find "\$d" -maxdepth 3 -name '\*\.crt'[^|]*)/m.exec(STATUS_SCRIPT)?.[1]
+  assert.ok(line, '采集脚本里找 Caddy 证书的那行 find 不见了')
+  const { stdout } = await promisify(execFile)('sh', ['-c', line], { env: { ...process.env, d } })
+  const found = stdout.trim().split('\n').filter(Boolean)
+  assert.equal(found.length, 1, stdout)
+  assert.match(found[0], /dsh\.example\.com\.crt$/)
+})
+
