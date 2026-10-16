@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>dsh-vps-manager · 在 DSH 里像 SSH 一样用你的 VPS</title>
-<meta name="description" content="DeepSeek Harness 插件：21 条零 token 命令、对话里的真终端与文件管理、按风险分级确认的 AI 工具、29 条可复用的运维菜谱，全部经 SSH 密钥登录完成。">
+<meta name="description" content="DeepSeek Harness 插件：22 条零 token 命令、对话里的真终端与文件管理、按风险分级确认的 AI 工具、29 条可复用的运维菜谱，全部经 SSH 密钥登录完成。">
 <meta property="og:type" content="website">
 <meta property="og:title" content="dsh-vps-manager · 在 DSH 里像 SSH 一样用你的 VPS">
 <meta property="og:description" content="不给模型乱来的机会：命令不走模型不花 token，AI 的每次改动按风险分级确认，改文件先备份、改防火墙先设连通性保险。">
@@ -193,7 +193,7 @@
   <div class="wrap hero">
     <span class="kicker">DeepSeek Harness 插件 · 已收录于 awesome-dsh-plugin</span>
     <h1>在 DSH 里，像 SSH 一样用你的 VPS</h1>
-    <p class="lede">21 条零 token 命令看状态，对话里开一个真终端自己动手，或者直接跟 AI 说一句话让它上服务器干活 —— 全部经 SSH 密钥登录，改动按风险分级确认，改文件先备份、改防火墙先设连通性保险。</p>
+    <p class="lede">22 条零 token 命令看状态，对话里开一个真终端自己动手，或者直接跟 AI 说一句话让它上服务器干活 —— 全部经 SSH 密钥登录，改动按风险分级确认，改文件先备份、改防火墙先设连通性保险。</p>
 
     <div class="badges">
       <span class="badge">MIT</span>
@@ -201,7 +201,7 @@
       <span class="badge">DSH ≥ 0.1.5-rc.2</span>
       <span class="badge">Windows / macOS / Linux</span>
       <span class="badge">Node ≥ 22.13</span>
-      <span class="badge">317 tests</span>
+      <span class="badge">329 tests</span>
     </div>
 
     <div class="notice">
@@ -249,7 +249,7 @@
         <p class="sub">设置页、<code>/vps-</code> 命令和 AI 工具共用同一套执行机制：会改东西的操作跑成远端任务，断线后在服务器上继续；同一台机器上的改动一个接一个执行；每次执行都记审计日志。</p>
       </div>
       <div class="grid">
-        <div class="card"><span class="tag">zero-token</span><h4>21 条零 token 命令</h4><p>看状态、装软件、重启并等机器回来，全程不走模型、不花 token。</p></div>
+        <div class="card"><span class="tag">zero-token</span><h4>22 条零 token 命令</h4><p>看状态、装软件、重启并等机器回来，全程不走模型、不花 token。</p></div>
         <div class="card"><span class="tag">vps-mode</span><h4>VPS 模式</h4><p>对话头部点一下，这个对话就绑定这台服务器；一个窗口操作服务器，另一个窗口照常写本机代码。</p></div>
         <div class="card"><span class="tag">status</span><h4>真实的连接状态</h4><p>头部方块 灰 没选 · 黄 连接中 · 绿 已连上 · 红 连不上；连不上直接说原因，带「重试」。</p></div>
         <div class="card"><span class="tag">terminal</span><h4>对话里的终端</h4><p>真终端（xterm.js + <code>ssh -tt</code>），<code>top</code>、<code>vim</code>、<code>docker exec -it</code> 都能用；最小化、切对话不丢内容，断线自动接回。</p></div>
@@ -367,7 +367,7 @@
     <div class="wrap">
       <div class="sec-head">
         <div class="eyebrow">命令</div>
-        <h2>21 条命令，不走模型、不花 token</h2>
+        <h2>22 条命令，不走模型、不花 token</h2>
         <p class="sub">两条使用规则：命令作用在<b>当前对话绑定的机器</b>上，没有绑定就不执行；下表里没写参数的命令，<b>只发命令名本身</b>。需要确认的操作都是先出计划，再单独发 <code>/vps-yes</code>。</p>
       </div>
 
@@ -390,6 +390,7 @@
               <tr><td class="c">/vps-net</td><td>网卡、累计流量、连接数</td></tr>
               <tr><td class="c">/vps-docker</td><td>容器列表与磁盘占用</td></tr>
               <tr><td class="c">/vps-ping</td><td>主机名、系统、负载、运行时长</td></tr>
+              <tr><td class="c">/vps-netcheck</td><td>网络体检：国内能不能连、ChatGPT 等 AI 和流媒体能不能用、IP 干不干净（约 30 秒）</td></tr>
               <tr><td class="c">/vps-logs &lt;服务名&gt;</td><td>某个服务最近 100 行日志</td></tr>
               <tr><td class="c">/vps-q &lt;菜谱id&gt;</td><td>运行任意一条查询菜谱，如 <code>ip-info</code>、<code>top-procs</code>、<code>cron-list</code>、<code>cert-expiry</code>、<code>firewall-status</code>、<code>updates</code>、<code>login-history</code></td></tr>
               <tr><td class="c">/vps-sh &lt;命令&gt;</td><td>在机器上执行命令，输出直接显示在对话里；记住 <code>cd</code> 到的目录，会一直刷新的命令自动改成一次性输出，高危的先拦下；加 <code>--bg</code> 放后台，加 <code>--private</code> 表示这条输出不附给 AI</td></tr>

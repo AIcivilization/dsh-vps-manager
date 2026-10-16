@@ -52,7 +52,7 @@ dsh plugin --profile desktop add dsh-vps-manager
 
 | 能力 | 说明 |
 | --- | --- |
-| 零 token 命令 | 21 条 `/vps-` 命令：看状态、装软件、重启并等机器回来，不走模型 |
+| 零 token 命令 | 22 条 `/vps-` 命令：看状态、装软件、重启并等机器回来，不走模型 |
 | VPS 模式 | 对话头部点一下，这个对话就在操作这台服务器；每个对话各自绑定，一个窗口操作服务器、另一个窗口照常写代码 |
 | 真实连接状态 | 头部方块 灰 没选 · 黄 连接中 · 绿 已连上 · 红 连不上；连不上直接说原因，带「重试」 |
 | 对话里的终端 | 真终端（xterm.js + `ssh -tt`），菜单脚本、`top`、`vim` 都能用；红黄绿三键结束 / 最小化 / 最大化；最小化、切对话不丢内容，断线自动接回 |
@@ -272,6 +272,18 @@ Windows、Mac、Linux 上的 DSH 可以各装一份插件，同时管同一台�
 - 底部面板和右侧栏看同一台时用的是同一份数据，不会采两次
 - 需要带右侧栏的 DSH（0.2 起）；老版本没有这个按钮，其他照旧
 
+### 网络体检
+
+状态页的卡片里第一张是 **「网络」**。点 **开始体检**（约 30 秒，不花 token），一项一行告诉你实际能不能用，数字收在 **详细数据** 里：
+
+- **国内能不能连**：请 [Globalping](https://globalping.io) 公共探测网络（jsDelivr 运营，免费）从国内电信、联通、移动的节点，用 TCP 连这台的 SSH 端口和对外开放的端口（最多 3 个），同时从美国、日本、德国连一次对照。能分清"被墙了""只封了某个端口""某家运营商连不上"和"端口没开、不是墙的问题"。会把服务器地址交给它，每小时最多 250 次。UDP 端口（Hysteria2、TUIC 这类代理）测不了
+- **ChatGPT、Claude**：用这台的 IP 访问它们的 API 地址（不带密钥），按返回判断"能用"还是"不支持这个地区"
+- **Gemini、谷歌认为你在哪**：读谷歌对这台 IP 的判断，Gemini 按它推断。谷歌认为在中国大陆（俗称"送中"）会单独标红
+- **YouTube 会员、Netflix、Disney+**：能不能开、是哪个区；Netflix 分清"全部片库"和"只能看自制剧"
+- **IP 干不干净**：Cloudflare、OpenAI、谷歌、ipinfo、ip-api、Netflix 各认为你在哪个国家，不一致就是"广播 IP"，容易被误判地区；是不是机房 IP；有没有上主要的垃圾邮件黑名单
+- 判断全用固定规则；连不上某个网站、或者返回了没见过的内容，就写"说不准"，不硬猜
+- 服务器上只用 curl，不装任何东西。结果存本机（`$DSH_HOME/vps-manager/net/`，每次另存一份，保留 90 天）；也可以发 `/vps-netcheck` 在对话里看
+
 ---
 
 ## 命令
@@ -303,6 +315,7 @@ Windows、Mac、Linux 上的 DSH 可以各装一份插件，同时管同一台�
 | `/vps-net` | 网卡、累计流量、连接数 |
 | `/vps-docker` | 容器列表与磁盘占用 |
 | `/vps-ping` | 主机名、系统、负载、运行时长 |
+| `/vps-netcheck` | 网络体检：国内能不能连、ChatGPT 等 AI 和流媒体能不能用、IP 干不干净（约 30 秒，见[网络体检](#网络体检)） |
 | `/vps-logs <服务名>` | 某个服务最近 100 行日志 |
 | `/vps-q <菜谱id>` | 运行任意一条查询菜谱，如 `ip-info`、`top-procs`、`cron-list`、`cert-expiry`、`firewall-status`、`updates`、`login-history` |
 | `/vps-sh <命令>` | 在机器上执行命令，输出直接显示在对话里：同一个对话里记住 `cd` 到的目录；`top`、`tail -f`、`journalctl -f`、`less`、`watch` 这类会一直刷新或翻页的命令自动改成一次性输出，`vim`、进入交互 shell 这类做不了的会提示改用[终端](#对话里的终端)；判定为高危的先拦下，发 `/vps-yes` 才执行。前面加 `--bg` 放到后台跑，加 `--private` 表示这条输出不附给 AI |
@@ -491,7 +504,7 @@ Windows、Mac、Linux 上的 DSH 可以各装一份插件，同时管同一台�
 | 文件 | 作用 |
 | --- | --- |
 | `lib/index.js` | 插件入口：注册工具、命令、skill、VPS 模式、设置页路由与终端 |
-| `lib/commands.js` | 21 条 `/vps-` 命令 |
+| `lib/commands.js` | 22 条 `/vps-` 命令 |
 | `lib/tools.js` | 给模型的 5 个工具 |
 | `lib/risk.js` · `lib/safety.js` | 风险判定、分级确认、连通性保险 |
 | `lib/engine.js` · `lib/payload.js` · `lib/prelude.sh` | 执行引擎：载荷、远端任务、跨系统的前导脚本 |
@@ -505,11 +518,12 @@ Windows、Mac、Linux 上的 DSH 可以各装一份插件，同时管同一台�
 | `scripts/compat-smoke.mjs` · `scripts/install-dsh.sh` · `.github/workflows/dsh-compat.yml` | 兼容性检查：装上插件、启动真实 DSH 网页版逐项检查，每 6 小时跑一遍 DSH 的三个通道。DSH 刚发版、npm 上还缺包时隔 10 分钟重装，最多 4 次，不误报 |
 | `lib/client.js` | 界面：头部开关、终端面板（终端、文件、状态）、输入框下方提醒、设置页 |
 | `lib/status.js` | 「状态」页：只读采集脚本、判断规则、本机缓存、AI 解读 |
+| `lib/netcheck.js` | 「网络」卡片（网络体检）：VPS 上的只读检查、国内连通（Globalping）、判断规则 |
 | `lib/update.js` | 设置页的「更新」：查 GitHub 和 npm 上的最新版本，交给 DSH 的插件管理器安装 |
 | `lib/routes.js` | 设置页接口 |
 | `lib/config.js` · `lib/onboarding.js` · `lib/ssh.js` | 机器清单、SSH 配置、添加机器、ssh 参数 |
 | `lib/reboot.js` · `lib/uninstall.js` · `lib/audit.js` | 重启并等机器回来、卸载、审计日志 |
-| `test/` | 317 个测试 |
+| `test/` | 329 个测试 |
 | `scripts/windows-e2e.mjs` · `.github/workflows/platform-e2e.yml` | 跨平台实测：在 GitHub 的 Windows 和 Linux 电脑上连真的 sshd，把添加机器、执行命令、文件页、状态页、终端、卸载走一遍 |
 
 ---
@@ -521,7 +535,7 @@ npm install
 npm test
 ```
 
-317 个测试，不需要真实服务器：用本机的 `sh -s` 代替远端 `sshd`，覆盖载荷协议、远端任务、并发锁、备份还原、风险判定、VPS 模式、卸载、命令、设置页接口、终端连接（鉴权、本机限制、输入输出、窗口大小、断线保留与接回、结束清理）、状态采集脚本与判断规则，以及界面渲染。装了 DSH Desktop 的机器上，还会拿 DSH 自带的 `dsh-tools`、`dsh-skill`、`dsh-user-approval` 核对工具定义、返回值、skill 字段、审批结果词汇，以及插件插入对话的那条说明能不能被宿主的会话格式收下。
+329 个测试，不需要真实服务器：用本机的 `sh -s` 代替远端 `sshd`，覆盖载荷协议、远端任务、并发锁、备份还原、风险判定、VPS 模式、卸载、命令、设置页接口、终端连接（鉴权、本机限制、输入输出、窗口大小、断线保留与接回、结束清理）、状态采集脚本与判断规则，以及界面渲染。装了 DSH Desktop 的机器上，还会拿 DSH 自带的 `dsh-tools`、`dsh-skill`、`dsh-user-approval` 核对工具定义、返回值、skill 字段、审批结果词汇，以及插件插入对话的那条说明能不能被宿主的会话格式收下。
 
 另有跨平台实测：每次推送代码，GitHub 的 Windows（2022、2025，系统自带的 OpenSSH）和 Linux 电脑各连一台真的 sshd，用密码添加机器、执行命令、跑远端任务、在文件页上传下载编辑、开终端调窗口大小、卸载时撤销钥匙，全程和用户操作的路径一样。
 

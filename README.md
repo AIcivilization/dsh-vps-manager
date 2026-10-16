@@ -52,7 +52,7 @@ You enter the password once when adding a machine; from then on everything uses 
 
 | Capability | What it does |
 | --- | --- |
-| Zero-token commands | 21 `/vps-` commands: check status, install software, reboot and wait for the machine to come back, without touching the model |
+| Zero-token commands | 22 `/vps-` commands: check status, install software, reboot and wait for the machine to come back, without touching the model |
 | VPS mode | One click in the conversation header and that conversation operates the server; each conversation has its own binding, so one window can work on the server while another keeps working on local code |
 | Real connection state | Header squares: grey not selected · yellow connecting · green connected · red unreachable, with the reason and a retry button |
 | Terminal in the conversation | A real terminal (xterm.js over `ssh -tt`) where menu scripts, `top` and `vim` work; red / yellow / green buttons to end, minimize and maximize; nothing lost when you minimize or switch conversations, and it reconnects after a drop |
@@ -272,6 +272,18 @@ While the Status tab is showing, the button with a divided square, left of the p
 - The bottom panel and the sidebar share one copy of each machine's status, so looking at the same machine in both does not check twice
 - Needs a DSH with the right sidebar (0.2 and later); on older versions the button simply does not appear
 
+### Network check-up
+
+The first card on the Status tab is **Network**. Click **Start check-up** (about 30 seconds, no tokens) and it tells you, one line each, whether things actually work; the numbers are under **Details**:
+
+- **Reachable from China**: the public [Globalping](https://globalping.io) network (run by jsDelivr, free) connects over TCP from China Telecom, Unicom and Mobile nodes in mainland China to this server's SSH port and its public ports (up to 3), and from the US, Japan and Germany for comparison. It tells apart "blocked in China", "only one port blocked", "one carrier cannot connect" and "the port is closed, not a block". The server address is shared with Globalping; at most 250 probes an hour. UDP ports (proxies such as Hysteria2 and TUIC) cannot be tested
+- **ChatGPT, Claude**: requests their API endpoints from this server's IP (without a key) and reads whether the answer means "available" or "not available in this region"
+- **Gemini, where Google places you**: reads Google's view of this IP, and infers Gemini from it. If Google places you in mainland China, that is flagged in red
+- **YouTube Premium, Netflix, Disney+**: whether it works and which region; Netflix tells apart the full library and originals only
+- **How clean the IP is**: which country Cloudflare, OpenAI, Google, ipinfo, ip-api and Netflix each think you are in (if they disagree, it is a "broadcast IP" that some services may misjudge), whether it is a data-centre IP, and whether it is on the main spam blocklists
+- Everything is decided by fixed rules; when a site cannot be reached or answers with something unfamiliar, the line says "unclear" instead of guessing
+- Only curl is used on the server; nothing is installed. Results are kept locally (`$DSH_HOME/vps-manager/net/`, one file per check, kept for 90 days); `/vps-netcheck` shows the same in the conversation
+
 ---
 
 ## Commands
@@ -303,6 +315,7 @@ Commands skip the model and cost no tokens. DSH folds a command's result down to
 | `/vps-net` | Network interfaces, cumulative traffic, connection count |
 | `/vps-docker` | Containers and disk usage |
 | `/vps-ping` | Hostname, OS, load, uptime |
+| `/vps-netcheck` | Network check-up: reachable from China, whether ChatGPT and other AI and streaming services work, how clean the IP is (about 30 seconds; see [Network check-up](#network-check-up)) |
 | `/vps-logs <service>` | The last 100 log lines of a service |
 | `/vps-q <recipe id>` | Runs any query recipe, e.g. `ip-info`, `top-procs`, `cron-list`, `cert-expiry`, `firewall-status`, `updates`, `login-history` |
 | `/vps-sh <command>` | Runs a command on the machine and shows the output in the conversation: the directory you `cd` into is remembered within the conversation; commands that keep refreshing or page (`top`, `tail -f`, `journalctl -f`, `less`, `watch`) are turned into one-shot output, and things that cannot work here (`vim`, interactive shells) point you to the [terminal](#terminal-in-the-conversation); commands judged dangerous are held until you send `/vps-yes`. Prefix `--bg` to run in the background, `--private` to keep this output away from the AI |
@@ -491,7 +504,7 @@ Errors the plugin runs into itself (registration failures, backend errors, inter
 | File | Purpose |
 | --- | --- |
 | `lib/index.js` | Plugin entry: registers tools, commands, the skill, VPS mode, settings routes and the terminal |
-| `lib/commands.js` | The 21 `/vps-` commands |
+| `lib/commands.js` | The 22 `/vps-` commands |
 | `lib/tools.js` | The 5 tools for the model |
 | `lib/risk.js` · `lib/safety.js` | Risk classification, tiered confirmation, connectivity safety net |
 | `lib/engine.js` · `lib/payload.js` · `lib/prelude.sh` | Execution engine: payloads, remote tasks, the cross-distro prelude |
@@ -505,11 +518,12 @@ Errors the plugin runs into itself (registration failures, backend errors, inter
 | `scripts/compat-smoke.mjs` · `scripts/install-dsh.sh` · `.github/workflows/dsh-compat.yml` | Compatibility check: install the plugin, boot a real DSH web app and check each part, against DSH's three release channels every 6 hours. If a fresh DSH release is still missing packages on npm, the install is retried every 10 minutes, up to 4 times, so it doesn't raise a false alarm |
 | `lib/client.js` | Interface: header switch, terminal panel (terminal, files, status), notices below the input box, settings page |
 | `lib/status.js` | The Status tab: the read-only collection script, rules, local cache and AI interpretation |
+| `lib/netcheck.js` | The Network card (network check-up): read-only checks on the VPS, reachability from China (Globalping), rules |
 | `lib/update.js` | The settings page's Update button: latest release on GitHub and npm, install through DSH's plugin manager |
 | `lib/routes.js` | Settings page backend |
 | `lib/config.js` · `lib/onboarding.js` · `lib/ssh.js` | Machine list, SSH configuration, adding machines, ssh arguments |
 | `lib/reboot.js` · `lib/uninstall.js` · `lib/audit.js` | Reboot and wait for the machine, uninstall, audit log |
-| `test/` | 317 tests |
+| `test/` | 329 tests |
 | `scripts/windows-e2e.mjs` · `.github/workflows/platform-e2e.yml` | Cross-platform run against a real sshd on GitHub's Windows and Linux machines: adding a machine, running commands, the Files page, the Status page, the terminal, uninstalling |
 
 ---
@@ -521,7 +535,7 @@ npm install
 npm test
 ```
 
-317 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend, the terminal connection (authentication, local-only access, input and output, window size, keeping and resuming after a disconnect, cleanup), the status collection script and rules, and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`, along with whether the notice the plugin adds to a conversation is accepted by the host's session format.
+329 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend, the terminal connection (authentication, local-only access, input and output, window size, keeping and resuming after a disconnect, cleanup), the status collection script and rules, and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`, along with whether the notice the plugin adds to a conversation is accepted by the host's session format.
 
 On every push, GitHub's Windows machines (2022 and 2025, with the OpenSSH that ships with Windows) and a Linux machine also each connect to a real sshd and follow the same path a user does: add a machine with a password, run commands, run a remote task, upload, download and edit on the Files page, open the terminal and resize it, and revoke the key on uninstall.
 

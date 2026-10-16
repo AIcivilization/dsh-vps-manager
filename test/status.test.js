@@ -479,3 +479,41 @@ test('证书：Caddy 内部 CA 签的自签证书（certificates/local/）不检
   assert.match(found[0], /dsh\.example\.com\.crt$/)
 })
 
+test('界面：状态页的「网络」卡片——没体检过有说明和「开始体检」；体检过一项一行，细节点开才看；英文界面没有汉字', async () => {
+  const { judgeNet, parseNet } = await import('../lib/netcheck.js')
+  const out = [
+    'cf=200|u|US|209.146.116.150', 'oai_trace=200|u|US', 'oai=403|u|unsupported_country_region_territory', 'ant=401|u|',
+    'yt=200|u|US|', 'nf1=200|u|US', 'nf2=404', 'dis=200|u|us', 'ipinfo=200|u|US|AS1 Net', 'ipapi=200|u|US|true|AS1 Net',
+  ].join('\n')
+  for (const lang of ['zh', 'en']) {
+    const exported = await loadClient(lang === 'en' ? 'en' : null)
+    const { StatusView, termChrome, netStateOf } = exported.__test
+    const entry = { sessionId: 's1', alias: 'la', statusState: { view: viewFor(lang), loading: false, error: '', expanded: false, interpreting: false, interpError: '', notice: '' } }
+    const render = () => renderToStaticMarkup(React.createElement(StatusView, { entry, c: termChrome('light'), maximized: true, visible: false }))
+    const empty = render()
+    if (lang === 'zh') {
+      assert.match(empty, /网络/)
+      assert.match(empty, /大约 30 秒，不花 token/)
+      assert.match(empty, /开始体检/)
+    }
+    const st = netStateOf('la')
+    st.view = { checkedAt: new Date().toISOString(), ...(await withLang(lang, () => judgeNet(parseNet(out), { error: 'rate' }))) }
+    st.loaded = true
+    const html = render()
+    if (lang === 'zh') {
+      assert.match(html, /ChatGPT<\/span><span[^>]*>不支持这个地区（OpenAI 认为你在美国）/)
+      assert.match(html, /只能看自制剧/)
+      assert.match(html, /重新体检/)
+      assert.match(html, /详细数据/)
+      assert.doesNotMatch(html, /公共探测的额度用完了[\s\S]*Globalping 公共探测网络/, '细节默认收起')
+    } else {
+      assert.match(html, /Not available in this region/)
+      assert.match(html, /Check again/)
+      assert.doesNotMatch(html, HAN, '英文界面不该有汉字')
+    }
+    st.view = null
+  }
+  delete globalThis.document
+  _resetLang()
+})
+
