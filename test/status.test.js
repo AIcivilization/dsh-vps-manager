@@ -517,3 +517,57 @@ test('界面：状态页的「网络」卡片——没体检过有说明和「�
   _resetLang()
 })
 
+test('界面：「网速」卡片一行结论加百分比条、两路对比、够不够用；「挑机器」能加行、比较表、一句推荐；英文没有汉字', async () => {
+  const { judgeSpeed, judgeCandidates } = await import('../lib/speedtest.js')
+  const record = {
+    at: new Date().toISOString(), vpsIp: '1.2.3.4', home: { ip: '111.52.67.201', country: 'CN' },
+    proxy: { egress: { ip: '1.2.3.4' }, multi: { mbps: 912 }, single: { mbps: 310 }, upload: { mbps: 85 }, latency: { avg: 68, jitter: 3 }, loaded: { avg: 95 } },
+    direct: { via: 'port', multi: { mbps: 925 }, single: { mbps: 330 }, upload: { mbps: 90 }, ping: { avg: 182, jitter: 3, loss: 0 }, port: 23456, fw: 'ufw' },
+  }
+  const run = { at: new Date().toISOString(), bypass: true, results: [
+    { input: 'lg.a.example', ip: '45.32.1.1', ping: { avg: 152, jitter: 2, loss: 0 }, file: 'x', down: { mbps: 1200 }, single: { mbps: 300 } },
+    { input: '198.51.100.7', ip: '198.51.100.7', ping: { avg: 205, jitter: 5, loss: 2 }, file: null, down: null, single: null },
+  ], reference: { label: 'la（现在用的）', ping: { avg: 182, loss: 0 } } }
+  for (const lang of ['zh', 'en']) {
+    const exported = await loadClient(lang === 'en' ? 'en' : null)
+    const { StatusView, termChrome, speedStore, candStore } = exported.__test
+    const entry = { sessionId: 's1', alias: 'la', statusState: { view: viewFor(lang), loading: false, error: '', expanded: false, interpreting: false, interpError: '', notice: '' } }
+    const render = () => renderToStaticMarkup(React.createElement(StatusView, { entry, c: termChrome('light'), maximized: true, visible: false }))
+    const empty = render()
+    if (lang === 'zh') {
+      assert.match(empty, /开始测速/)
+      assert.match(empty, /签约带宽/)
+      assert.match(empty, /挑机器/)
+      assert.match(empty, /IP、域名或 Looking Glass 地址/)
+    }
+    speedStore.of('la').view = { broadband: 1000, consent: true, speed: { at: record.at, ...(await withLang(lang, () => judgeSpeed(record, { broadband: 1000 }))) } }
+    speedStore.of('la').loaded = true
+    const cs = candStore.of('all')
+    cs.entries = ['lg.a.example', '198.51.100.7']
+    cs.view = await withLang(lang, () => judgeCandidates(run))
+    cs.loaded = true
+    const html = render()
+    if (lang === 'zh') {
+      assert.match(html, /满速 · 912 Mbps，宽带的 91%/)
+      assert.match(html, /走代理上网/)
+      assert.match(html, /直连这台（不走代理）/)
+      assert.match(html, /width:91%/, '百分比条')
+      assert.match(html, /8K 视频/)
+      assert.match(html, /重新测速/)
+      assert.match(html, /推荐 lg\.a\.example/)
+      assert.match(html, /la（现在用的）/)
+      assert.match(html, /aria-label="候选机器 2"/)
+    } else {
+      assert.match(html, /Full speed · 912 Mbps, 91% of your plan/)
+      assert.match(html, /Pick lg\.a\.example/)
+      const visible = html.replace(/la（现在用的）/g, '')
+      assert.doesNotMatch(visible, HAN, '英文界面不该有汉字（参照行的名字是测试里写死的）')
+    }
+    speedStore.of('la').view = null
+    cs.view = null
+    cs.entries = ['']
+  }
+  delete globalThis.document
+  _resetLang()
+})
+

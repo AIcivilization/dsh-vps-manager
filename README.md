@@ -284,6 +284,17 @@ The first card on the Status tab is **Network**. Click **Start check-up** (about
 - Everything is decided by fixed rules; when a site cannot be reached or answers with something unfamiliar, the line says "unclear" instead of guessing
 - Only curl is used on the server; nothing is installed. Results are kept locally (`$DSH_HOME/vps-manager/net/`, one file per check, kept for 90 days); `/vps-netcheck` shows the same in the conversation
 
+**The Speed card** measures from your own computer, with your broadband plan as 100% (enter it once in the card, for example 1000).
+- **Through the proxy**: requests go out as usual and your proxy app (Shadowrocket and the like) routes them by its rules; download, single connection, upload and latency are measured against fast.com's Netflix test servers, and the exit is checked to really be this VPS
+- **Direct to this server**: bypasses the proxy app (binds the physical network interface and resolves names through AliDNS) and connects straight to this server. Measuring bandwidth opens a temporary port on the server, allowed only for your home IP, closed and removed afterwards, and recorded in the audit log; **you are asked the first time**. If the provider's security group blocks it, it falls back to measuring over SSH (reads low; the result says so). The server also confirms the connections came from your home address
+- **Verdict**: full speed / fair / slow with a percentage bar; whether it is enough for 8K, 4K, video calls and gaming; where it is slow (proxy protocol or CPU, the route itself, the VPS's own uplink); evenings are compared with daytime once both have been measured
+- Uses roughly 1–2 GB of traffic per test, depending on speed. Results are kept locally (`$DSH_HOME/vps-manager/speed/`, 90 days)
+
+**The Compare servers card** is for choosing a VPS provider. Enter a few candidates as IPs, domains or a provider's Looking Glass address (click + to add a row, up to 10); they are tested directly from your computer (not through your proxy), side by side:
+- Latency, jitter and loss (the TCP connect time when ping is blocked)
+- For a Looking Glass page, its test file is found automatically (preferring 100 MB) and the download speed is measured with several connections and with one; for a bare IP, a few common test-file names are tried
+- One line recommends the best (fastest download, lowest latency), with the server you use now listed for reference. Downloads run one after another so they do not compete for your bandwidth
+
 ---
 
 ## Commands
@@ -519,11 +530,12 @@ Errors the plugin runs into itself (registration failures, backend errors, inter
 | `lib/client.js` | Interface: header switch, terminal panel (terminal, files, status), notices below the input box, settings page |
 | `lib/status.js` | The Status tab: the read-only collection script, rules, local cache and AI interpretation |
 | `lib/netcheck.js` | The Network card (network check-up): read-only checks on the VPS, reachability from China (Globalping), rules |
+| `lib/speedtest.js` | The Speed and Compare servers cards: proxy and direct speeds measured on this computer, the temporary speed-test service on the VPS, candidate comparison |
 | `lib/update.js` | The settings page's Update button: latest release on GitHub and npm, install through DSH's plugin manager |
 | `lib/routes.js` | Settings page backend |
 | `lib/config.js` · `lib/onboarding.js` · `lib/ssh.js` | Machine list, SSH configuration, adding machines, ssh arguments |
 | `lib/reboot.js` · `lib/uninstall.js` · `lib/audit.js` | Reboot and wait for the machine, uninstall, audit log |
-| `test/` | 329 tests |
+| `test/` | 338 tests |
 | `scripts/windows-e2e.mjs` · `.github/workflows/platform-e2e.yml` | Cross-platform run against a real sshd on GitHub's Windows and Linux machines: adding a machine, running commands, the Files page, the Status page, the terminal, uninstalling |
 
 ---
@@ -535,7 +547,7 @@ npm install
 npm test
 ```
 
-329 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend, the terminal connection (authentication, local-only access, input and output, window size, keeping and resuming after a disconnect, cleanup), the status collection script and rules, and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`, along with whether the notice the plugin adds to a conversation is accepted by the host's session format.
+338 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend, the terminal connection (authentication, local-only access, input and output, window size, keeping and resuming after a disconnect, cleanup), the status collection script and rules, and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`, along with whether the notice the plugin adds to a conversation is accepted by the host's session format.
 
 On every push, GitHub's Windows machines (2022 and 2025, with the OpenSSH that ships with Windows) and a Linux machine also each connect to a real sshd and follow the same path a user does: add a machine with a password, run commands, run a remote task, upload, download and edit on the Files page, open the terminal and resize it, and revoke the key on uninstall.
 
