@@ -416,6 +416,7 @@ test('右侧栏：看的不是本对话那台时只能看——没有「问 AI�
   assert.match(html, /需注意 10 项/)
   assert.match(html, /让 AI 解读/)
   for (const t of ['问 AI', '看日志', '在对话里追问']) assert.doesNotMatch(html, new RegExp(t), `不该有：${t}`)
+  assert.doesNotMatch(html, />\+AI</, '看别的机器时卡片上不放「+AI」：发到对话里 AI 会弄混是哪台')
 })
 
 test('右侧栏：编号方块上的小点来自那台上次看的结果，悬停说明是什么时候看的', async () => {
@@ -566,6 +567,57 @@ test('界面：「网速」卡片一行结论加百分比条、两路对比、�
     speedStore.of('la').view = null
     cs.view = null
     cs.entries = ['']
+  }
+  delete globalThis.document
+  _resetLang()
+})
+
+test('界面：卡片上的「+AI」——网络、网速、挑机器、端口、防火墙、安全六张有，其余没有；发进对话的是一段结论加一句请求', async () => {
+  const { judgeNet, parseNet } = await import('../lib/netcheck.js')
+  const { judgeSpeed, judgeCandidates } = await import('../lib/speedtest.js')
+  const netOut = ['cf=200|u|US|1.2.3.4', 'oai_trace=200|u|US', 'oai=403|u|unsupported_country_region_territory', 'ant=401|u|', 'yt=200|u|US|', 'nf1=200|u|US', 'nf2=404', 'dis=200|u|us', 'ipinfo=200|u|US|AS1 Net', 'ipapi=200|u|US|true|AS1 Net'].join('\n')
+  const speedRec = { at: new Date().toISOString(), vpsIp: '1.2.3.4', home: { ip: '111.52.67.201' }, proxy: { egress: { ip: '1.2.3.4' }, multi: { mbps: 120 }, single: { mbps: 40 }, upload: { mbps: 30 }, latency: { avg: 70, jitter: 3 } }, direct: { via: 'port', multi: { mbps: 880 }, single: { mbps: 300 }, ping: { avg: 182, jitter: 3, loss: 0 } } }
+  const pickRun = { at: new Date().toISOString(), bypass: true, results: [{ input: 'https://lg.a.example/', ip: '45.32.1.1', ping: { avg: 152, jitter: 2, loss: 0 }, file: 'x', down: { mbps: 860 }, single: { mbps: 300 } }], reference: null }
+  for (const lang of ['zh', 'en']) {
+    const exported = await loadClient(lang === 'en' ? 'en' : null)
+    const t = exported.__test
+    const view = viewFor(lang)
+    const net = { checkedAt: new Date().toISOString(), ...(await withLang(lang, () => judgeNet(parseNet(netOut), null))) }
+    const sp = { at: speedRec.at, ...(await withLang(lang, () => judgeSpeed(speedRec, { broadband: 1000 }))) }
+    const pick = await withLang(lang, () => judgeCandidates(pickRun))
+    t.netStateOf('la').view = net
+    t.speedStore.of('la').view = { broadband: 1000, consent: true, speed: sp }
+    t.candStore.of('all').view = pick
+    const html = renderToStaticMarkup(React.createElement(t.StatusView, { entry: { sessionId: 's1', alias: 'la', statusState: { view, loading: false, error: '', expanded: true } }, c: t.termChrome('light'), maximized: true, visible: false }))
+    assert.equal((html.match(/>\+AI</g) ?? []).length, 6, '六张卡各一个')
+    const titled = [...html.matchAll(/aria-level="3"[^>]*>([^<]+)<\/span>[\s\S]{0,1200}?(>\+AI<|aria-label="(?:收起|展开|Collapse|Expand))/g)].filter((m) => m[2] === '>+AI<').map((m) => m[1])
+    assert.deepEqual(titled, lang === 'zh' ? ['网络', '网速', '挑机器', '端口', '防火墙', '安全'] : ['Network', 'Speed', 'Compare servers', 'Ports', 'Firewall', 'Security'])
+    // 发进对话的那段话
+    const data = view.status.data
+    const texts = await withLang(lang, () => [
+      t.askNet('la', net), t.askSpeed('la', sp, 1000), t.askPick(pick),
+      t.askPorts('la', data, view.status.collectedAt), t.askFirewall('la', data, view.status.collectedAt), t.askSecurity('la', data, view.status.collectedAt),
+    ])
+    if (lang === 'zh') {
+      assert.match(texts[0], /^帮我看看 la 的网络体检结果（\d\d:\d\d 测）：\n/)
+      assert.match(texts[0], /\n✗ ChatGPT：不支持这个地区/)
+      assert.match(texts[0], /请说说这台适合做什么、最要紧的问题和怎么办（只查看，不要改动）。$/)
+      assert.match(texts[1], /宽带签约 1000 Mbps/)
+      assert.match(texts[1], /走代理上网：下载 120 · 单连接 40 · 上传 30 Mbps · 延迟 70 ms/)
+      assert.match(texts[1], /请说说慢在哪、怎么提速/)
+      assert.match(texts[2], /lg\.a\.example：延迟 152 ms · 丢包 0% · 下载 860/)
+      assert.match(texts[2], /不知道的就说不知道/)
+      assert.match(texts[3], /22 sshd · 对外/)
+      assert.match(texts[3], /有没有不该对外开放的端口/)
+      assert.match(texts[4], /规则合不合理/)
+      assert.match(texts[5], /fail2ban：/)
+      for (const x of texts) assert.doesNotMatch(x, /111\.52\.67\.201/, '不把你家宽带的 IP 发给 AI')
+    } else {
+      for (const x of texts) assert.doesNotMatch(x, HAN, x)
+    }
+    t.netStateOf('la').view = null
+    t.speedStore.of('la').view = null
+    t.candStore.of('all').view = null
   }
   delete globalThis.document
   _resetLang()

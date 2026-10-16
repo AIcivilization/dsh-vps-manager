@@ -295,6 +295,8 @@ The first card on the Status tab is **Network**. Click **Start check-up** (about
 - For a Looking Glass page, its test file is found automatically (preferring 100 MB) and the download speed is measured with several connections and with one; for a bare IP, a few common test-file names are tried
 - One line recommends the best (fastest download, lowest latency), with the server you use now listed for reference. Downloads run one after another so they do not compete for your bandwidth
 
+**+AI on the cards**: the Network, Speed, Compare servers, Ports, Firewall and Security cards have a blue-violet **+AI** at the right of their title row. Clicking it sends that card's findings and key numbers to the conversation as one message; the AI answers there, and you can follow up or let it act. Only the findings go, not the raw data or your home broadband IP; it is hidden while the right sidebar shows another machine. The whole-page interpretation is still the AI interpretation at the top
+
 ---
 
 ## Commands
@@ -535,7 +537,7 @@ Errors the plugin runs into itself (registration failures, backend errors, inter
 | `lib/routes.js` | Settings page backend |
 | `lib/config.js` · `lib/onboarding.js` · `lib/ssh.js` | Machine list, SSH configuration, adding machines, ssh arguments |
 | `lib/reboot.js` · `lib/uninstall.js` · `lib/audit.js` | Reboot and wait for the machine, uninstall, audit log |
-| `test/` | 338 tests |
+| `test/` | 339 tests |
 | `scripts/windows-e2e.mjs` · `.github/workflows/platform-e2e.yml` | Cross-platform run against a real sshd on GitHub's Windows and Linux machines: adding a machine, running commands, the Files page, the Status page, the terminal, uninstalling |
 
 ---
@@ -547,7 +549,7 @@ npm install
 npm test
 ```
 
-338 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend, the terminal connection (authentication, local-only access, input and output, window size, keeping and resuming after a disconnect, cleanup), the status collection script and rules, and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`, along with whether the notice the plugin adds to a conversation is accepted by the host's session format.
+339 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend, the terminal connection (authentication, local-only access, input and output, window size, keeping and resuming after a disconnect, cleanup), the status collection script and rules, and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`, along with whether the notice the plugin adds to a conversation is accepted by the host's session format.
 
 On every push, GitHub's Windows machines (2022 and 2025, with the OpenSSH that ships with Windows) and a Linux machine also each connect to a real sshd and follow the same path a user does: add a machine with a password, run commands, run a remote task, upload, download and edit on the Files page, open the terminal and resize it, and revoke the key on uninstall.
 
