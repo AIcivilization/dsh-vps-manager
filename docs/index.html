@@ -201,7 +201,7 @@
       <span class="badge">DSH ≥ 0.1.5-rc.2</span>
       <span class="badge">Windows / macOS / Linux</span>
       <span class="badge">Node ≥ 22.13</span>
-      <span class="badge">354 tests</span>
+      <span class="badge">361 tests</span>
     </div>
 
     <div class="notice">
@@ -391,7 +391,7 @@
               <tr><td class="c">/vps-docker</td><td>容器列表与磁盘占用</td></tr>
               <tr><td class="c">/vps-ping</td><td>主机名、系统、负载、运行时长</td></tr>
               <tr><td class="c">/vps-netcheck</td><td>网络体检：国内能不能连、ChatGPT 等 AI 和流媒体能不能用、IP 干不干净（约 30 秒）</td></tr>
-              <tr><td class="c">/vps-intrusion</td><td>入侵排查：有没有被人控制——可疑进程、对外乱连、后门、系统命令有没有被替换、登录记录、IP 名声（10～30 秒，只看不改）</td></tr>
+              <tr><td class="c">/vps-intrusion</td><td>入侵排查：有没有被人控制——可疑进程、对外乱连（含连没连恶意 IP）、后门、系统命令和内核、登录记录（含此刻谁在线）、IP 名声（10～40 秒，只看不改）</td></tr>
               <tr><td class="c">/vps-logs &lt;服务名&gt;</td><td>某个服务最近 100 行日志</td></tr>
               <tr><td class="c">/vps-q &lt;菜谱id&gt;</td><td>运行任意一条查询菜谱，如 <code>ip-info</code>、<code>top-procs</code>、<code>cron-list</code>、<code>cert-expiry</code>、<code>firewall-status</code>、<code>updates</code>、<code>login-history</code></td></tr>
               <tr><td class="c">/vps-sh &lt;命令&gt;</td><td>在机器上执行命令，输出直接显示在对话里；记住 <code>cd</code> 到的目录，会一直刷新的命令自动改成一次性输出，高危的先拦下；加 <code>--bg</code> 放后台，加 <code>--private</code> 表示这条输出不附给 AI</td></tr>

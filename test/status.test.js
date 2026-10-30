@@ -655,7 +655,7 @@ test('界面：「入侵排查」卡片——没排查过有说明、「开始�
       assert.match(html, /没发现明确的入侵迹象 · 1 项要你确认/)
       assert.match(html, /root 有一把钥匙你还没确认：laptop@home/)
       assert.match(html, />是我的</)
-      assert.match(html, /可疑进程<\/span><span[^>]*>没有挖矿、藏在临时目录、冒充系统的程序/)
+      assert.match(html, /可疑进程<\/span><span[^>]*>没有挖矿、藏在临时目录、冒充系统或一直占满 CPU 的程序/)
       assert.match(html, /重新排查/)
       assert.match(html, /内核级的 rootkit/)
       assert.doesNotMatch(html, /重装系统/, '没有红的时候不劝重装')
