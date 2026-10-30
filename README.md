@@ -52,7 +52,7 @@ You enter the password once when adding a machine; from then on everything uses 
 
 | Capability | What it does |
 | --- | --- |
-| Zero-token commands | 22 `/vps-` commands: check status, install software, reboot and wait for the machine to come back, without touching the model |
+| Zero-token commands | 23 `/vps-` commands: check status, install software, reboot and wait for the machine to come back, without touching the model |
 | VPS mode | One click in the conversation header and that conversation operates the server; each conversation has its own binding, so one window can work on the server while another keeps working on local code |
 | Real connection state | Header squares: grey not selected · yellow connecting · green connected · red unreachable, with the reason and a retry button |
 | Terminal in the conversation | A real terminal (xterm.js over `ssh -tt`) where menu scripts, `top` and `vim` work; red / yellow / green buttons to end, minimize and maximize; nothing lost when you minimize or switch conversations, and it reconnects after a drop |
@@ -295,7 +295,26 @@ The first card on the Status tab is **Network**. Click **Start check-up** (about
 - For a Looking Glass page, its test file is found automatically (preferring 100 MB) and the download speed is measured with several connections and with one; for a bare IP, a few common test-file names are tried
 - One line recommends the best (fastest download, lowest latency), with the server you use now listed for reference. Downloads run one after another so they do not compete for your bandwidth
 
-**+AI on the cards**: the Network, Speed, Compare servers, Ports, Firewall and Security cards have a blue-violet **+AI** at the right of their title row. Clicking it sends that card's findings and key numbers to the conversation as one message; the AI answers there, and you can follow up or let it act. Only the findings go, not the raw data or your home broadband IP; it is hidden while the right sidebar shows another machine. The whole-page interpretation is still the AI interpretation at the top
+**+AI on the cards**: the Network, Speed, Compare servers, Compromise check, Ports, Firewall and Security cards have a blue-violet **+AI** at the right of their title row. Clicking it sends that card's findings and key numbers to the conversation as one message; the AI answers there, and you can follow up or let it act. Only the findings go, not the raw data or your home broadband IP; it is hidden while the right sidebar shows another machine. The whole-page interpretation is still the AI interpretation at the top
+
+### Compromise check
+
+Most people who rent a VPS cannot tell whether it has already been taken over (turned into a "zombie" that mines crypto, scans and brute-forces other servers, sends spam or joins DDoS attacks). The **Security** card covers prevention (updates, failed logins, fail2ban); the **Compromise check** card looks for signs that someone is already in. Everything is read-only, nothing is installed, no tokens.
+
+**Every status refresh** also looks for the few signs that almost never false-alarm: a crypto miner, a program running from `/tmp`, `/var/tmp` or `/dev/shm`, a process pretending to be a kernel thread, a program running from memory or from a deleted file, and a non-empty `/etc/ld.so.preload`. Anything found goes to **Needs attention**, turns the machine's square red, and is shown at the top of the card.
+
+**Start check** (10–30 seconds) runs the full check, one line per group:
+- **Suspicious processes**: the same as above, for all processes
+- **Outbound connections**: grouped by program. A program opening connections to many addresses at once (scanning), connecting to port 22 on many machines (brute-forcing others) or to common mining-pool ports is flagged. **Proxies (sing-box, xray, hysteria, tuic…), tor, P2P, DNS and mail programs are not counted**, since they connect to many addresses by design
+- **Backdoors**: SSH keys of every login account (the plugin's own keys, `dsh-vps-manager@…`, are recognised; other keys get a **Mine** button), a second account with UID 0, scheduled tasks, services and login scripts that download and run scripts, open reverse shells, decode base64 and run it, or run programs from temporary directories
+- **System commands**: `dpkg -V` (Debian/Ubuntu) or `rpm -V` (RHEL family) checks whether ps, ss, ls, sshd, login, sudo and other key packages still match what was installed (changed config files are normal and ignored)
+- **Logins** (last 7 days): key logins are matched to keys you know; password logins list the source IP with a **Mine** button; an IP that failed many passwords and then logged in is flagged red as a likely brute-force break-in
+- **IP reputation**: whether this server's IP is on hijacked-host blocklists (Spamhaus XBL, DroneBL, blocklist.de). VPS IPs get reassigned, so a listing may be left over from a previous user
+- **Common entry points**: the Docker remote API (2375) or a Redis without a password open to the internet
+
+From the second check on, scheduled tasks, services, login accounts and passwordless sudo rules that were not there last time are flagged yellow with an **I added it** button. What you confirm is remembered on this computer only (`$DSH_HOME/vps-manager/intrusion/`), never on the server, where an intruder could add their own backdoor to the list.
+
+No signs does not guarantee a clean machine: a kernel rootkit can fool any check run on the machine itself. This catches the common mass intrusions (miners, brute-force botnets, DDoS malware), not a skilled attacker targeting you. If it finds a real intrusion, the safest fix is to back up your data, reinstall the system and replace every key and password; cleaning up without reinstalling cannot guarantee a clean machine. `/vps-intrusion` runs the same check in the conversation.
 
 ---
 
@@ -329,6 +348,7 @@ Commands skip the model and cost no tokens. DSH folds a command's result down to
 | `/vps-docker` | Containers and disk usage |
 | `/vps-ping` | Hostname, OS, load, uptime |
 | `/vps-netcheck` | Network check-up: reachable from China, whether ChatGPT and other AI and streaming services work, how clean the IP is (about 30 seconds; see [Network check-up](#network-check-up)) |
+| `/vps-intrusion` | Compromise check: suspicious processes, outbound abuse, backdoors, replaced system commands, logins, IP reputation (10–30 seconds, read-only; see [Compromise check](#compromise-check)) |
 | `/vps-logs <service>` | The last 100 log lines of a service |
 | `/vps-q <recipe id>` | Runs any query recipe, e.g. `ip-info`, `top-procs`, `cron-list`, `cert-expiry`, `firewall-status`, `updates`, `login-history` |
 | `/vps-sh <command>` | Runs a command on the machine and shows the output in the conversation: the directory you `cd` into is remembered within the conversation; commands that keep refreshing or page (`top`, `tail -f`, `journalctl -f`, `less`, `watch`) are turned into one-shot output, and things that cannot work here (`vim`, interactive shells) point you to the [terminal](#terminal-in-the-conversation); commands judged dangerous are held until you send `/vps-yes`. Prefix `--bg` to run in the background, `--private` to keep this output away from the AI |
@@ -490,6 +510,7 @@ The settings page's backend only accepts same-origin JSON requests carrying a to
 | `$DSH_HOME/vps-manager/hosts.yml` | Machines, groups, confirmation levels (safe to edit by hand) |
 | `$DSH_HOME/vps-manager/state.json` | Health check results and which machine each conversation is bound to |
 | `$DSH_HOME/vps-manager/status/` | The last look from the Status tab and its AI reading, one file per machine |
+| `$DSH_HOME/vps-manager/intrusion/` | The last compromise check of each machine, and the keys, IPs and tasks you confirmed as yours |
 | `$DSH_HOME/vps-manager/recipes/` | Your own recipes |
 | `$DSH_HOME/vps-manager/audit/` | Audit log: one JSON line per run (source, machine, action, level, result), one file per month, kept for 6 months |
 | `~/.ssh/config.d/dsh-vps.conf` | SSH connection settings maintained by the plugin |
@@ -517,7 +538,7 @@ Errors the plugin runs into itself (registration failures, backend errors, inter
 | File | Purpose |
 | --- | --- |
 | `lib/index.js` | Plugin entry: registers tools, commands, the skill, VPS mode, settings routes and the terminal |
-| `lib/commands.js` | The 22 `/vps-` commands |
+| `lib/commands.js` | The 23 `/vps-` commands |
 | `lib/tools.js` | The 5 tools for the model |
 | `lib/risk.js` · `lib/safety.js` | Risk classification, tiered confirmation, connectivity safety net |
 | `lib/engine.js` · `lib/payload.js` · `lib/prelude.sh` | Execution engine: payloads, remote tasks, the cross-distro prelude |
@@ -532,12 +553,13 @@ Errors the plugin runs into itself (registration failures, backend errors, inter
 | `lib/client.js` | Interface: header switch, terminal panel (terminal, files, status), notices below the input box, settings page |
 | `lib/status.js` | The Status tab: the read-only collection script, rules, local cache and AI interpretation |
 | `lib/netcheck.js` | The Network card (network check-up): read-only checks on the VPS, reachability from China (Globalping), rules |
+| `lib/intrusion.js` | The Compromise check card: the read-only check script, the light checks run on every status refresh, the rules, what you confirmed |
 | `lib/speedtest.js` | The Speed and Compare servers cards: proxy and direct speeds measured on this computer, the temporary speed-test service on the VPS, candidate comparison |
 | `lib/update.js` | The settings page's Update button: latest release on GitHub and npm, install through DSH's plugin manager |
 | `lib/routes.js` | Settings page backend |
 | `lib/config.js` · `lib/onboarding.js` · `lib/ssh.js` | Machine list, SSH configuration, adding machines, ssh arguments |
 | `lib/reboot.js` · `lib/uninstall.js` · `lib/audit.js` | Reboot and wait for the machine, uninstall, audit log |
-| `test/` | 339 tests |
+| `test/` | 354 tests |
 | `scripts/windows-e2e.mjs` · `.github/workflows/platform-e2e.yml` | Cross-platform run against a real sshd on GitHub's Windows and Linux machines: adding a machine, running commands, the Files page, the Status page, the terminal, uninstalling |
 
 ---
@@ -549,7 +571,7 @@ npm install
 npm test
 ```
 
-339 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend, the terminal connection (authentication, local-only access, input and output, window size, keeping and resuming after a disconnect, cleanup), the status collection script and rules, and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`, along with whether the notice the plugin adds to a conversation is accepted by the host's session format.
+354 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend, the terminal connection (authentication, local-only access, input and output, window size, keeping and resuming after a disconnect, cleanup), the status collection script and rules, and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`, along with whether the notice the plugin adds to a conversation is accepted by the host's session format.
 
 On every push, GitHub's Windows machines (2022 and 2025, with the OpenSSH that ships with Windows) and a Linux machine also each connect to a real sshd and follow the same path a user does: add a machine with a password, run commands, run a remote task, upload, download and edit on the Files page, open the terminal and resize it, and revoke the key on uninstall.
 

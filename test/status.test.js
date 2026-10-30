@@ -588,15 +588,19 @@ test('界面：卡片上的「+AI」——网络、网速、挑机器、端口�
     t.netStateOf('la').view = net
     t.speedStore.of('la').view = { broadband: 1000, consent: true, speed: sp }
     t.candStore.of('all').view = pick
+    const { judgeIntrusion, parseIntrusion } = await import('../lib/intrusion.js')
+    const intr = { checkedAt: new Date().toISOString(), ...(await withLang(lang, () => judgeIntrusion(parseIntrusion('priv=root\nss=1\nvtool=none\nlogsrc=none\nkey=root|/root/.ssh/authorized_keys|1793328467|SHA256:abc|256|laptop@home (ED25519)'), null))) }
+    t.intrStore.of('la').view = intr
     const html = renderToStaticMarkup(React.createElement(t.StatusView, { entry: { sessionId: 's1', alias: 'la', statusState: { view, loading: false, error: '', expanded: true } }, c: t.termChrome('light'), maximized: true, visible: false }))
-    assert.equal((html.match(/>\+AI</g) ?? []).length, 6, '六张卡各一个')
+    assert.equal((html.match(/>\+AI</g) ?? []).length, 7, '七张卡各一个')
     const titled = [...html.matchAll(/aria-level="3"[^>]*>([^<]+)<\/span>[\s\S]{0,1200}?(>\+AI<|aria-label="(?:收起|展开|Collapse|Expand))/g)].filter((m) => m[2] === '>+AI<').map((m) => m[1])
-    assert.deepEqual(titled, lang === 'zh' ? ['网络', '网速', '挑机器', '端口', '防火墙', '安全'] : ['Network', 'Speed', 'Compare servers', 'Ports', 'Firewall', 'Security'])
+    assert.deepEqual(titled, lang === 'zh' ? ['网络', '网速', '挑机器', '入侵排查', '端口', '防火墙', '安全'] : ['Network', 'Speed', 'Compare servers', 'Compromise check', 'Ports', 'Firewall', 'Security'])
     // 发进对话的那段话
     const data = view.status.data
     const texts = await withLang(lang, () => [
       t.askNet('la', net), t.askSpeed('la', sp, 1000), t.askPick(pick),
       t.askPorts('la', data, view.status.collectedAt), t.askFirewall('la', data, view.status.collectedAt), t.askSecurity('la', data, view.status.collectedAt),
+      t.askIntrusion('la', intr),
     ])
     if (lang === 'zh') {
       assert.match(texts[0], /^帮我看看 la 的网络体检结果（\d\d:\d\d 测）：\n/)
@@ -611,6 +615,9 @@ test('界面：卡片上的「+AI」——网络、网速、挑机器、端口�
       assert.match(texts[3], /有没有不该对外开放的端口/)
       assert.match(texts[4], /规则合不合理/)
       assert.match(texts[5], /fail2ban：/)
+      assert.match(texts[6], /^帮我看看 la 的入侵排查结果（\d\d:\d\d 查的）：没发现明确的入侵迹象 · 1 项要你确认\n/)
+      assert.match(texts[6], /\n! 后门：1 项\n   ! root 有一把钥匙你还没确认：laptop@home/)
+      assert.match(texts[6], /这些是真的入侵还是误报？/)
       for (const x of texts) assert.doesNotMatch(x, /111\.52\.67\.201/, '不把你家宽带的 IP 发给 AI')
     } else {
       for (const x of texts) assert.doesNotMatch(x, HAN, x)
@@ -618,8 +625,59 @@ test('界面：卡片上的「+AI」——网络、网速、挑机器、端口�
     t.netStateOf('la').view = null
     t.speedStore.of('la').view = null
     t.candStore.of('all').view = null
+    t.intrStore.of('la').view = null
   }
   delete globalThis.document
   _resetLang()
 })
 
+
+test('界面：「入侵排查」卡片——没排查过有说明、「开始排查」和轻量检查那一行；排查过一组一行，能确认的旁边「是我的」；刷新时发现的放在最上面；英文没有汉字', async () => {
+  const { judgeIntrusion, parseIntrusion } = await import('../lib/intrusion.js')
+  const out = ['priv=root', 'ss=1', 'vtool=dpkg', 'vpkg=procps', 'logsrc=journal', 'ip=203.0.113.7', 'bl=zen.spamhaus.org|', 'bl=dnsbl.dronebl.org|', 'bl=bl.blocklist.de|',
+    'key=root|/root/.ssh/authorized_keys|1793328467|SHA256:abc|256|laptop@home (ED25519)', 'fail_total=3', 'fail_ips=1'].join('\n')
+  for (const lang of ['zh', 'en']) {
+    const exported = await loadClient(lang === 'en' ? 'en' : null)
+    const t = exported.__test
+    const make = (view) => ({ sessionId: 's1', alias: 'la', statusState: { view, loading: false, error: '', expanded: false, interpreting: false, interpError: '', notice: '' } })
+    const render = (entry) => renderToStaticMarkup(React.createElement(t.StatusView, { entry, c: t.termChrome('light'), maximized: true, visible: false }))
+    const empty = render(make(viewFor(lang)))
+    if (lang === 'zh') {
+      assert.match(empty, /入侵排查/)
+      assert.match(empty, /开始排查/)
+      assert.match(empty, /每次刷新状态都会顺手看几项最明显的（挖矿、藏在临时目录、冒充系统的程序）：目前没发现/)
+    }
+    const st = t.intrStore.of('la')
+    st.view = { checkedAt: new Date().toISOString(), ...(await withLang(lang, () => judgeIntrusion(parseIntrusion(out), null))) }
+    st.loaded = true
+    const html = render(make(viewFor(lang)))
+    if (lang === 'zh') {
+      assert.match(html, /没发现明确的入侵迹象 · 1 项要你确认/)
+      assert.match(html, /root 有一把钥匙你还没确认：laptop@home/)
+      assert.match(html, />是我的</)
+      assert.match(html, /可疑进程<\/span><span[^>]*>没有挖矿、藏在临时目录、冒充系统的程序/)
+      assert.match(html, /重新排查/)
+      assert.match(html, /内核级的 rootkit/)
+      assert.doesNotMatch(html, /重装系统/, '没有红的时候不劝重装')
+      assert.doesNotMatch(html, /SHA256:abc/, '细节默认收起')
+    } else {
+      assert.match(html, />Mine</)
+      assert.doesNotMatch(html, HAN, '英文界面不该有汉字')
+    }
+    // 刷新状态时轻量检查发现了挖矿程序：放在卡片最上面，卡片变红
+    const data = parseStatus(`${SAMPLE}\nioc=miner|991|/tmp/kdevtmpfsi|/tmp/kdevtmpfsi`)
+    const judged = judge(data)
+    const lit = withLang(lang, () => ({ alias: 'la', status: { collectedAt: new Date().toISOString(), data, judged, brief: statusBrief('la', data, judged) }, interpretation: null, canInterpret: true }))
+    const red = render(make(lit))
+    if (lang === 'zh') {
+      assert.match(red, /刷新状态时发现 1 项/)
+      assert.match(red, /挖矿程序：\/tmp\/kdevtmpfsi · PID 991/)
+    } else {
+      assert.match(red, /1 found when the status was refreshed/)
+      assert.doesNotMatch(red, HAN, '英文界面不该有汉字')
+    }
+    st.view = null
+  }
+  delete globalThis.document
+  _resetLang()
+})

@@ -95,7 +95,7 @@ test('同一个 DSH 里加载了两份（插件市场热挂载 + profile）：�
   first.effect = (fn) => { disposers.push(fn()) } // 仿 cordis：卸载时调用返回的函数
   apply(first, cfg)
   await new Promise((r) => setTimeout(r, 100))
-  assert.equal(first._commands.length, 22)
+  assert.equal(first._commands.length, 23)
 
   const second = fakeCtx()
   apply(second, cfg)
@@ -110,11 +110,11 @@ test('同一个 DSH 里加载了两份（插件市场热挂载 + profile）：�
   const third = fakeCtx()
   apply(third, cfg)
   await new Promise((r) => setTimeout(r, 100))
-  assert.equal(third._commands.length, 22, '第一份走了，新加载的那份正常接班')
+  assert.equal(third._commands.length, 23, '第一份走了，新加载的那份正常接班')
   assert.deepEqual(third._warnings, [])
 })
 
-test('apply：5 个工具、22 条命令、1 个 skill、本机 bash 守卫、VPS 模式监听，全部注册成功', async () => {
+test('apply：5 个工具、23 条命令、1 个 skill、本机 bash 守卫、VPS 模式监听，全部注册成功', async () => {
   const ctx = fakeCtx()
   const home = await mkdtemp(join(tmpdir(), 'dsh-vps-apply-'))
   apply(ctx, { env: { HOME: home, DSH_HOME: join(home, '.dsh') } })
@@ -127,7 +127,7 @@ test('apply：5 个工具、22 条命令、1 个 skill、本机 bash 守卫、VP
     'vps_exec', 'vps_hosts', 'vps_recipe', 'vps_task', 'vps_write_file',
   ])
   const names = ctx._commands.map((c) => c.name)
-  assert.equal(names.length, 22, names.join(','))
+  assert.equal(names.length, 23, names.join(','))
   for (const n of names) assert.match(n, /^vps-/, '所有命令必须同前缀，否则打 /vps 只筛出一半')
   assert.equal(new Set(names).size, names.length, `命令重名了：${names.filter((n, i) => names.indexOf(n) !== i).join(',')}`)
   assert.equal(ctx._skills.length, 1)
