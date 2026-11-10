@@ -55,7 +55,7 @@ You enter the password once when adding a machine; from then on everything uses 
 | Zero-token commands | 23 `/vps-` commands: check status, install software, reboot and wait for the machine to come back, without touching the model |
 | VPS mode | One click in the conversation header and that conversation operates the server; each conversation has its own binding, so one window can work on the server while another keeps working on local code |
 | Real connection state | Header squares: grey not selected · yellow connecting · green connected · red unreachable, with the reason and a retry button |
-| Terminal in the conversation | A real terminal (xterm.js over `ssh -tt`) where menu scripts, `top` and `vim` work; red / yellow / green buttons to end, minimize and maximize; nothing lost when you minimize or switch conversations, and it reconnects after a drop |
+| Terminal in the conversation | A real terminal (xterm.js over `ssh -tt`) where menu scripts, `top` and `vim` work; red / yellow / green buttons to end, minimize and maximize, or expand it into DSH's right sidebar; nothing lost when you minimize or switch conversations, and it reconnects after a drop |
 | Status in the conversation | One page for how the server is doing: rule-judged "needs attention" items first (failed services, full disks, expiring certificates, pending security updates), then ring meters, disks, services, containers, ports, firewall and more; click **Interpret** for a few sentences from DSH's default model. Expand it into DSH's right sidebar to keep it open beside the chat, refreshing every minute while visible, and pick any of your machines to look at |
 | Files in the conversation | A file browser for the server: drag in to upload, right-click to download, double-click to edit, deletes go to a trash you can restore from; backups before overwriting or editing; right-click "let the AI look at this file" |
 | AI on the server | 5 tools with risk-tiered confirmation: read-only runs automatically, changes ask you, dangerous commands ask again; levels can be set per machine, group or globally |
@@ -219,6 +219,7 @@ The **`>_`** button right after `VPS` in the conversation header is the terminal
   - **Yellow −**: minimize to a bar below the input box ("terminal running in the background · open N minutes"); the terminal keeps running, and clicking the bar brings it back
   - **Green**: maximize; the terminal fills the conversation area and the input box moves to the top. Click again (or double-click the title bar) to restore
 - The `>_` button in the header is still a switch: not open → open; open → minimize; minimized → restore. While minimized it shows a small green dot
+- **Expand to the right sidebar**: the space below the input box is small, so the button with a vertical line in a box, left of the three round buttons, moves the terminal into **DSH's own right sidebar** (the **VPS terminal** tab), where it can be resized, split, floated and made full screen like DSH's built-in sidebar terminal. It is the same terminal either way: the shell keeps running and the screen is kept. Below the input box only a "Terminal is in the right sidebar" bar remains; click it to show the sidebar, or **Put it back here** to move it back (the sidebar's title bar also has **Put back below the input box**). Closing the sidebar tab does not end the terminal; it goes back to the bar below the input box. The sidebar's start page also has a **VPS terminal** entry: it moves this conversation's terminal over, or opens one
 - **Minimizing, switching to another conversation and coming back keeps the terminal and everything on it**
 - **Reloading the page or losing the network**: the server keeps the terminal for a while (10 minutes by default, adjustable in settings). Come back within that time and it reconnects automatically, replaying the output you missed; only after that does it end
 - At normal size, drag the bottom-right corner to change the height; full-screen programs redraw at the new size, and the height is remembered
@@ -283,6 +284,12 @@ The first card on the Status tab is **Network**. Click **Start check-up** (about
 - **How clean the IP is**: which country Cloudflare, OpenAI, Google, ipinfo, ip-api and Netflix each think you are in (if they disagree, it is a "broadcast IP" that some services may misjudge), whether it is a data-centre IP, and whether it is on the main spam blocklists
 - Everything is decided by fixed rules; when a site cannot be reached or answers with something unfamiliar, the line says "unclear" instead of guessing
 - Only curl is used on the server; nothing is installed. Results are kept locally (`$DSH_HOME/vps-manager/net/`, one file per check, kept for 90 days); `/vps-netcheck` shows the same in the conversation
+
+**The IP location card**: **Look up** (a few seconds, no tokens) lists, block by block:
+- **This computer**: your home broadband (the exit that bypasses the proxy app) and your proxy's exit, with country, region, city, network operator and whether it is a data-center IP; then it checks which one the server sees, telling you whether you reach the server through the proxy or directly
+- **This VPS**: where its IPv4 and IPv6 are and whose network they are on. When the ip-api and ipinfo databases disagree on the country, it says so (each website goes by its own database)
+- **Look up an IP**: enter any IP or domain; the last 5 results stay on screen and are not saved
+- Lookups run on this computer ([ip-api.com](https://ip-api.com) first, [ipinfo.io](https://ipinfo.io) as a second opinion) and send these IPs to those two services. Local network, carrier-grade NAT and proxy-app fake IPs are never sent; the card just says what they are. Since it contains your home IP, this card has no **+AI**. Results are kept locally (`$DSH_HOME/vps-manager/ip/`)
 
 **The Speed card** measures from your own computer, with your broadband plan as 100% (enter it once in the card, for example 1000).
 - **Through the proxy**: requests go out as usual and your proxy app (Shadowrocket and the like) routes them by its rules; download, single connection, upload and latency are measured against fast.com's Netflix test servers, and the exit is checked to really be this VPS
@@ -511,6 +518,7 @@ The settings page's backend only accepts same-origin JSON requests carrying a to
 | `$DSH_HOME/vps-manager/state.json` | Health check results and which machine each conversation is bound to |
 | `$DSH_HOME/vps-manager/status/` | The last look from the Status tab and its AI reading, one file per machine |
 | `$DSH_HOME/vps-manager/intrusion/` | The last compromise check of each machine, and the keys, IPs, tasks and ports you confirmed as yours |
+| `$DSH_HOME/vps-manager/ip/` | The last IP location lookup of each machine |
 | `$DSH_HOME/vps-manager/recipes/` | Your own recipes |
 | `$DSH_HOME/vps-manager/audit/` | Audit log: one JSON line per run (source, machine, action, level, result), one file per month, kept for 6 months |
 | `~/.ssh/config.d/dsh-vps.conf` | SSH connection settings maintained by the plugin |
@@ -554,12 +562,13 @@ Errors the plugin runs into itself (registration failures, backend errors, inter
 | `lib/status.js` | The Status tab: the read-only collection script, rules, local cache and AI interpretation |
 | `lib/netcheck.js` | The Network card (network check-up): read-only checks on the VPS, reachability from China (Globalping), rules |
 | `lib/intrusion.js` | The Compromise check card: the read-only check script, the light checks run on every status refresh, the rules, what you confirmed |
+| `lib/iplookup.js` | The IP location card: this computer's two exits, the VPS's IPs and how it sees you, looking up any IP |
 | `lib/speedtest.js` | The Speed and Compare servers cards: proxy and direct speeds measured on this computer, the temporary speed-test service on the VPS, candidate comparison |
 | `lib/update.js` | The settings page's Update button: latest release on GitHub and npm, install through DSH's plugin manager |
 | `lib/routes.js` | Settings page backend |
 | `lib/config.js` · `lib/onboarding.js` · `lib/ssh.js` | Machine list, SSH configuration, adding machines, ssh arguments |
 | `lib/reboot.js` · `lib/uninstall.js` · `lib/audit.js` | Reboot and wait for the machine, uninstall, audit log |
-| `test/` | 361 tests |
+| `test/` | 371 tests |
 | `scripts/windows-e2e.mjs` · `.github/workflows/platform-e2e.yml` | Cross-platform run against a real sshd on GitHub's Windows and Linux machines: adding a machine, running commands, the Files page, the Status page, the terminal, uninstalling |
 
 ---
@@ -571,7 +580,7 @@ npm install
 npm test
 ```
 
-361 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend, the terminal connection (authentication, local-only access, input and output, window size, keeping and resuming after a disconnect, cleanup), the status collection script and rules, and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`, along with whether the notice the plugin adds to a conversation is accepted by the host's session format.
+371 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend, the terminal connection (authentication, local-only access, input and output, window size, keeping and resuming after a disconnect, cleanup), the status collection script and rules, and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`, along with whether the notice the plugin adds to a conversation is accepted by the host's session format.
 
 On every push, GitHub's Windows machines (2022 and 2025, with the OpenSSH that ships with Windows) and a Linux machine also each connect to a real sshd and follow the same path a user does: add a machine with a password, run commands, run a remote task, upload, download and edit on the Files page, open the terminal and resize it, and revoke the key on uninstall.
 

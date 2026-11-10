@@ -369,16 +369,17 @@ test('接口：右侧栏可以指定看别的登记过的机器（不看对话�
 
 test('右侧栏：DSH 有右侧栏时登记「VPS 状态」页签（开始页有入口、切走保活）；标题栏三个圆点左边有「扩展到右侧栏」', async () => {
   const exported = await loadClient(null)
-  let def = null
+  const defs = []
   let opened = null
   const regs = []
   exported.apply({
     slots: { inject: (_name, fn) => fn(), register: (d, C) => { regs.push([d, C]); return () => {} } },
     inject: (names, cb) => {
       if (!names.includes('sidebarRight')) return
-      cb({ get: (n) => (n === 'sidebarRight' ? { openTab: (kind) => { opened = kind } } : n === 'sidebarRightTabs' ? { register: (d) => { def = d; return () => {} } } : undefined), effect: (fn) => fn() })
+      cb({ get: (n) => (n === 'sidebarRight' ? { openTab: (kind) => { opened = kind } } : n === 'sidebarRightTabs' ? { register: (d) => { defs.push(d); return () => {} } } : undefined), effect: (fn) => fn() })
     },
   })
+  const def = defs.find((d) => d.kind === 'vps-manager-status')
   assert.equal(def.kind, 'vps-manager-status')
   assert.equal(def.keepMounted, true)
   assert.equal(def.title(), 'VPS 状态')
