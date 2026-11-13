@@ -11,7 +11,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { writeHosts } from '../lib/config.js'
 import { withLang } from '../lib/i18n.js'
 import { STATUS_SCRIPT, judge, parseStatus, statusBrief } from '../lib/status.js'
-import { VNSTAT_INSTALL_SCRIPT, VNSTAT_SCRIPT, cycleOf, parseVnstat, readTrafficSettings, trafficLevel, trafficUsage, writeTrafficSettings } from '../lib/traffic.js'
+import { VNSTAT_INSTALL_SCRIPT, VNSTAT_SCRIPT, cycleOf, expiryLevel, expiryOf, parseVnstat, readTrafficSettings, trafficLevel, trafficUsage, writeTrafficSettings } from '../lib/traffic.js'
 import { registerRoutes } from '../lib/routes.js'
 
 // 2026-11-13 在 Ubuntu 24.04 容器里装 vnstat 2.12 实跑的 `vnstat --json d -i eth0`
@@ -102,7 +102,28 @@ test('设置：存本机、按机器分开；填错了报错；额度填 0 就�
   await assert.rejects(writeTrafficSettings('la', { resetDay: 32 }, env), /1 到 31|1 to 31/)
   await assert.rejects(writeTrafficSettings('la', { mode: 'both' }, env), /计费方式|counting/)
   await assert.rejects(writeTrafficSettings('la', { quota: -1 }, env), /月流量|allowance/)
+  await writeTrafficSettings('la', { expires: '2027-03-01' }, env)
+  assert.equal((await readTrafficSettings(env)).la.expires, '2027-03-01')
+  await writeTrafficSettings('la', { expires: '' }, env)
+  assert.equal((await readTrafficSettings(env)).la.expires, null)
+  await assert.rejects(writeTrafficSettings('la', { expires: '2027-13-40' }, env), /到期日|expiry/)
 })
+
+test('到期：提前 7 天黄，最后一天、当天、过期红；按这台电脑上的日期算，进「需注意」和给 AI 的摘要', () => withLang('zh', () => {
+  assert.equal(expiryOf({ expires: '2026-12-01' }, '2026-11-13').daysLeft, 18)
+  assert.equal(expiryLevel(expiryOf({ expires: '2026-12-01' }, '2026-11-13')), 'ok')
+  assert.equal(expiryLevel(expiryOf({ expires: '2026-11-20' }, '2026-11-13')), 'warn')
+  assert.equal(expiryLevel(expiryOf({ expires: '2026-11-14' }, '2026-11-13')), 'danger')
+  assert.equal(expiryOf({ expires: '2026-11-10' }, '2026-11-13').daysLeft, -3)
+  assert.equal(expiryOf({}, '2026-11-13'), null)
+  const now = new Date(2026, 10, 13, 12).getTime() // 本地时间 11 月 13 日中午
+  const data = parseStatus('priv=root\nnet=eth0|1|2')
+  const j = judge(data, now, { traffic: { expires: '2026-11-18' } })
+  const item = j.attention.find((i) => i.type === 'expiry')
+  assert.deepEqual([item.level, item.daysLeft], ['warn', 5])
+  assert.match(statusBrief('la', data, j), /服务器 2026-11-18 到期，还有 5 天/)
+  assert.equal(judge(data, now, { traffic: { expires: '2027-01-01' } }).attention.filter((i) => i.type === 'expiry').length, 0)
+}))
 
 const SAMPLE = 'priv=root\nhost=la\nos=Ubuntu 24.04\nuptime=100\ncores=1\nmemtotal=1000\nmemavailable=500\nnet=eth0|5000|6000\nvnstat=1\nvn_today=2026,11,13\nvn_ver=2\nvn_created=2026,10,01\nvn_updated=2026,11,13\nvn_day=2026,11,01,3298534883328,0\nvn_day=2026,11,13,0,549755813888'
 
@@ -153,7 +174,7 @@ test('接口：设置存本机并带回状态；安装 vnstat 走远端任务、
   assert.ok((await readAudit({ env })).some((x) => x.action === 'install-vnstat'))
 })
 
-test('界面：装了 vnstat 时资源格子显示本月流量和重置日；「月流量」卡排在最前，有额度、重置日、计费方式；没装时给「安装 vnstat」', async () => {
+test('界面：装了 vnstat 时资源格子显示本月流量和重置日；「流量和到期」卡排在最前，有额度、重置日、计费方式、到期日；没装时给「安装 vnstat」', async () => {
   let spec = null
   globalThis.window = {
     __ModuleLoader__: { load: (s) => { spec = s } }, __DSH_VPS_TOKEN__: 't', confirm: () => true, innerHeight: 800,
@@ -178,9 +199,12 @@ test('界面：装了 vnstat 时资源格子显示本月流量和重置日；「
   assert.match(html, /本月流量/)
   assert.match(html, /3\.5 \/ 4\.0 TB|3584\.0 GB \/ 4096\.0 GB|3\.5 TB \/ 4\.0 TB/)
   assert.match(html, /12 月 1 日重置/)
-  assert.ok(html.indexOf('>月流量<') < html.indexOf('>网络<'), '「月流量」排在最前')
+  assert.ok(html.indexOf('>流量和到期<') < html.indexOf('>网络<'), '「流量和到期」排在最前')
   assert.match(html, /已用 .*（88%）/)
-  for (const t of ['收发相加', '只算出站', '收发取大', '号重置', '设置只存在这台电脑上']) assert.ok(html.includes(t), t)
+  for (const t of ['收发相加', '只算出站', '收发取大', '号重置', '到期日', 'type="date"', '设置只存在这台电脑上']) assert.ok(html.includes(t), t)
+  const soon = new Date(Date.now() + 3 * 86_400_000)
+  const ymd = `${soon.getFullYear()}-${String(soon.getMonth() + 1).padStart(2, '0')}-${String(soon.getDate()).padStart(2, '0')}`
+  assert.match(render(SAMPLE, { quota: 4 * 1024 ** 4, resetDay: 1, expires: ymd }, 'la'), /还有 3 天，记得续费/)
   const none = render('priv=root\nhost=hk\nnet=eth0|5000|6000', null, 'hk')
   assert.match(none, /网络（开机以来）/)
   assert.match(none, />安装 vnstat</)
