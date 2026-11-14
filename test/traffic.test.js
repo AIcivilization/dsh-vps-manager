@@ -87,6 +87,9 @@ test('用量：只加这个周期里的天；三种计费方式；vnstat 周期�
   assert.equal(late.partial, true)
   assert.equal(late.since, '2026-11-10')
   assert.equal(trafficUsage({ ...vn, updated: '2026-11-10' }, {}).stale, true)
+  const empty = trafficUsage({ ...vn, days: [] }, { quota: 1 })
+  assert.equal(empty.empty, true)
+  assert.equal(trafficLevel(empty), 'ok', '还没有记录时不判轻重')
 })
 
 test('设置：存本机、按机器分开；填错了报错；额度填 0 就是不设', async () => {
@@ -205,6 +208,15 @@ test('界面：装了 vnstat 时资源格子显示本月流量和重置日；「
   const soon = new Date(Date.now() + 3 * 86_400_000)
   const ymd = `${soon.getFullYear()}-${String(soon.getMonth() + 1).padStart(2, '0')}-${String(soon.getDate()).padStart(2, '0')}`
   assert.match(render(SAMPLE, { quota: 4 * 1024 ** 4, resetDay: 1, expires: ymd }, 'la'), /还有 3 天，记得续费/)
+  // 刚装上 vnstat（2026-11-13 用户真机：装好 1 分钟后看，每天的记录还是空的）：不显示 0 B，说「刚开始记」，也不再提示安装
+  const fresh = render('priv=root\nhost=lsj\nnet=ens3|2272784215|2177780398\nvnstat=1\nvn_today=2026,11,13\nvn_ver=2\nvn_created=2026,11,13\nvn_updated=2026,11,13', { quota: 4 * 1024 ** 4, resetDay: 1 }, 'lsj')
+  assert.match(fresh, /刚开始记/)
+  assert.match(fresh, /vnstat 已经装好，正在开始记/)
+  assert.doesNotMatch(fresh, /已用 0 B/)
+  assert.doesNotMatch(fresh, />安装 vnstat</)
+  const noToday = render('priv=root\nhost=lsj\nnet=ens3|1|2\nvnstat=1', null, 'lsj')
+  assert.doesNotMatch(noToday, />安装 vnstat</, '装了就不提示安装')
+  assert.match(noToday, /vnstat 已经装了，但这次没读到它的记录/)
   const none = render('priv=root\nhost=hk\nnet=eth0|5000|6000', null, 'hk')
   assert.match(none, /网络（开机以来）/)
   assert.match(none, />安装 vnstat</)
