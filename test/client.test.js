@@ -362,8 +362,8 @@ test('设置页有「终端」栏目：颜色方案三选一、字号、断线�
   exported.apply(ctx)
   // 设置页要等 overview 回来才渲染设置卡片：直接渲染卡片组件的输出不方便，这里用内部句柄核对取值逻辑
   const { normalizeTermPrefs, termChrome } = exported.__test
-  assert.deepEqual(normalizeTermPrefs({ theme: 'dark', fontSize: 15, keepMinutes: 30 }), { theme: 'dark', fontSize: 15, keepMinutes: 30 })
-  assert.deepEqual(normalizeTermPrefs({ theme: 'x' }), { theme: 'system', fontSize: 13, keepMinutes: 10 })
+  assert.deepEqual(normalizeTermPrefs({ theme: 'dark', fontSize: 15, keepMinutes: 30 }), { theme: 'dark', fontSize: 15, keepMinutes: 30, sidebarEntry: false })
+  assert.deepEqual(normalizeTermPrefs({ theme: 'x' }), { theme: 'system', fontSize: 13, keepMinutes: 10, sidebarEntry: false })
   assert.match(termChrome('system').bg, /^var\(--dsw-/, '跟随系统：用 DSH 的主题变量')
   assert.equal(termChrome('dark').bg, '#2c2c2e', '暗色：固定用 DSH 深色的输入框底色')
   assert.equal(termChrome('light').bg, '#ffffff', '白色：固定白底')

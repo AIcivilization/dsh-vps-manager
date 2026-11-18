@@ -167,8 +167,8 @@ test('自定义菜谱按哈希记信任', async () => {
 })
 
 test('终端设置规范化：三种颜色方案、字号 11–20、保留时长', () => {
-  assert.deepEqual(normalizeTerminalPrefs(undefined), { theme: 'system', fontSize: 13, keepMinutes: 10 })
-  assert.deepEqual(normalizeTerminalPrefs({ theme: 'light', fontSize: '15', keepMinutes: 60 }), { theme: 'light', fontSize: 15, keepMinutes: 60 })
+  assert.deepEqual(normalizeTerminalPrefs(undefined), { theme: 'system', fontSize: 13, keepMinutes: 10, sidebarEntry: false })
+  assert.deepEqual(normalizeTerminalPrefs({ theme: 'light', fontSize: '15', keepMinutes: 60, sidebarEntry: true }), { theme: 'light', fontSize: 15, keepMinutes: 60, sidebarEntry: true })
   assert.equal(normalizeTerminalPrefs({ theme: 'dark' }).theme, 'dark')
   assert.equal(normalizeTerminalPrefs({ fontSize: 10 }).fontSize, 13)
   assert.equal(normalizeTerminalPrefs({ fontSize: 21 }).fontSize, 13)

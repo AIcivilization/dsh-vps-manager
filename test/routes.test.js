@@ -259,11 +259,11 @@ test('没有 verify 的菜谱，验证接口如实说明', async () => {
 test('终端设置：保存后读得回来，非法值落回默认', async () => {
   const { env, call } = await sandbox()
   const first = await call('terminal/prefs', {})
-  assert.deepEqual(first.body.terminal, { theme: 'system', fontSize: 13, keepMinutes: 10 }, '默认：跟随系统、13 号字、保留 10 分钟')
+  assert.deepEqual(first.body.terminal, { theme: 'system', fontSize: 13, keepMinutes: 10, sidebarEntry: false }, '默认：跟随系统、13 号字、保留 10 分钟、右侧栏开始页不放入口')
   await call('settings/save', { settings: { terminal: { theme: 'dark', fontSize: 16, keepMinutes: 30 } } })
-  assert.deepEqual((await call('terminal/prefs', {})).body.terminal, { theme: 'dark', fontSize: 16, keepMinutes: 30 })
+  assert.deepEqual((await call('terminal/prefs', {})).body.terminal, { theme: 'dark', fontSize: 16, keepMinutes: 30, sidebarEntry: false })
   await call('settings/save', { settings: { terminal: { theme: 'purple', fontSize: 99, keepMinutes: -1 } } })
-  assert.deepEqual((await readHosts(env)).settings.terminal, { theme: 'system', fontSize: 13, keepMinutes: 10 })
+  assert.deepEqual((await readHosts(env)).settings.terminal, { theme: 'system', fontSize: 13, keepMinutes: 10, sidebarEntry: false })
 })
 
 test('开关换机器或关掉：对话里连着旧机器的终端结束', async () => {

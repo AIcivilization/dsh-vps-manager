@@ -46,7 +46,7 @@ const fakeEntry = (over = {}) => ({
   id: 't1', startedAt: Date.now(), version: 0, el: {}, ...over,
 })
 
-test('登记：「VPS 终端」是右侧栏的一种页签——开始页有入口、切走保活、正文用类型 id 登记、关页签有处理', async () => {
+test('登记：「VPS 终端」是右侧栏的一种页签——切走保活、正文用类型 id 登记、关页签有处理；开始页入口默认不放，设置里打开才放', async () => {
   const exported = await loadClient()
   const sb = fakeSidebar()
   exported.apply(sb.ctx)
@@ -55,7 +55,13 @@ test('登记：「VPS 终端」是右侧栏的一种页签——开始页有入�
   assert.ok(sb.defs.some((d) => d.kind === 'vps-manager-status'), '「VPS 状态」照旧')
   assert.equal(term.keepMounted, true, '切到别的页签、折叠右侧栏，终端照跑')
   assert.equal(term.title(), 'VPS 终端')
-  assert.equal(term.guide[0].title(), 'VPS 终端')
+  assert.equal(term.guide, undefined, '默认不在开始页放入口：从终端标题栏的小图标扩展过去')
+  const on = await loadClient()
+  // 加载完再写设置：前一个客户端异步读设置时会把本地缓存写回默认值
+  globalThis.window.localStorage.setItem('dsh-vps:terminal-prefs', JSON.stringify({ sidebarEntry: true }))
+  const sb2 = fakeSidebar()
+  on.apply(sb2.ctx)
+  assert.equal(sb2.defs.find((d) => d.kind === 'vps-manager-terminal').guide[0].title(), 'VPS 终端', '设置里打开了才放')
   assert.ok(sb.regs.some(([d]) => d.name === 'sidebar.right.pane.tab' && d.key === term.id))
   assert.ok(sb.closers.has('vps-manager-terminal'))
 })
