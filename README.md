@@ -290,6 +290,11 @@ The first card on the Status tab is **Network**. Click **Start check-up** (about
 - Usage comes from [vnstat](https://humdi.net/vnstat/) on the server, which counts by day and survives reboots. Without it the card offers **Install vnstat**, which explains what it does and installs only after you confirm (as a remote task, audited); counting starts from that day
 - At 80%, or when the current rate would exceed the allowance, it goes to **Needs attention** (yellow); at 95% it turns red. Expiry reminders start 7 days before (yellow) and turn red on the last day and after. The Network tile in the resource row shows this month's traffic too; without vnstat it still shows traffic since boot
 
+**The Last 24 hours card** (after Traffic & renewal): small CPU, memory and network graphs, each with the current value, average, peak and when the peak was.
+- Data comes from sysstat on the server (`sar`, which records every 10 minutes by itself, including while DSH is closed), plus a point this computer records every time you view the status (every minute while the right sidebar is open, kept in `$DSH_HOME/vps-manager/history/`). Read-only, no traffic
+- Without sysstat the card offers **Install sysstat**, which installs it after you confirm (an audited remote task) and turns recording on
+- The resource row gains **Speed right now**: how much was received and sent during one second of the check (reads the interface counters; uses no traffic)
+
 **The IP location card**: **Look up** (a few seconds, no tokens) lists, block by block:
 - **This computer**: your home broadband (the exit that bypasses the proxy app) and your proxy's exit, with country, region, city, network operator and whether it is a data-center IP; then it checks which one the server sees, telling you whether you reach the server through the proxy or directly
 - **This VPS**: where its IPv4 and IPv6 are and whose network they are on. When the ip-api and ipinfo databases disagree on the country, it says so (each website goes by its own database)
@@ -524,6 +529,7 @@ The settings page's backend only accepts same-origin JSON requests carrying a to
 | `$DSH_HOME/vps-manager/status/` | The last look from the Status tab and its AI reading, one file per machine |
 | `$DSH_HOME/vps-manager/intrusion/` | The last compromise check of each machine, and the keys, IPs, tasks and ports you confirmed as yours |
 | `$DSH_HOME/vps-manager/traffic.json` | Each machine's monthly allowance, reset day, counting method and expiry date |
+| `$DSH_HOME/vps-manager/history/` | Points recorded each time a machine's status is viewed (CPU, memory, root disk, network), kept 8 days |
 | `$DSH_HOME/vps-manager/ip/` | The last IP location lookup of each machine |
 | `$DSH_HOME/vps-manager/recipes/` | Your own recipes |
 | `$DSH_HOME/vps-manager/audit/` | Audit log: one JSON line per run (source, machine, action, level, result), one file per month, kept for 6 months |
@@ -569,13 +575,14 @@ Errors the plugin runs into itself (registration failures, backend errors, inter
 | `lib/netcheck.js` | The Network card (network check-up): read-only checks on the VPS, reachability from China (Globalping), rules |
 | `lib/intrusion.js` | The Compromise check card: the read-only check script, the light checks run on every status refresh, the rules, what you confirmed |
 | `lib/traffic.js` | Traffic & renewal: reads vnstat on the server, adds up the current cycle from the reset day, local settings, installing vnstat |
+| `lib/trend.js` | Last 24 hours: reads sar on the server, local points, merged graphs, installing sysstat |
 | `lib/iplookup.js` | The IP location card: this computer's two exits, the VPS's IPs and how it sees you, looking up any IP |
 | `lib/speedtest.js` | The Speed and Compare servers cards: proxy and direct speeds measured on this computer, the temporary speed-test service on the VPS, candidate comparison |
 | `lib/update.js` | The settings page's Update button: latest release on GitHub and npm, install through DSH's plugin manager |
 | `lib/routes.js` | Settings page backend |
 | `lib/config.js` · `lib/onboarding.js` · `lib/ssh.js` | Machine list, SSH configuration, adding machines, ssh arguments |
 | `lib/reboot.js` · `lib/uninstall.js` · `lib/audit.js` | Reboot and wait for the machine, uninstall, audit log |
-| `test/` | 379 tests |
+| `test/` | 385 tests |
 | `scripts/windows-e2e.mjs` · `.github/workflows/platform-e2e.yml` | Cross-platform run against a real sshd on GitHub's Windows and Linux machines: adding a machine, running commands, the Files page, the Status page, the terminal, uninstalling |
 
 ---
@@ -587,7 +594,7 @@ npm install
 npm test
 ```
 
-379 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend, the terminal connection (authentication, local-only access, input and output, window size, keeping and resuming after a disconnect, cleanup), the status collection script and rules, and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`, along with whether the notice the plugin adds to a conversation is accepted by the host's session format.
+385 tests, no real server needed: a local `sh -s` stands in for the remote `sshd`, covering the payload protocol, remote tasks, locking, backup and restore, risk classification, VPS mode, uninstall, commands, the settings-page backend, the terminal connection (authentication, local-only access, input and output, window size, keeping and resuming after a disconnect, cleanup), the status collection script and rules, and UI rendering. On a machine with DSH Desktop installed, tool definitions, return values, skill fields and approval outcomes are also checked against DSH's own `dsh-tools`, `dsh-skill` and `dsh-user-approval`, along with whether the notice the plugin adds to a conversation is accepted by the host's session format.
 
 On every push, GitHub's Windows machines (2022 and 2025, with the OpenSSH that ships with Windows) and a Linux machine also each connect to a real sshd and follow the same path a user does: add a machine with a password, run commands, run a remote task, upload, download and edit on the Files page, open the terminal and resize it, and revoke the key on uninstall.
 
