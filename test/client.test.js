@@ -444,3 +444,14 @@ test('设置页的 dsh-vps 介绍：没装时介绍它并给 GitHub 链接和插
   assert.match(have, /「VPS 部署」/)
   assert.doesNotMatch(have, /插件市场搜索/)
 })
+
+test('设置页标题行有「★ Star」：打开 GitHub 仓库页（新窗口），悬停说明用途', async () => {
+  const { exported } = await loadClient()
+  const { renderToStaticMarkup } = await import('react-dom/server')
+  const React = (await import('react')).default
+  const html = renderToStaticMarkup(React.createElement(exported.__test.StarLink))
+  assert.match(html, /href="https:\/\/github\.com\/AIcivilization\/dsh-vps-manager"/)
+  assert.match(html, /target="_blank"/)
+  assert.match(html, /到 GitHub 给 VPS 管理点个星/)
+  assert.match(html, />Star</)
+})
