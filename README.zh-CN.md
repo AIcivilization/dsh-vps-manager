@@ -22,6 +22,7 @@
 <p>
   <a href="https://awesome-dsh-plugin.com/p/AIcivilization/dsh-vps-manager/"><img src="https://img.shields.io/badge/Listed_on-awesome--dsh--plugin-1677ff?style=flat-square" alt="已收录于 awesome-dsh-plugin"></a>
   <a href="https://dshget.com/plugins/AIcivilization/dsh-vps-manager"><img src="https://img.shields.io/badge/Listed_on-DSH_Get-1677ff?style=flat-square" alt="已收录于 DSH Get"></a>
+  <a href="https://github.com/AIcivilization/dsh-pick"><img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/AIcivilization/dsh-pick/catalog/badge/dsh-vps-manager.json&style=flat-square" alt="dsh-pick 排名"></a>
 </p>
 
 **简体中文** · [English](README.md)
