@@ -104,7 +104,7 @@ test('只有密码时自己在终端里放公钥：Windows 没有 ssh-copy-id，
   assert.equal(win, 'type "C:\\Users\\10047\\.ssh\\dsh_vps_ed25519.pub" | ssh -p 2222 root@1.2.3.4 "umask 077; mkdir -p ~/.ssh && tr -d \'\\r\' >> ~/.ssh/authorized_keys"')
   assert.ok(!win.includes('$'), 'PowerShell 会展开双引号里的 $')
   const mac = sshCopyIdCommand({ identityFile: '/Users/wf/.ssh/dsh_vps_ed25519', user: 'root', hostname: '1.2.3.4', platform: 'darwin' })
-  assert.equal(mac, 'ssh-copy-id -i /Users/wf/.ssh/dsh_vps_ed25519.pub root@1.2.3.4')
+  assert.equal(mac, "ssh-copy-id -i '/Users/wf/.ssh/dsh_vps_ed25519.pub' root@1.2.3.4")
 })
 
 test('ssh 参数里别名前面照样有 --（Windows 上也不能被当成选项）', () => {

@@ -167,7 +167,7 @@ test('局域网暴露时，会改东西的路由默认关闭，只读的照常',
 
   const write = await call('host/save', { alias: 'jp', hostname: '5.6.7.8', port: 22, user: 'root' })
   assert.equal(write.code, 403)
-  assert.match(write.body.error, /0\.0\.0\.0/)
+  assert.match(write.body.error, /局域网地址/)
 
   const run = await call('recipes/run', { id: 'health', alias: 'hk' })
   assert.equal(run.code, 403)
@@ -188,7 +188,7 @@ test('向导：拿公钥和两种放公钥的命令', async () => {
 
   const cmds = await call('onboarding/commands', { hostname: '1.2.3.4', port: 2222, user: 'root' })
   assert.match(cmds.body.authorizedKeys, /authorized_keys/)
-  assert.match(cmds.body.sshCopyId, /ssh-copy-id -i .*\.pub -p 2222 root@1\.2\.3\.4/)
+  assert.match(cmds.body.sshCopyId, /ssh-copy-id -i '.*\.pub' -p 2222 root@1\.2\.3\.4/)
 })
 
 test('面板的执行流程：立刻拿任务号 → 轮询日志 → 单独验证', async () => {
@@ -310,4 +310,76 @@ test('所有对话的绑定：给界面对齐用，机器被删掉的不算', as
   await writeHosts({ current: 'hk', hosts: { hk: { note: '' } } }, env) // jp 被删掉
   await call('session/bind', { sessionId: 's1', alias: null }) // s1 关掉开关
   assert.deepEqual((await call('session/bindings', {})).body.bindings, {})
+})
+
+test('防 DNS 重绑定：Host 是别人的域名（Origin 也是它，看起来「同源」）一律拒绝，令牌也拿不到；IP 地址照常；设置里放开「其他设备」后域名可用', async () => {
+  const { ws, reg, env } = await sandbox()
+  const send = async (path, headers) => {
+    const res = makeRes()
+    await ws.routes.get(`/api-vps/${path}`)(makeReq({ headers: { 'x-dsh-vps-token': reg.token, ...headers } }), res)
+    return res.out
+  }
+  const evil = { host: 'rebind.evil.example:3000', origin: 'http://rebind.evil.example:3000' }
+  const token = await send('token', evil)
+  assert.equal(token.code, 403)
+  assert.equal(token.body.token, undefined, '令牌不能给出去')
+  assert.match(token.body.error, /DNS 重绑定/)
+  assert.equal((await send('overview', evil)).code, 403)
+  assert.equal((await send('overview', { host: '192.168.1.5:3000', origin: 'http://192.168.1.5:3000' })).code, 200, 'IP 地址重绑定不了')
+  assert.equal((await send('overview', { host: '[::1]:3000' })).code, 200)
+  const doc = await readHosts(env)
+  await writeHosts({ ...doc, settings: { ...doc.settings, allowTerminalRemote: true } }, env)
+  assert.equal((await send('overview', { host: 'dsh.example.com', origin: 'https://dsh.example.com' })).code, 200, '自己的反向代理')
+})
+
+test('DSH 有自己的浏览器校验（connection 服务）时每个接口都要过它，令牌接口也一样', async () => {
+  const home = await mkdtemp(join(tmpdir(), 'dsh-vps-routes-'))
+  const env = { HOME: home, DSH_HOME: join(home, '.dsh') }
+  await writeHosts({ current: 'hk', hosts: { hk: {} } }, env)
+  let verdict = 401
+  const seen = []
+  const ws = fakeWebServer({ host: '127.0.0.1' })
+  const ctx = { webServer: ws, get: (n) => (n === 'connection' ? { requestRejection: (req) => { seen.push(req.headers.host); return verdict } } : undefined) }
+  const reg = registerRoutes(ctx, { env })
+  const send = async (path) => {
+    const res = makeRes()
+    await ws.routes.get(`/api-vps/${path}`)(makeReq({ headers: { 'x-dsh-vps-token': reg.token } }), res)
+    return res.out
+  }
+  assert.equal((await send('token')).code, 401)
+  assert.equal((await send('overview')).code, 401)
+  verdict = undefined
+  assert.equal((await send('token')).body.token, reg.token)
+  assert.equal((await send('overview')).code, 200)
+  assert.equal(seen.length, 4)
+})
+
+test('Web 服务绑在局域网 IP 上（新版 DSH 不许 0.0.0.0）也算局域网暴露；「是我的」也受这个开关管', async () => {
+  const home = await mkdtemp(join(tmpdir(), 'dsh-vps-routes-'))
+  const env = { HOME: home, DSH_HOME: join(home, '.dsh') }
+  await writeHosts({ current: 'hk', hosts: { hk: {} } }, env)
+  const ws = fakeWebServer({ host: '192.168.1.5' })
+  const reg = registerRoutes({ webServer: ws }, { env })
+  const send = async (path, body) => {
+    const res = makeRes()
+    await ws.routes.get(`/api-vps/${path}`)(makeReq({ body, headers: { 'x-dsh-vps-token': reg.token, host: '192.168.1.5:3000' } }), res)
+    return res.out
+  }
+  assert.equal((await send('overview', {})).body.lanBound, true)
+  assert.equal((await send('settings/save', { settings: {} })).code, 403)
+  const ack = await send('status/intrusion/ack', { alias: 'hk', kind: 'keys', value: 'x' })
+  assert.equal(ack.body.ok, false)
+  assert.match(ack.body.error, /局域网地址/)
+})
+
+test('向导拼命令前先校验地址、用户名：带分号、换行、以 - 开头的都拒绝；不收界面传来的钥匙路径', async () => {
+  const { call, env } = await sandbox()
+  for (const bad of [{ hostname: '1.2.3.4; touch /tmp/x' }, { hostname: '-oProxyCommand=x' }, { hostname: '1.2.3.4', user: 'root$(id)' }]) {
+    const cmds = await call('onboarding/commands', bad)
+    assert.equal(cmds.body.ok, false, JSON.stringify(bad))
+    const term = await call('onboarding/open-terminal', bad) // 校验不过就不会去开终端
+    assert.equal(term.body.ok, false, JSON.stringify(bad))
+  }
+  const key = await call('onboarding/key', { create: true, keyPath: join(env.HOME, 'elsewhere') })
+  assert.equal(key.body.path, paths(env).defaultKey)
 })

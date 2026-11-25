@@ -11,6 +11,7 @@
 // 不需要模型密钥，不连任何服务器。
 
 import { spawn } from 'node:child_process'
+import { request as httpRequest } from 'node:http'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -108,6 +109,19 @@ async function main() {
     const overview = await api('overview')
     check('设置页接口能用（overview）', overview.ok && Array.isArray(overview.recipes) && overview.recipes.length > 0,
       overview.ok ? `菜谱 ${overview.recipes?.length} 条` : overview.error)
+    // 插件接口和 DSH 自己的 /api 一样严：没登录 Cookie 不行；Host 是陌生域名（DNS 重绑定）不行，令牌也拿不到
+    const noCookie = await fetch(`${base}/api-vps/token`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })
+    check('没登录 Cookie 拿不到插件令牌', noCookie.status === 401 || noCookie.status === 403, `HTTP ${noCookie.status}`)
+    const rebound = await new Promise((done) => {
+      const u = new URL(base)
+      const req = httpRequest({ host: u.hostname, port: u.port, path: '/api-vps/token', method: 'POST', headers: { host: `rebind.example:${u.port}`, origin: `http://rebind.example:${u.port}`, cookie, 'content-type': 'application/json' } }, (res) => {
+        res.resume()
+        done(res.statusCode)
+      })
+      req.on('error', (e) => done(e.message))
+      req.end('{}')
+    })
+    check('Host 是陌生域名（DNS 重绑定）拿不到插件令牌', rebound === 403, `HTTP ${rebound}`)
     const bindings = await api('session/bindings')
     check('对话绑定接口能用', bindings.ok && typeof bindings.bindings === 'object', bindings.error ?? '')
 

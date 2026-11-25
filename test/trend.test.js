@@ -154,3 +154,12 @@ test('界面：「过去 24 小时」排在「流量和到期」后面，三条�
   Object.assign(trendStore.of('jp'), { loaded: true, sar: { installed: true, off: true }, view: buildTrend({ sar: null, local: [], now }) })
   assert.match(render('jp'), />打开记录</)
 })
+
+test('同时记几个点（右侧栏和面板一起在采）：排队写，一个都不丢', async () => {
+  const home = await mkdtemp(join(tmpdir(), 'dsh-vps-trend-'))
+  const env = { HOME: home, DSH_HOME: join(home, '.dsh') }
+  const data = parseStatus('priv=root\ncpu=5')
+  const base = Date.parse('2026-11-18T10:00:00Z')
+  await Promise.all(Array.from({ length: 20 }, (_, i) => recordSample('la', data, new Date(base + i * 1000).toISOString(), env)))
+  assert.equal((await readSamples('la', env)).length, 20)
+})

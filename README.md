@@ -493,7 +493,7 @@ Your own recipes are treated as untrusted: their risk level is the stricter of w
 
   Server-side items run first, because once the local configuration and key are gone the servers can no longer be reached. Only the first two items are ticked by default
 
-The settings page's backend only accepts same-origin JSON requests carrying a token generated at random each time DSH starts. **It offers no arbitrary command execution and cannot write arbitrary files.** When DSH's web server is bound to `0.0.0.0`, operations that change a server are turned off by default.
+The settings page's backend passes the same browser check as DSH's own API (Host fence against DNS rebinding, Origin, sign-in cookie), then only accepts same-origin JSON requests carrying a token generated at random each time DSH starts. **It offers no arbitrary command execution and cannot write arbitrary files.** When DSH's web server is bound to a local-network address, operations that change a server are turned off by default.
 
 ---
 

@@ -210,3 +210,17 @@ test('不该动的时候不动：机器是导入的（不归插件管）、或�
   const empty = await mkdtemp(join(tmpdir(), 'dsh-vps-repair-'))
   assert.deepEqual((await repairSshSetup({ HOME: empty, DSH_HOME: join(empty, '.dsh') })).repaired, [], '一台机器都没有')
 })
+
+test('写进 ssh 配置的字段不能带换行：跳板机、钥匙路径里藏一行 ProxyCommand 会在本机执行命令', async () => {
+  const { validateSshFields, upsertDropinHost } = await import('../lib/config.js')
+  assert.throws(() => validateSshFields({ proxyJump: 'jump\n  ProxyCommand touch /tmp/pwned' }), /跳板机/)
+  assert.throws(() => validateSshFields({ proxyJump: '-oProxyCommand=x' }), /跳板机/)
+  assert.throws(() => validateSshFields({ identityFile: '/k\nProxyCommand x' }), /钥匙路径/)
+  validateSshFields({ proxyJump: 'admin@10.0.0.1:2222,bastion', identityFile: 'C:/Users/John Smith/.ssh/k' })
+  const home = await mkdtemp(join(tmpdir(), 'dsh-vps-cfg-'))
+  const env = { HOME: home, DSH_HOME: join(home, '.dsh') }
+  await assert.rejects(upsertDropinHost({ alias: 'a', hostname: '1.2.3.4', port: 22, user: 'root', proxyJump: 'x\nProxyCommand y' }, env), /跳板机/)
+  await upsertDropinHost({ alias: 'a', hostname: '1.2.3.4', port: 22, user: 'root', note: 'line1\r\nHost *\n  ProxyCommand y' }, env)
+  const text = await readFile(paths(env).sshDropin, 'utf8')
+  assert.equal(text.split('\n').filter((l) => /ProxyCommand/.test(l) && !l.trim().startsWith('#')).length, 0, '备注里的换行变成空格，只留在注释里')
+})
