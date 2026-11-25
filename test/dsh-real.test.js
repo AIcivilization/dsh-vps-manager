@@ -81,8 +81,9 @@ test('真实 dsh-skill：加载时要求是字符串的字段，我们的 skill 
   const { readFile } = await import('node:fs/promises')
   const lib = await readFile(`${APP}/dsh-skill/lib/index.js`, 'utf8')
   // validateDefinition 里无条件检查的那些：if (typeof X !== "string") throw … X must be a string
+  // （0.2.3-alpha 起报错类型从 TypeError 换成带错误码的 SkillError）
   // （path 这类写成 `X !== void 0 && typeof X …` 的是可选字段，不算）
-  const required = [...lib.matchAll(/if \(typeof (\w+) !== "string"\) throw new TypeError\(`loaded skill "\$\{name\}" \1 must be a string/g)].map((m) => m[1])
+  const required = [...lib.matchAll(/if \(typeof (\w+) !== "string"\) throw new (?:TypeError|SkillError)\(`loaded skill "\$\{name\}" \1 must be a string/g)].map((m) => m[1])
   assert.ok(!required.includes('path'), 'path 是可选字段')
   assert.ok(required.includes('source') && required.includes('content'), `没从源码里读到字段清单：${required}`)
 
